@@ -13,7 +13,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses;
 /// <summary>
 /// Extension methods for converting agent responses to Response models.
 /// </summary>
-internal static class AgentRunResponseExtensions
+public static class AgentRunResponseExtensions
 {
     /// <summary>
     /// Converts an AgentRunResponse to a Response model.
@@ -94,16 +94,13 @@ internal static class AgentRunResponseExtensions
             switch (content)
             {
                 case FunctionCallContent functionCallContent:
-                    // message.Role == ChatRole.Assistant
                     yield return functionCallContent.ToFunctionToolCallItemResource(idGenerator.GenerateFunctionCallId(), jsonSerializerOptions);
                     break;
                 case FunctionResultContent functionResultContent:
-                    // message.Role == ChatRole.Tool
                     yield return functionResultContent.ToFunctionToolCallOutputItemResource(
                         idGenerator.GenerateFunctionOutputId());
                     break;
                 default:
-                    // message.Role == ChatRole.Assistant
                     if (ItemContentConverter.ToItemContent(content) is { } itemContent)
                     {
                         contents.Add(itemContent);
@@ -115,11 +112,35 @@ internal static class AgentRunResponseExtensions
 
         if (contents.Count > 0)
         {
-            yield return new ResponsesAssistantMessageItemResource
+            IReadOnlyList<ItemContent> contentArray = contents.ToArray();
+            string messageId = idGenerator.GenerateMessageId();
+
+            yield return message.Role.Value.ToUpperInvariant() switch
             {
-                Id = idGenerator.GenerateMessageId(),
-                Status = ResponsesMessageItemResourceStatus.Completed,
-                Content = contents
+                "USER" => new ResponsesUserMessageItemResource
+                {
+                    Id = messageId,
+                    Status = ResponsesMessageItemResourceStatus.Completed,
+                    Content = contentArray
+                },
+                "SYSTEM" => new ResponsesSystemMessageItemResource
+                {
+                    Id = messageId,
+                    Status = ResponsesMessageItemResourceStatus.Completed,
+                    Content = contentArray
+                },
+                "DEVELOPER" => new ResponsesDeveloperMessageItemResource
+                {
+                    Id = messageId,
+                    Status = ResponsesMessageItemResourceStatus.Completed,
+                    Content = contentArray
+                },
+                _ => new ResponsesAssistantMessageItemResource
+                {
+                    Id = messageId,
+                    Status = ResponsesMessageItemResourceStatus.Completed,
+                    Content = contentArray
+                }
             };
         }
     }
@@ -165,6 +186,50 @@ internal static class AgentRunResponseExtensions
             Status = FunctionToolCallOutputItemResourceStatus.Completed,
             CallId = functionResultContent.CallId,
             Output = output
+        };
+    }
+
+    /// <summary>
+    /// Converts an InputMessage to ItemResource objects.
+    /// </summary>
+    /// <param name="inputMessage">The input message to convert.</param>
+    /// <param name="idGenerator">The ID generator to use for creating IDs.</param>
+    /// <returns>An enumerable of ItemResource objects.</returns>
+    public static IEnumerable<ItemResource> ToItemResource(this InputMessage inputMessage, IdGenerator idGenerator)
+    {
+        // Convert InputMessageContent to ItemContent array
+        IReadOnlyList<ItemContent> contentArray = inputMessage.Content.ToItemContents();
+
+        // Generate a message ID
+        string messageId = idGenerator.GenerateMessageId();
+
+        // Create the appropriate message type based on role
+        yield return inputMessage.Role.Value.ToUpperInvariant() switch
+        {
+            "USER" => new ResponsesUserMessageItemResource
+            {
+                Id = messageId,
+                Status = ResponsesMessageItemResourceStatus.Completed,
+                Content = contentArray
+            },
+            "SYSTEM" => new ResponsesSystemMessageItemResource
+            {
+                Id = messageId,
+                Status = ResponsesMessageItemResourceStatus.Completed,
+                Content = contentArray
+            },
+            "DEVELOPER" => new ResponsesDeveloperMessageItemResource
+            {
+                Id = messageId,
+                Status = ResponsesMessageItemResourceStatus.Completed,
+                Content = contentArray
+            },
+            _ => new ResponsesAssistantMessageItemResource
+            {
+                Id = messageId,
+                Status = ResponsesMessageItemResourceStatus.Completed,
+                Content = contentArray
+            }
         };
     }
 

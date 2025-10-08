@@ -9,7 +9,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
 /// <summary>
 /// Response containing created conversation items.
 /// </summary>
-internal sealed class CreateItemsResponse
+public sealed class CreateItemsResponse
 {
     /// <summary>
     /// The list of created items.

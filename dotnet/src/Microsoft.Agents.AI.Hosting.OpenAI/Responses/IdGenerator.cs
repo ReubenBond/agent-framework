@@ -10,9 +10,10 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses;
 /// <summary>
 /// Generates IDs with partition keys.
 /// </summary>
-internal sealed partial class IdGenerator
+public sealed partial class IdGenerator
 {
     private readonly string _partitionId;
+    private readonly Random? _random;
 
 #if NET9_0_OR_GREATER
     [GeneratedRegex("^[A-Za-z0-9]+$")]
@@ -27,10 +28,12 @@ internal sealed partial class IdGenerator
     /// </summary>
     /// <param name="responseId">The response ID.</param>
     /// <param name="conversationId">The conversation ID.</param>
-    public IdGenerator(string? responseId, string? conversationId)
+    /// <param name="randomSeed">Optional random seed for deterministic ID generation. When null, uses cryptographically secure random generation.</param>
+    public IdGenerator(string? responseId, string? conversationId, int? randomSeed = null)
     {
-        this.ResponseId = responseId ?? NewId("resp");
-        this.ConversationId = conversationId ?? NewId("conv");
+        this._random = randomSeed.HasValue ? new Random(randomSeed.Value) : null;
+        this.ResponseId = responseId ?? this.NewId("resp");
+        this.ConversationId = conversationId ?? this.NewId("conv");
         this._partitionId = GetPartitionIdOrDefault(this.ConversationId) ?? string.Empty;
     }
 
@@ -64,7 +67,7 @@ internal sealed partial class IdGenerator
     public string Generate(string? category = null)
     {
         var prefix = string.IsNullOrEmpty(category) ? "id" : category;
-        return NewId(prefix, partitionKey: this._partitionId);
+        return this.NewId(prefix, partitionKey: this._partitionId);
     }
 
     /// <summary>
@@ -104,13 +107,13 @@ internal sealed partial class IdGenerator
     /// <param name="partitionKeyHint">An existing ID to extract the partition key from. When provided, the same partition key will be used instead of generating a new one.</param>
     /// <returns>A new ID with format "{prefix}{delimiter}{infix}{entropy}{delimiter}{partitionKey}".</returns>
     /// <exception cref="ArgumentException">Thrown when the watermark contains non-alphanumeric characters.</exception>
-    private static string NewId(string prefix, int stringLength = 32, int partitionKeyLength = 16, string infix = "",
+    private string NewId(string prefix, int stringLength = 32, int partitionKeyLength = 16, string infix = "",
         string watermark = "", string delimiter = "_", string? partitionKey = null, string partitionKeyHint = "")
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(stringLength, 1);
-        var entropy = GetRandomString(stringLength);
+        var entropy = this.GetRandomString(stringLength);
 
-        string pKey = partitionKey ?? GetPartitionIdOrDefault(partitionKeyHint) ?? GetRandomString(partitionKeyLength);
+        string pKey = partitionKey ?? GetPartitionIdOrDefault(partitionKeyHint) ?? this.GetRandomString(partitionKeyLength);
 
         if (!string.IsNullOrEmpty(watermark))
         {
@@ -130,12 +133,29 @@ internal sealed partial class IdGenerator
 
     /// <summary>
     /// Generates a secure random alphanumeric string of the specified length.
+    /// When a random seed was provided to the constructor, uses deterministic generation.
     /// </summary>
     /// <param name="stringLength">The desired length of the random string.</param>
     /// <returns>A random alphanumeric string.</returns>
     /// <exception cref="ArgumentException">Thrown when stringLength is less than 1.</exception>
-    private static string GetRandomString(int stringLength) =>
-        RandomNumberGenerator.GetString("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789", stringLength);
+    private string GetRandomString(int stringLength)
+    {
+        const string Chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        if (this._random is not null)
+        {
+            // Use deterministic random generation when seed is provided
+            return string.Create(stringLength, this._random, static (destination, random) =>
+            {
+                for (int i = 0; i < destination.Length; i++)
+                {
+                    destination[i] = Chars[random.Next(Chars.Length)];
+                }
+            });
+        }
+
+        // Use cryptographically secure random generation when no seed is provided
+        return RandomNumberGenerator.GetString(Chars, stringLength);
+    }
 
     /// <summary>
     /// Extracts the partition key from an existing ID, or returns null if extraction fails.

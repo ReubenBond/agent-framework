@@ -267,13 +267,6 @@ public sealed class FunctionApprovalTests : ConformanceTestBase
         Assert.Contains("response.completed", eventTypes);
     }
 
-    // NOTE: Input message conversion tests for FunctionApprovalRequestContent and FunctionApprovalResponseContent
-    // are not included here because these content types are DevUI-specific streaming response events, not input
-    // message content. They should never appear in HTTP request input messages. The conversion from
-    // FunctionApprovalResponseContent to function execution results happens in the FunctionInvokingChatClient
-    // layer, not during HTTP input message parsing. Testing input conversion would create invalid test scenarios
-    // that don't reflect actual usage patterns.
-
     #endregion
 
     #region Mixed Content Tests

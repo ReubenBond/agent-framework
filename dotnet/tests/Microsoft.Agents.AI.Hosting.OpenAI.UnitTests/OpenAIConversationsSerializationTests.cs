@@ -119,16 +119,13 @@ public sealed class OpenAIConversationsSerializationTests
     public void Serialize_CreateConversationRequestWithItems_IncludesItems()
     {
         // Arrange
-        var contentArray = new[] { new System.Collections.Generic.Dictionary<string, object> { ["type"] = "text", ["text"] = "test" } };
-        var contentElement = JsonSerializer.SerializeToElement(contentArray, OpenAIJsonContext.Default.DictionaryStringObjectArray);
-
         var request = new CreateConversationRequest
         {
             Items = new ItemParam[]
             {
                 new ResponsesUserMessageItemParam
                 {
-                    Content = contentElement
+                    Content = InputMessageContent.FromContents(new ItemContentInputText { Text = "test" })
                 }
             },
             Metadata = []

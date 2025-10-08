@@ -12,8 +12,11 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Converters;
 /// </summary>
 /// <typeparam name="T">The enum type to convert.</typeparam>
 [ExcludeFromCodeCoverage]
-internal sealed class SnakeCaseEnumConverter<T> : JsonStringEnumConverter<T> where T : struct, Enum
+public sealed class SnakeCaseEnumConverter<T> : JsonStringEnumConverter<T> where T : struct, Enum
 {
+    /// <summary>
+    /// Creates a new instance of the <see cref="SnakeCaseEnumConverter{T}"/> class.
+    /// </summary>
     public SnakeCaseEnumConverter() : base(JsonNamingPolicy.SnakeCaseLower)
     {
     }

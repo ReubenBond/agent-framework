@@ -12,8 +12,12 @@
   <ItemGroup>
     <!-- Aspire.* -->
     <PackageVersion Include="Aspire.Azure.AI.OpenAI" Version="9.5.1-preview.1.25502.11" />
+    <PackageVersion Include="Aspire.Azure.Data.Tables" Version="9.5.2" />
+    <PackageVersion Include="Aspire.Azure.Storage.Blobs" Version="9.5.2" />
     <PackageVersion Include="Aspire.Hosting.AppHost" Version="$(AspireAppHostSdkVersion)" />
     <PackageVersion Include="Aspire.Hosting.Azure.CognitiveServices" Version="$(AspireAppHostSdkVersion)" />
+    <PackageVersion Include="Aspire.Hosting.Azure.Storage" Version="9.5.2" />
+    <PackageVersion Include="Aspire.Hosting.Orleans" Version="9.5.2" />
     <PackageVersion Include="Aspire.Microsoft.Azure.Cosmos" Version="$(AspireAppHostSdkVersion)" />
     <PackageVersion Include="CommunityToolkit.Aspire.OllamaSharp" Version="9.8.0" />
     <!-- Azure.* -->
@@ -24,6 +28,9 @@
     <!-- System.* -->
     <PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Bcl.HashCode" Version="6.0.0" />
+    <PackageVersion Include="Microsoft.Orleans.Clustering.AzureStorage" Version="9.2.1" />
+    <PackageVersion Include="Microsoft.Orleans.Persistence.AzureStorage" Version="9.2.1" />
+    <PackageVersion Include="Microsoft.Orleans.Reminders.AzureStorage" Version="9.2.1" />
     <PackageVersion Include="System.ClientModel" Version="1.7.0" />
     <PackageVersion Include="System.CodeDom" Version="9.0.10" />
     <PackageVersion Include="System.Collections.Immutable" Version="9.0.10" />
@@ -65,6 +72,7 @@
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="9.0.10" />
     <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery" Version="$(AspireAppHostSdkVersion)" />
+    <PackageVersion Include="Microsoft.Extensions.ServiceDiscovery.Yarp" Version="9.4.2" />
     <!-- Vector Stores -->
     <PackageVersion Include="Microsoft.SemanticKernel" Version="1.66.0" />
     <PackageVersion Include="Microsoft.SemanticKernel.Connectors.InMemory" Version="1.66.0-preview" />
@@ -144,5 +152,13 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <!-- YARP -->
+    <PackageVersion Include="Yarp.ReverseProxy" Version="2.3.0" />
+    <!-- Orleans -->
+    <PackageVersion Include="Microsoft.Orleans.Reminders" Version="9.2.1" />
+    <PackageVersion Include="Microsoft.Orleans.Runtime" Version="9.2.1" />
+    <PackageVersion Include="Microsoft.Orleans.Server" Version="9.2.1" />
+    <PackageVersion Include="Microsoft.Orleans.Serialization.SystemTextJson" Version="9.2.1" />
+    <PackageVersion Include="Microsoft.Orleans.TestingHost" Version="9.2.1" />
   </ItemGroup>
 </Project>

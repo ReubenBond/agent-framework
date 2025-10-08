@@ -9,7 +9,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
 /// <summary>
 /// Request to create items in a conversation.
 /// </summary>
-internal sealed record CreateItemsRequest
+public sealed record CreateItemsRequest
 {
     /// <summary>
     /// The items to add to the conversation. You may add up to 20 items at a time.
