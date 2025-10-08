@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Text.Json.Serialization;
 
@@ -7,7 +7,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 /// <summary>
 /// Options for streaming responses. Only set this when you set stream: true.
 /// </summary>
-internal sealed record StreamOptions
+public sealed record StreamOptions
 {
     /// <summary>
     /// If set, an additional chunk will be streamed before the data: [DONE] message.

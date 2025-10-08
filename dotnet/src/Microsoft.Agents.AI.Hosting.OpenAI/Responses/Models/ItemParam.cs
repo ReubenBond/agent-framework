@@ -12,7 +12,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 /// Unlike ItemResource, ItemParam does not have an ID field - the server generates IDs upon creation.
 /// </summary>
 [JsonConverter(typeof(ItemParamConverter))]
-internal abstract record ItemParam
+public abstract record ItemParam
 {
     /// <summary>
     /// The type of the item.
@@ -25,7 +25,7 @@ internal abstract record ItemParam
 /// Base class for message item parameters.
 /// </summary>
 [JsonConverter(typeof(ResponsesMessageItemParamConverter))]
-internal abstract record ResponsesMessageItemParam : ItemParam
+public abstract record ResponsesMessageItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for message items.
@@ -45,7 +45,7 @@ internal abstract record ResponsesMessageItemParam : ItemParam
 /// <summary>
 /// A user message item parameter.
 /// </summary>
-internal sealed record ResponsesUserMessageItemParam : ResponsesMessageItemParam
+public sealed record ResponsesUserMessageItemParam : ResponsesMessageItemParam
 {
     /// <summary>
     /// The constant role type identifier for user messages.
@@ -66,7 +66,7 @@ internal sealed record ResponsesUserMessageItemParam : ResponsesMessageItemParam
 /// <summary>
 /// An assistant message item parameter.
 /// </summary>
-internal sealed record ResponsesAssistantMessageItemParam : ResponsesMessageItemParam
+public sealed record ResponsesAssistantMessageItemParam : ResponsesMessageItemParam
 {
     /// <summary>
     /// The constant role type identifier for assistant messages.
@@ -87,7 +87,7 @@ internal sealed record ResponsesAssistantMessageItemParam : ResponsesMessageItem
 /// <summary>
 /// A system message item parameter.
 /// </summary>
-internal sealed record ResponsesSystemMessageItemParam : ResponsesMessageItemParam
+public sealed record ResponsesSystemMessageItemParam : ResponsesMessageItemParam
 {
     /// <summary>
     /// The constant role type identifier for system messages.
@@ -108,7 +108,7 @@ internal sealed record ResponsesSystemMessageItemParam : ResponsesMessageItemPar
 /// <summary>
 /// A developer message item parameter.
 /// </summary>
-internal sealed record ResponsesDeveloperMessageItemParam : ResponsesMessageItemParam
+public sealed record ResponsesDeveloperMessageItemParam : ResponsesMessageItemParam
 {
     /// <summary>
     /// The constant role type identifier for developer messages.
@@ -129,7 +129,7 @@ internal sealed record ResponsesDeveloperMessageItemParam : ResponsesMessageItem
 /// <summary>
 /// A function tool call item parameter.
 /// </summary>
-internal sealed record FunctionToolCallItemParam : ItemParam
+public sealed record FunctionToolCallItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for function call items.
@@ -161,7 +161,7 @@ internal sealed record FunctionToolCallItemParam : ItemParam
 /// <summary>
 /// A function tool call output item parameter.
 /// </summary>
-internal sealed record FunctionToolCallOutputItemParam : ItemParam
+public sealed record FunctionToolCallOutputItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for function call output items.
@@ -187,7 +187,7 @@ internal sealed record FunctionToolCallOutputItemParam : ItemParam
 /// <summary>
 /// A file search tool call item parameter.
 /// </summary>
-internal sealed record FileSearchToolCallItemParam : ItemParam
+public sealed record FileSearchToolCallItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for file search call items.
@@ -201,6 +201,7 @@ internal sealed record FileSearchToolCallItemParam : ItemParam
     /// The queries used to search for files.
     /// </summary>
     [JsonPropertyName("queries")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "Matches OpenAI API specification")]
     public required string[] Queries { get; init; }
 
     /// <summary>
@@ -213,7 +214,7 @@ internal sealed record FileSearchToolCallItemParam : ItemParam
 /// <summary>
 /// A computer tool call item parameter.
 /// </summary>
-internal sealed record ComputerToolCallItemParam : ItemParam
+public sealed record ComputerToolCallItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for computer call items.
@@ -239,13 +240,14 @@ internal sealed record ComputerToolCallItemParam : ItemParam
     /// The pending safety checks for the computer call.
     /// </summary>
     [JsonPropertyName("pending_safety_checks")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "Matches OpenAI API specification")]
     public object[]? PendingSafetyChecks { get; init; }
 }
 
 /// <summary>
 /// A computer tool call output item parameter.
 /// </summary>
-internal sealed record ComputerToolCallOutputItemParam : ItemParam
+public sealed record ComputerToolCallOutputItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for computer call output items.
@@ -265,6 +267,7 @@ internal sealed record ComputerToolCallOutputItemParam : ItemParam
     /// The safety checks reported by the API that have been acknowledged by the developer.
     /// </summary>
     [JsonPropertyName("acknowledged_safety_checks")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "Matches OpenAI API specification")]
     public object[]? AcknowledgedSafetyChecks { get; init; }
 
     /// <summary>
@@ -277,7 +280,7 @@ internal sealed record ComputerToolCallOutputItemParam : ItemParam
 /// <summary>
 /// A web search tool call item parameter.
 /// </summary>
-internal sealed record WebSearchToolCallItemParam : ItemParam
+public sealed record WebSearchToolCallItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for web search call items.
@@ -297,7 +300,7 @@ internal sealed record WebSearchToolCallItemParam : ItemParam
 /// <summary>
 /// A reasoning item parameter.
 /// </summary>
-internal sealed record ReasoningItemParam : ItemParam
+public sealed record ReasoningItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for reasoning items.
@@ -317,13 +320,14 @@ internal sealed record ReasoningItemParam : ItemParam
     /// Reasoning text contents.
     /// </summary>
     [JsonPropertyName("summary")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "Matches OpenAI API specification")]
     public object[]? Summary { get; init; }
 }
 
 /// <summary>
 /// An item reference item parameter.
 /// </summary>
-internal sealed record ItemReferenceItemParam : ItemParam
+public sealed record ItemReferenceItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for item reference items.
@@ -343,7 +347,7 @@ internal sealed record ItemReferenceItemParam : ItemParam
 /// <summary>
 /// An image generation tool call item parameter.
 /// </summary>
-internal sealed record ImageGenerationToolCallItemParam : ItemParam
+public sealed record ImageGenerationToolCallItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for image generation call items.
@@ -357,7 +361,7 @@ internal sealed record ImageGenerationToolCallItemParam : ItemParam
 /// <summary>
 /// A code interpreter tool call item parameter.
 /// </summary>
-internal sealed record CodeInterpreterToolCallItemParam : ItemParam
+public sealed record CodeInterpreterToolCallItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for code interpreter call items.
@@ -371,7 +375,7 @@ internal sealed record CodeInterpreterToolCallItemParam : ItemParam
 /// <summary>
 /// A local shell tool call item parameter.
 /// </summary>
-internal sealed record LocalShellToolCallItemParam : ItemParam
+public sealed record LocalShellToolCallItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for local shell call items.
@@ -385,7 +389,7 @@ internal sealed record LocalShellToolCallItemParam : ItemParam
 /// <summary>
 /// A local shell tool call output item parameter.
 /// </summary>
-internal sealed record LocalShellToolCallOutputItemParam : ItemParam
+public sealed record LocalShellToolCallOutputItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for local shell call output items.
@@ -399,7 +403,7 @@ internal sealed record LocalShellToolCallOutputItemParam : ItemParam
 /// <summary>
 /// An MCP list tools item parameter.
 /// </summary>
-internal sealed record MCPListToolsItemParam : ItemParam
+public sealed record MCPListToolsItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for MCP list tools items.
@@ -413,7 +417,7 @@ internal sealed record MCPListToolsItemParam : ItemParam
 /// <summary>
 /// An MCP approval request item parameter.
 /// </summary>
-internal sealed record MCPApprovalRequestItemParam : ItemParam
+public sealed record MCPApprovalRequestItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for MCP approval request items.
@@ -427,7 +431,7 @@ internal sealed record MCPApprovalRequestItemParam : ItemParam
 /// <summary>
 /// An MCP approval response item parameter.
 /// </summary>
-internal sealed record MCPApprovalResponseItemParam : ItemParam
+public sealed record MCPApprovalResponseItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for MCP approval response items.
@@ -441,7 +445,7 @@ internal sealed record MCPApprovalResponseItemParam : ItemParam
 /// <summary>
 /// An MCP call item parameter.
 /// </summary>
-internal sealed record MCPCallItemParam : ItemParam
+public sealed record MCPCallItemParam : ItemParam
 {
     /// <summary>
     /// The constant item type identifier for MCP call items.

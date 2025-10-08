@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Collections.Generic;
 using System.Text.Json;
@@ -12,7 +12,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 /// Base class for all item resources (output items from a response).
 /// </summary>
 [JsonConverter(typeof(ItemResourceConverter))]
-internal abstract record ItemResource
+public abstract record ItemResource
 {
     /// <summary>
     /// The unique identifier for the item.
@@ -31,7 +31,7 @@ internal abstract record ItemResource
 /// Base class for message item resources.
 /// </summary>
 [JsonConverter(typeof(ResponsesMessageItemResourceConverter))]
-internal abstract record ResponsesMessageItemResource : ItemResource
+public abstract record ResponsesMessageItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for message items.
@@ -57,7 +57,7 @@ internal abstract record ResponsesMessageItemResource : ItemResource
 /// <summary>
 /// An assistant message item resource.
 /// </summary>
-internal sealed record ResponsesAssistantMessageItemResource : ResponsesMessageItemResource
+public sealed record ResponsesAssistantMessageItemResource : ResponsesMessageItemResource
 {
     /// <summary>
     /// The constant role type identifier for assistant messages.
@@ -77,7 +77,7 @@ internal sealed record ResponsesAssistantMessageItemResource : ResponsesMessageI
 /// <summary>
 /// A user message item resource.
 /// </summary>
-internal sealed record ResponsesUserMessageItemResource : ResponsesMessageItemResource
+public sealed record ResponsesUserMessageItemResource : ResponsesMessageItemResource
 {
     /// <summary>
     /// The constant role type identifier for user messages.
@@ -97,7 +97,7 @@ internal sealed record ResponsesUserMessageItemResource : ResponsesMessageItemRe
 /// <summary>
 /// A system message item resource.
 /// </summary>
-internal sealed record ResponsesSystemMessageItemResource : ResponsesMessageItemResource
+public sealed record ResponsesSystemMessageItemResource : ResponsesMessageItemResource
 {
     /// <summary>
     /// The constant role type identifier for system messages.
@@ -117,7 +117,7 @@ internal sealed record ResponsesSystemMessageItemResource : ResponsesMessageItem
 /// <summary>
 /// A developer message item resource.
 /// </summary>
-internal sealed record ResponsesDeveloperMessageItemResource : ResponsesMessageItemResource
+public sealed record ResponsesDeveloperMessageItemResource : ResponsesMessageItemResource
 {
     /// <summary>
     /// The constant role type identifier for developer messages.
@@ -137,7 +137,7 @@ internal sealed record ResponsesDeveloperMessageItemResource : ResponsesMessageI
 /// <summary>
 /// A function tool call item resource.
 /// </summary>
-internal sealed record FunctionToolCallItemResource : ItemResource
+public sealed record FunctionToolCallItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for function call items.
@@ -175,7 +175,7 @@ internal sealed record FunctionToolCallItemResource : ItemResource
 /// <summary>
 /// A function tool call output item resource.
 /// </summary>
-internal sealed record FunctionToolCallOutputItemResource : ItemResource
+public sealed record FunctionToolCallOutputItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for function call output items.
@@ -266,7 +266,7 @@ public enum FunctionToolCallOutputItemResourceStatus
 [JsonDerivedType(typeof(ItemContentOutputText), "output_text")]
 [JsonDerivedType(typeof(ItemContentOutputAudio), "output_audio")]
 [JsonDerivedType(typeof(ItemContentRefusal), "refusal")]
-internal abstract record ItemContent
+public abstract record ItemContent
 {
     /// <summary>
     /// The type of the content.
@@ -285,7 +285,7 @@ internal abstract record ItemContent
 /// <summary>
 /// Text input content.
 /// </summary>
-internal sealed record ItemContentInputText : ItemContent
+public sealed record ItemContentInputText : ItemContent
 {
     /// <inheritdoc/>
     [JsonIgnore]
@@ -301,7 +301,7 @@ internal sealed record ItemContentInputText : ItemContent
 /// <summary>
 /// Audio input content.
 /// </summary>
-internal sealed record ItemContentInputAudio : ItemContent
+public sealed record ItemContentInputAudio : ItemContent
 {
     /// <inheritdoc/>
     [JsonIgnore]
@@ -323,7 +323,7 @@ internal sealed record ItemContentInputAudio : ItemContent
 /// <summary>
 /// Image input content.
 /// </summary>
-internal sealed record ItemContentInputImage : ItemContent
+public sealed record ItemContentInputImage : ItemContent
 {
     /// <inheritdoc/>
     [JsonIgnore]
@@ -352,7 +352,7 @@ internal sealed record ItemContentInputImage : ItemContent
 /// <summary>
 /// File input content.
 /// </summary>
-internal sealed record ItemContentInputFile : ItemContent
+public sealed record ItemContentInputFile : ItemContent
 {
     /// <inheritdoc/>
     [JsonIgnore]
@@ -380,7 +380,7 @@ internal sealed record ItemContentInputFile : ItemContent
 /// <summary>
 /// Text output content.
 /// </summary>
-internal sealed record ItemContentOutputText : ItemContent
+public sealed record ItemContentOutputText : ItemContent
 {
     /// <inheritdoc/>
     [JsonIgnore]
@@ -408,7 +408,7 @@ internal sealed record ItemContentOutputText : ItemContent
 /// <summary>
 /// Audio output content.
 /// </summary>
-internal sealed record ItemContentOutputAudio : ItemContent
+public sealed record ItemContentOutputAudio : ItemContent
 {
     /// <inheritdoc/>
     [JsonIgnore]
@@ -430,7 +430,7 @@ internal sealed record ItemContentOutputAudio : ItemContent
 /// <summary>
 /// Refusal content.
 /// </summary>
-internal sealed record ItemContentRefusal : ItemContent
+public sealed record ItemContentRefusal : ItemContent
 {
     /// <inheritdoc/>
     [JsonIgnore]
@@ -448,7 +448,7 @@ internal sealed record ItemContentRefusal : ItemContent
 /// <summary>
 /// A file search tool call item resource.
 /// </summary>
-internal sealed record FileSearchToolCallItemResource : ItemResource
+public sealed record FileSearchToolCallItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for file search call items.
@@ -468,7 +468,7 @@ internal sealed record FileSearchToolCallItemResource : ItemResource
 /// <summary>
 /// A computer tool call item resource.
 /// </summary>
-internal sealed record ComputerToolCallItemResource : ItemResource
+public sealed record ComputerToolCallItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for computer call items.
@@ -488,7 +488,7 @@ internal sealed record ComputerToolCallItemResource : ItemResource
 /// <summary>
 /// A computer tool call output item resource.
 /// </summary>
-internal sealed record ComputerToolCallOutputItemResource : ItemResource
+public sealed record ComputerToolCallOutputItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for computer call output items.
@@ -508,7 +508,7 @@ internal sealed record ComputerToolCallOutputItemResource : ItemResource
 /// <summary>
 /// A web search tool call item resource.
 /// </summary>
-internal sealed record WebSearchToolCallItemResource : ItemResource
+public sealed record WebSearchToolCallItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for web search call items.
@@ -528,7 +528,7 @@ internal sealed record WebSearchToolCallItemResource : ItemResource
 /// <summary>
 /// A reasoning item resource.
 /// </summary>
-internal sealed record ReasoningItemResource : ItemResource
+public sealed record ReasoningItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for reasoning items.
@@ -548,7 +548,7 @@ internal sealed record ReasoningItemResource : ItemResource
 /// <summary>
 /// An item reference item resource.
 /// </summary>
-internal sealed record ItemReferenceItemResource : ItemResource
+public sealed record ItemReferenceItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for item reference items.
@@ -562,7 +562,7 @@ internal sealed record ItemReferenceItemResource : ItemResource
 /// <summary>
 /// An image generation tool call item resource.
 /// </summary>
-internal sealed record ImageGenerationToolCallItemResource : ItemResource
+public sealed record ImageGenerationToolCallItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for image generation call items.
@@ -582,7 +582,7 @@ internal sealed record ImageGenerationToolCallItemResource : ItemResource
 /// <summary>
 /// A code interpreter tool call item resource.
 /// </summary>
-internal sealed record CodeInterpreterToolCallItemResource : ItemResource
+public sealed record CodeInterpreterToolCallItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for code interpreter call items.
@@ -602,7 +602,7 @@ internal sealed record CodeInterpreterToolCallItemResource : ItemResource
 /// <summary>
 /// A local shell tool call item resource.
 /// </summary>
-internal sealed record LocalShellToolCallItemResource : ItemResource
+public sealed record LocalShellToolCallItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for local shell call items.
@@ -622,7 +622,7 @@ internal sealed record LocalShellToolCallItemResource : ItemResource
 /// <summary>
 /// A local shell tool call output item resource.
 /// </summary>
-internal sealed record LocalShellToolCallOutputItemResource : ItemResource
+public sealed record LocalShellToolCallOutputItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for local shell call output items.
@@ -642,7 +642,7 @@ internal sealed record LocalShellToolCallOutputItemResource : ItemResource
 /// <summary>
 /// An MCP list tools item resource.
 /// </summary>
-internal sealed record MCPListToolsItemResource : ItemResource
+public sealed record MCPListToolsItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for MCP list tools items.
@@ -656,7 +656,7 @@ internal sealed record MCPListToolsItemResource : ItemResource
 /// <summary>
 /// An MCP approval request item resource.
 /// </summary>
-internal sealed record MCPApprovalRequestItemResource : ItemResource
+public sealed record MCPApprovalRequestItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for MCP approval request items.
@@ -670,7 +670,7 @@ internal sealed record MCPApprovalRequestItemResource : ItemResource
 /// <summary>
 /// An MCP approval response item resource.
 /// </summary>
-internal sealed record MCPApprovalResponseItemResource : ItemResource
+public sealed record MCPApprovalResponseItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for MCP approval response items.
@@ -684,7 +684,7 @@ internal sealed record MCPApprovalResponseItemResource : ItemResource
 /// <summary>
 /// An MCP call item resource.
 /// </summary>
-internal sealed record MCPCallItemResource : ItemResource
+public sealed record MCPCallItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for MCP call items.

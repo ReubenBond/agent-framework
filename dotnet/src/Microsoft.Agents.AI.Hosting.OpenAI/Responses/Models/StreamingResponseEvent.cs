@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Collections.Generic;
 using System.Text.Json;
@@ -29,7 +29,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 [JsonDerivedType(typeof(StreamingWorkflowEventComplete), StreamingWorkflowEventComplete.EventType)]
 [JsonDerivedType(typeof(StreamingFunctionApprovalRequested), StreamingFunctionApprovalRequested.EventType)]
 [JsonDerivedType(typeof(StreamingFunctionApprovalResponded), StreamingFunctionApprovalResponded.EventType)]
-internal abstract record StreamingResponseEvent
+public abstract record StreamingResponseEvent
 {
     /// <summary>
     /// Gets the type identifier for the streaming response event.
@@ -50,7 +50,7 @@ internal abstract record StreamingResponseEvent
 /// Represents a streaming response event indicating that a new response has been created and streaming has begun.
 /// This is typically the first event sent in a streaming response sequence.
 /// </summary>
-internal sealed record StreamingResponseCreated : StreamingResponseEvent
+public sealed record StreamingResponseCreated : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for response created events.
@@ -72,7 +72,7 @@ internal sealed record StreamingResponseCreated : StreamingResponseEvent
 /// <summary>
 /// Represents a streaming response event indicating that the response is in progress.
 /// </summary>
-internal sealed record StreamingResponseInProgress : StreamingResponseEvent
+public sealed record StreamingResponseInProgress : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for response in progress events.
@@ -94,7 +94,7 @@ internal sealed record StreamingResponseInProgress : StreamingResponseEvent
 /// Represents a streaming response event indicating that the response has been completed.
 /// This is typically the last event sent in a streaming response sequence.
 /// </summary>
-internal sealed record StreamingResponseCompleted : StreamingResponseEvent
+public sealed record StreamingResponseCompleted : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for response completed events.
@@ -116,7 +116,7 @@ internal sealed record StreamingResponseCompleted : StreamingResponseEvent
 /// <summary>
 /// Represents a streaming response event indicating that the response finished as incomplete.
 /// </summary>
-internal sealed record StreamingResponseIncomplete : StreamingResponseEvent
+public sealed record StreamingResponseIncomplete : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for response incomplete events.
@@ -137,7 +137,7 @@ internal sealed record StreamingResponseIncomplete : StreamingResponseEvent
 /// <summary>
 /// Represents a streaming response event indicating that the response has failed.
 /// </summary>
-internal sealed record StreamingResponseFailed : StreamingResponseEvent
+public sealed record StreamingResponseFailed : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for response failed events.
@@ -159,7 +159,7 @@ internal sealed record StreamingResponseFailed : StreamingResponseEvent
 /// Represents a streaming response event indicating that a new output item has been added to the response.
 /// This event is sent when the AI agent produces a new piece of content during streaming.
 /// </summary>
-internal sealed record StreamingOutputItemAdded : StreamingResponseEvent
+public sealed record StreamingOutputItemAdded : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for output item added events.
@@ -189,7 +189,7 @@ internal sealed record StreamingOutputItemAdded : StreamingResponseEvent
 /// Represents a streaming response event indicating that an output item has been completed.
 /// This event is sent when the AI agent finishes producing a particular piece of content.
 /// </summary>
-internal sealed record StreamingOutputItemDone : StreamingResponseEvent
+public sealed record StreamingOutputItemDone : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for output item done events.
@@ -218,7 +218,7 @@ internal sealed record StreamingOutputItemDone : StreamingResponseEvent
 /// <summary>
 /// Represents a streaming response event indicating that a new content part has been added to an output item.
 /// </summary>
-internal sealed record StreamingContentPartAdded : StreamingResponseEvent
+public sealed record StreamingContentPartAdded : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for content part added events.
@@ -257,7 +257,7 @@ internal sealed record StreamingContentPartAdded : StreamingResponseEvent
 /// <summary>
 /// Represents a streaming response event indicating that a content part has been completed.
 /// </summary>
-internal sealed record StreamingContentPartDone : StreamingResponseEvent
+public sealed record StreamingContentPartDone : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for content part done events.
@@ -296,7 +296,7 @@ internal sealed record StreamingContentPartDone : StreamingResponseEvent
 /// <summary>
 /// Represents a streaming response event containing a text delta (incremental text chunk).
 /// </summary>
-internal sealed record StreamingOutputTextDelta : StreamingResponseEvent
+public sealed record StreamingOutputTextDelta : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for output text delta events.
@@ -341,7 +341,7 @@ internal sealed record StreamingOutputTextDelta : StreamingResponseEvent
 /// <summary>
 /// Represents a streaming response event indicating that output text has been completed.
 /// </summary>
-internal sealed record StreamingOutputTextDone : StreamingResponseEvent
+public sealed record StreamingOutputTextDone : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for output text done events.
@@ -380,7 +380,7 @@ internal sealed record StreamingOutputTextDone : StreamingResponseEvent
 /// <summary>
 /// Represents a streaming response event containing a function call arguments delta.
 /// </summary>
-internal sealed record StreamingFunctionCallArgumentsDelta : StreamingResponseEvent
+public sealed record StreamingFunctionCallArgumentsDelta : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for function call arguments delta events.
@@ -413,7 +413,7 @@ internal sealed record StreamingFunctionCallArgumentsDelta : StreamingResponseEv
 /// <summary>
 /// Represents a streaming response event indicating that function call arguments are complete.
 /// </summary>
-internal sealed record StreamingFunctionCallArgumentsDone : StreamingResponseEvent
+public sealed record StreamingFunctionCallArgumentsDone : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for function call arguments done events.
@@ -446,7 +446,7 @@ internal sealed record StreamingFunctionCallArgumentsDone : StreamingResponseEve
 /// <summary>
 /// Represents a streaming response event containing a reasoning summary text delta (incremental text chunk).
 /// </summary>
-internal sealed record StreamingReasoningSummaryTextDelta : StreamingResponseEvent
+public sealed record StreamingReasoningSummaryTextDelta : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for reasoning summary text delta events.
@@ -485,7 +485,7 @@ internal sealed record StreamingReasoningSummaryTextDelta : StreamingResponseEve
 /// <summary>
 /// Represents a streaming response event indicating that reasoning summary text has been completed.
 /// </summary>
-internal sealed record StreamingReasoningSummaryTextDone : StreamingResponseEvent
+public sealed record StreamingReasoningSummaryTextDone : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for reasoning summary text done events.
@@ -526,7 +526,7 @@ internal sealed record StreamingReasoningSummaryTextDone : StreamingResponseEven
 /// This event is sent during workflow execution to provide observability into workflow steps,
 /// executor invocations, errors, and other workflow lifecycle events.
 /// </summary>
-internal sealed record StreamingWorkflowEventComplete : StreamingResponseEvent
+public sealed record StreamingWorkflowEventComplete : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for workflow event events.
@@ -566,7 +566,7 @@ internal sealed record StreamingWorkflowEventComplete : StreamingResponseEvent
 /// Represents a streaming response event indicating a function approval has been requested.
 /// This is a non-standard DevUI extension for human-in-the-loop scenarios.
 /// </summary>
-internal sealed record StreamingFunctionApprovalRequested : StreamingResponseEvent
+public sealed record StreamingFunctionApprovalRequested : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for function approval requested events.
@@ -606,7 +606,7 @@ internal sealed record StreamingFunctionApprovalRequested : StreamingResponseEve
 /// Represents a streaming response event indicating a function approval has been responded to.
 /// This is a non-standard DevUI extension for human-in-the-loop scenarios.
 /// </summary>
-internal sealed record StreamingFunctionApprovalResponded : StreamingResponseEvent
+public sealed record StreamingFunctionApprovalResponded : StreamingResponseEvent
 {
     /// <summary>
     /// The constant event type identifier for function approval responded events.
@@ -645,7 +645,7 @@ internal sealed record StreamingFunctionApprovalResponded : StreamingResponseEve
 /// <summary>
 /// Represents function call information for approval events.
 /// </summary>
-internal sealed record FunctionCallInfo
+public sealed record FunctionCallInfo
 {
     /// <summary>
     /// Gets or sets the function call ID.

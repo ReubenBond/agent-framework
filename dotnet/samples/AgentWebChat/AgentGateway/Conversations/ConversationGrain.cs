@@ -1,0 +1,324 @@
+// Copyright (c) Microsoft. All rights reserved.
+
+using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
+using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
+
+namespace AgentGateway.Conversations;
+
+/// <summary>
+/// State for a conversation grain, containing the conversation metadata and its items.
+/// </summary>
+[GenerateSerializer]
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes", Justification = "Instantiated by Orleans framework")]
+internal sealed class ConversationState
+{
+    /// <summary>
+    /// The conversation metadata.
+    /// </summary>
+    [Id(0)]
+    public Conversation? Conversation { get; set; }
+
+    /// <summary>
+    /// Items (messages) in the conversation, keyed by item ID, maintaining insertion order.
+    /// </summary>
+    [Id(1)]
+    public OrderedDictionary<string, ItemResource> Items { get; set; } = new();
+}
+
+/// <summary>
+/// Grain interface for managing a single conversation and its messages.
+/// </summary>
+public interface IConversationGrain : IGrainWithStringKey
+{
+    /// <summary>
+    /// Creates a new conversation.
+    /// </summary>
+    /// <param name="conversation">The conversation to create.</param>
+    /// <returns>The created conversation.</returns>
+    Task<Conversation> CreateAsync(Conversation conversation);
+
+    /// <summary>
+    /// Gets the conversation.
+    /// </summary>
+    /// <returns>The conversation if it exists, null otherwise.</returns>
+    Task<Conversation?> GetAsync();
+
+    /// <summary>
+    /// Updates the conversation.
+    /// </summary>
+    /// <param name="conversation">The conversation with updated values.</param>
+    /// <returns>The updated conversation if found, null otherwise.</returns>
+    Task<Conversation?> UpdateAsync(Conversation conversation);
+
+    /// <summary>
+    /// Deletes the conversation and all its messages.
+    /// </summary>
+    /// <returns>True if deleted, false if not found.</returns>
+    Task<bool> DeleteAsync();
+
+    /// <summary>
+    /// Adds an item to the conversation.
+    /// </summary>
+    /// <param name="item">The item to add.</param>
+    /// <returns>The created item.</returns>
+    Task<ItemResource> AddItemAsync(ItemResource item);
+
+    /// <summary>
+    /// Gets an item by ID.
+    /// </summary>
+    /// <param name="itemId">The item ID.</param>
+    /// <returns>The item if found, null otherwise.</returns>
+    Task<ItemResource?> GetItemAsync(string itemId);
+
+    /// <summary>
+    /// Lists items in the conversation with pagination.
+    /// </summary>
+    /// <param name="limit">Maximum number of items to return.</param>
+    /// <param name="order">Sort order.</param>
+    /// <param name="after">Return items after this ID.</param>
+    /// <returns>A list response with items and pagination info.</returns>
+    Task<ListResponse<ItemResource>> ListItemsAsync(int limit, SortOrder order, string? after);
+
+    /// <summary>
+    /// Deletes a specific item from the conversation.
+    /// </summary>
+    /// <param name="itemId">The item ID.</param>
+    /// <returns>True if deleted, false if not found.</returns>
+    Task<bool> DeleteItemAsync(string itemId);
+
+    /// <summary>
+    /// Appends multiple items to the conversation in an idempotent manner.
+    /// </summary>
+    /// <param name="items">The items to append.</param>
+    /// <param name="afterItemId">The ID of the last item that must exist before appending. If null, items are appended if the conversation is empty.</param>
+    /// <returns>The number of items actually appended (0 if the operation was a duplicate/retry).</returns>
+    /// <exception cref="InvalidOperationException">Thrown if the afterItemId doesn't match the last item in the conversation.</exception>
+    Task<int> AppendItemsAsync(IReadOnlyList<ItemResource> items, string? afterItemId);
+
+    /// <summary>
+    /// Gets all items in the conversation as an async stream.
+    /// </summary>
+    /// <param name="order">Sort order for the items.</param>
+    /// <returns>An async enumerable of all items in the conversation.</returns>
+    IAsyncEnumerable<ItemResource> GetAllItemsAsync(SortOrder order = SortOrder.Ascending);
+}
+
+/// <summary>
+/// Orleans grain implementation for managing a conversation and its messages.
+/// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes", Justification = "Instantiated by Orleans framework")]
+internal sealed class ConversationGrain([PersistentState("state")] IPersistentState<ConversationState> conversationState) : Grain, IConversationGrain
+{
+    public async Task<Conversation> CreateAsync(Conversation conversation)
+    {
+        if (conversationState.State.Conversation is not null)
+        {
+            throw new InvalidOperationException($"Conversation with ID '{conversation.Id}' already exists.");
+        }
+
+        conversationState.State.Conversation = conversation;
+        await conversationState.WriteStateAsync();
+        return conversation;
+    }
+
+    public Task<Conversation?> GetAsync()
+    {
+        return Task.FromResult(conversationState.State.Conversation);
+    }
+
+    public async Task<Conversation?> UpdateAsync(Conversation conversation)
+    {
+        if (conversationState.State.Conversation is null)
+        {
+            return null;
+        }
+
+        conversationState.State.Conversation = conversation;
+        await conversationState.WriteStateAsync();
+        return conversation;
+    }
+
+    public async Task<bool> DeleteAsync()
+    {
+        if (conversationState.State.Conversation is null)
+        {
+            return false;
+        }
+
+        await conversationState.ClearStateAsync();
+        return true;
+    }
+
+    public async Task<ItemResource> AddItemAsync(ItemResource item)
+    {
+        if (conversationState.State.Conversation is null)
+        {
+            throw new InvalidOperationException("Conversation not found.");
+        }
+
+        if (conversationState.State.Items.ContainsKey(item.Id))
+        {
+            throw new InvalidOperationException($"Item with ID '{item.Id}' already exists in conversation.");
+        }
+
+        conversationState.State.Items[item.Id] = item;
+        await conversationState.WriteStateAsync();
+        return item;
+    }
+
+    public Task<ItemResource?> GetItemAsync(string itemId)
+    {
+        conversationState.State.Items.TryGetValue(itemId, out var item);
+        return Task.FromResult(item);
+    }
+
+    public Task<ListResponse<ItemResource>> ListItemsAsync(int limit, SortOrder order, string? after)
+    {
+        if (conversationState.State.Conversation is null)
+        {
+            throw new InvalidOperationException($"Conversation '{this.GetPrimaryKeyString()}' not found.");
+        }
+
+        limit = Math.Clamp(limit, 1, 100);
+
+        var items = conversationState.State.Items;
+        var count = items.Count;
+        var isAscending = order.IsAscending();
+
+        // Determine iteration direction and bounds in insertion order space
+        int startIndex = 0;
+        int endIndex = count;
+
+        // Handle pagination cursor
+        if (!string.IsNullOrEmpty(after))
+        {
+            var afterIndex = items.IndexOf(after);
+            if (afterIndex >= 0)
+            {
+                // In ascending order: after means skip to next item (afterIndex + 1)
+                // In descending order: after means we're going backwards from afterIndex
+                if (isAscending)
+                {
+                    startIndex = afterIndex + 1;
+                }
+                else
+                {
+                    endIndex = afterIndex;
+                }
+            }
+        }
+
+        var result = new List<ItemResource>();
+
+        for (int i = 0; i < Math.Min(limit + 1, endIndex - startIndex); i++)
+        {
+            var index = isAscending ? startIndex + i : endIndex - 1 - i;
+            if (index >= startIndex && index < endIndex)
+            {
+                result.Add(items.GetAt(index).Value);
+            }
+        }
+
+        var hasMore = result.Count > limit;
+        if (hasMore)
+        {
+            result.RemoveAt(result.Count - 1);
+        }
+
+        return Task.FromResult(new ListResponse<ItemResource>
+        {
+            Data = result,
+            FirstId = result.Count > 0 ? result[0].Id : null,
+            LastId = result.Count > 0 ? result[^1].Id : null,
+            HasMore = hasMore
+        });
+    }
+
+    public async Task<bool> DeleteItemAsync(string itemId)
+    {
+        if (conversationState.State.Items.Remove(itemId))
+        {
+            await conversationState.WriteStateAsync();
+            return true;
+        }
+
+        return false;
+    }
+
+    public async Task<int> AppendItemsAsync(IReadOnlyList<ItemResource> items, string? afterItemId)
+    {
+        if (conversationState.State.Conversation is null)
+        {
+            throw new InvalidOperationException($"Conversation '{this.GetPrimaryKeyString()}' not found.");
+        }
+
+        if (items.Count == 0)
+        {
+            return 0;
+        }
+
+        var currentItems = conversationState.State.Items;
+        var lastItemId = currentItems.Count > 0 ? currentItems.GetAt(currentItems.Count - 1).Key : null;
+
+        // Idempotency check: verify the 'after' condition
+        if (afterItemId != lastItemId)
+        {
+            // Check if this is a retry - all items already exist
+            if (items.All(m => currentItems.ContainsKey(m.Id)))
+            {
+                // This appears to be a retry of a successful operation
+                return 0;
+            }
+
+            throw new InvalidOperationException(
+                $"Cannot append items: expected last item to be '{afterItemId}' but found '{lastItemId}'. " +
+                "This may indicate concurrent modification or a retry after partial success.");
+        }
+
+        // Append the items
+        int appendedCount = 0;
+        foreach (var item in items)
+        {
+            if (!currentItems.ContainsKey(item.Id))
+            {
+                conversationState.State.Items[item.Id] = item;
+                appendedCount++;
+            }
+        }
+
+        if (appendedCount > 0)
+        {
+            await conversationState.WriteStateAsync();
+        }
+
+        return appendedCount;
+    }
+
+    public async IAsyncEnumerable<ItemResource> GetAllItemsAsync(SortOrder order = SortOrder.Ascending)
+    {
+        if (conversationState.State.Conversation is null)
+        {
+            throw new InvalidOperationException($"Conversation '{this.GetPrimaryKeyString()}' not found.");
+        }
+
+        var items = conversationState.State.Items;
+        var isAscending = order.IsAscending();
+
+        if (isAscending)
+        {
+            for (int i = 0; i < items.Count; i++)
+            {
+                yield return items.GetAt(i).Value;
+            }
+        }
+        else
+        {
+            for (int i = items.Count - 1; i >= 0; i--)
+            {
+                yield return items.GetAt(i).Value;
+            }
+        }
+
+        await Task.CompletedTask;
+    }
+}

@@ -12,7 +12,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
 /// Represents a message in a conversation or response.
 /// This is the unified type used for both conversation items and response output items.
 /// </summary>
-internal sealed record ConversationItem
+public sealed record ConversationItem
 {
     /// <summary>
     /// The unique identifier for the message.

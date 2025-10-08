@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -14,7 +14,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 /// Aligns with the OpenAI typespec: string | InputContent[]
 /// </summary>
 [JsonConverter(typeof(InputMessageContentJsonConverter))]
-internal sealed class InputMessageContent : IEquatable<InputMessageContent>
+public sealed class InputMessageContent : IEquatable<InputMessageContent>
 {
     private InputMessageContent(string text)
     {
@@ -148,8 +148,9 @@ internal sealed class InputMessageContent : IEquatable<InputMessageContent>
 /// <summary>
 /// JSON converter for <see cref="InputMessageContent"/>.
 /// </summary>
-internal sealed class InputMessageContentJsonConverter : JsonConverter<InputMessageContent>
+public sealed class InputMessageContentJsonConverter : JsonConverter<InputMessageContent>
 {
+    /// <inheritdoc/>
     public override InputMessageContent? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         // Check if it's a string
@@ -171,6 +172,7 @@ internal sealed class InputMessageContentJsonConverter : JsonConverter<InputMess
         throw new JsonException($"Unexpected token type for InputMessageContent: {reader.TokenType}");
     }
 
+    /// <inheritdoc/>
     public override void Write(Utf8JsonWriter writer, InputMessageContent value, JsonSerializerOptions options)
     {
         if (value.IsText)
