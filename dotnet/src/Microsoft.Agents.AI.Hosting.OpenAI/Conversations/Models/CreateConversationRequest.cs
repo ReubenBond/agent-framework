@@ -10,7 +10,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
 /// <summary>
 /// Request to create a new conversation.
 /// </summary>
-internal sealed record CreateConversationRequest
+public sealed record CreateConversationRequest
 {
     /// <summary>
     /// Initial items to include in the conversation context. You may add up to 20 items at a time.

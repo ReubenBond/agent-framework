@@ -45,6 +45,7 @@ import type {
   ExtendedResponseStreamEvent,
 } from "@/types";
 import { useDevUIStore } from "@/stores";
+import { loadStreamingState } from "@/services/streaming-state";
 
 type DebugEventHandler = (event: ExtendedResponseStreamEvent | "clear") => void;
 
@@ -229,7 +230,6 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
 
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const accumulatedText = useRef<string>("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const currentMessageUsage = useRef<{
     total_tokens: number;
@@ -237,6 +237,7 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
     output_tokens: number;
   } | null>(null);
   const userJustSentMessage = useRef<boolean>(false);
+  const accumulatedTextRef = useRef<string>("");
 
   // Auto-scroll to bottom when new items arrive
   useEffect(() => {
@@ -281,9 +282,178 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
 
   // Load conversations when agent changes
   useEffect(() => {
+    // Resume streaming after page refresh
+    const resumeStreaming = async (
+      assistantMessage: import("@/types/openai").ConversationMessage,
+      conversation: Conversation,
+      agent: AgentInfo
+    ) => {
+      console.log(`[AgentView] resumeStreaming called for conversation ${conversation.id} with agent ${agent.id}`);
+
+      // Load the stored state to get the response ID
+      const storedState = loadStreamingState(conversation.id);
+      if (!storedState || !storedState.responseId) {
+        console.error(`[AgentView] Cannot resume - no stored response ID for conversation ${conversation.id}`);
+        setIsStreaming(false);
+        return;
+      }
+
+      console.log(`[AgentView] Resuming stream with response ID: ${storedState.responseId}`);
+
+      try {
+        // Use the stored responseId to resume the stream via GET /v1/responses/{responseId}
+        const openAIRequest: import("@/types/agent-framework").AgentFrameworkRequest = {
+          model: agent.id,
+          input: [], // Not needed for resume (using GET)
+          stream: true,
+          conversation: conversation.id,
+        };
+
+        // Pass the response ID explicitly to trigger GET request
+        const streamGenerator = apiClient.streamAgentExecutionOpenAIDirect(
+          agent.id,
+          openAIRequest,
+          conversation.id,
+          storedState.responseId  // Pass response ID for resume
+        );
+
+        for await (const openAIEvent of streamGenerator) {
+          // Pass all events to debug panel
+          onDebugEvent(openAIEvent);
+
+          // Handle response.completed event
+          if (openAIEvent.type === "response.completed") {
+            const completedEvent = openAIEvent as import("@/types/openai").ResponseCompletedEvent;
+            const usage = completedEvent.response?.usage;
+
+            if (usage) {
+              currentMessageUsage.current = {
+                input_tokens: usage.input_tokens,
+                output_tokens: usage.output_tokens,
+                total_tokens: usage.total_tokens,
+              };
+            }
+            continue;
+          }
+
+          // Handle function approval request events
+          if (openAIEvent.type === "response.function_approval.requested") {
+            const approvalEvent = openAIEvent as import("@/types/openai").ResponseFunctionApprovalRequestedEvent;
+            setPendingApprovals([
+              ...useDevUIStore.getState().pendingApprovals,
+              {
+                request_id: approvalEvent.request_id,
+                function_call: approvalEvent.function_call,
+              },
+            ]);
+            continue;
+          }
+
+          // Handle function approval response events
+          if (openAIEvent.type === "response.function_approval.responded") {
+            const responseEvent = openAIEvent as import("@/types/openai").ResponseFunctionApprovalRespondedEvent;
+            setPendingApprovals(
+              useDevUIStore.getState().pendingApprovals.filter((a) => a.request_id !== responseEvent.request_id)
+            );
+            continue;
+          }
+
+          // Handle error events
+          if (openAIEvent.type === "error") {
+            const errorEvent = openAIEvent as ExtendedResponseStreamEvent & { message?: string };
+            const errorMessage = errorEvent.message || "An error occurred";
+
+            const currentItems = useDevUIStore.getState().chatItems;
+            setChatItems(currentItems.map((item) =>
+              item.id === assistantMessage.id && item.type === "message"
+                ? {
+                    ...item,
+                    content: [
+                      {
+                        type: "text",
+                        text: accumulatedTextRef.current || errorMessage,
+                      } as import("@/types/openai").MessageTextContent,
+                    ],
+                    status: "incomplete" as const,
+                  }
+                : item
+            ));
+            setIsStreaming(false);
+            return;
+          }
+
+          // Handle text delta events
+          if (
+            openAIEvent.type === "response.output_text.delta" &&
+            "delta" in openAIEvent &&
+            openAIEvent.delta
+          ) {
+            accumulatedTextRef.current += openAIEvent.delta;
+
+            const currentItems = useDevUIStore.getState().chatItems;
+            setChatItems(currentItems.map((item) =>
+              item.id === assistantMessage.id && item.type === "message"
+                ? {
+                    ...item,
+                    content: [
+                      {
+                        type: "text",
+                        text: accumulatedTextRef.current,
+                      } as import("@/types/openai").MessageTextContent,
+                    ],
+                    status: "in_progress" as const,
+                  }
+                : item
+            ));
+          }
+        }
+
+        // Stream ended - mark as complete
+        const finalUsage = currentMessageUsage.current;
+
+        const currentItems = useDevUIStore.getState().chatItems;
+        setChatItems(currentItems.map((item) =>
+          item.id === assistantMessage.id && item.type === "message"
+            ? {
+                ...item,
+                status: "completed" as const,
+                usage: finalUsage || undefined,
+              }
+            : item
+        ));
+        setIsStreaming(false);
+
+        if (finalUsage) {
+          updateConversationUsage(finalUsage.total_tokens);
+        }
+
+        currentMessageUsage.current = null;
+      } catch (error) {
+        const currentItems = useDevUIStore.getState().chatItems;
+        setChatItems(currentItems.map((item) =>
+          item.id === assistantMessage.id && item.type === "message"
+            ? {
+                ...item,
+                content: [
+                  {
+                    type: "text",
+                    text: `Error resuming stream: ${
+                      error instanceof Error ? error.message : "Unknown error"
+                    }`,
+                  } as import("@/types/openai").MessageTextContent,
+                ],
+                status: "incomplete" as const,
+              }
+            : item
+        ));
+        setIsStreaming(false);
+      }
+    };
+
     const loadConversations = async () => {
       if (!selectedAgent) return;
 
+      console.log(`[AgentView] loadConversations called for agent ${selectedAgent.id}`);
       setLoadingConversations(true);
       try {
         // Step 1: Always try to list conversations from backend first
@@ -311,6 +481,46 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
               // Use OpenAI ConversationItems directly (no conversion!)
               setChatItems(items as import("@/types/openai").ConversationItem[]);
               setIsStreaming(false);
+
+              // Check for incomplete stream and resume if needed
+              console.log(`[AgentView] Checking for incomplete stream for conversation ${mostRecent.id}`);
+              const state = loadStreamingState(mostRecent.id);
+              console.log(`[AgentView] Loaded streaming state:`, state);
+              
+              if (state && !state.completed) {
+                console.log(`[AgentView] Found incomplete stream, preparing to resume`);
+                accumulatedTextRef.current = state.accumulatedText || "";
+                // Add assistant message with resumed text
+                const assistantMsg: import("@/types/openai").ConversationMessage = {
+                  id: state.lastMessageId || `assistant-${Date.now()}`,
+                  type: "message",
+                  role: "assistant",
+                  content: state.accumulatedText ? [{ type: "text", text: state.accumulatedText }] : [],
+                  status: "in_progress",
+                };
+                setChatItems([...items as import("@/types/openai").ConversationItem[], assistantMsg]);
+                setIsStreaming(true);
+
+                // Resume streaming from where we left off
+                console.log(`[AgentView] Scheduling resumeStreaming in 100ms`);
+                setTimeout(() => {
+                  console.log(`[AgentView] setTimeout callback executing, calling resumeStreaming`);
+                  try {
+                    resumeStreaming(assistantMsg, mostRecent, selectedAgent);
+                  } catch (error) {
+                    console.error(`[AgentView] Error calling resumeStreaming:`, error);
+                  }
+                }, 100);
+              } else if (state && state.completed) {
+                console.log(`[AgentView] Stream already completed, not resuming`);
+              } else {
+                console.log(`[AgentView] No streaming state found`);
+              }
+
+              // Scroll to bottom after loading conversation
+              setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+              }, 100);
             } catch {
               // 404 means conversation exists but has no items yet (newly created)
               // This is normal - just start with empty chat
@@ -382,10 +592,12 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
     setChatItems([]);
     setIsStreaming(false);
     setCurrentConversation(undefined);
-    accumulatedText.current = "";
+    accumulatedTextRef.current = "";
 
     loadConversations();
-  }, [selectedAgent, setLoadingConversations, setAvailableConversations, setCurrentConversation, setChatItems, setIsStreaming]);
+    // currentConversation is intentionally excluded - this effect should only run when agent changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAgent, onDebugEvent, setChatItems, setIsStreaming, setLoadingConversations, setAvailableConversations, setCurrentConversation, setPendingApprovals, updateConversationUsage]);
 
   // Handle file uploads
   const handleFilesSelected = async (files: File[]) => {
@@ -621,7 +833,7 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
       setIsStreaming(false);
       // Reset conversation usage by setting it to initial state
       useDevUIStore.setState({ conversationUsage: { total_tokens: 0, message_count: 0 } });
-      accumulatedText.current = "";
+      accumulatedTextRef.current = "";
     } catch {
       // Failed to create conversation
     }
@@ -664,7 +876,7 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
               setChatItems([]);
               setIsStreaming(false);
               useDevUIStore.setState({ conversationUsage: { total_tokens: 0, message_count: 0 } });
-              accumulatedText.current = "";
+              accumulatedTextRef.current = "";
             }
           }
 
@@ -710,6 +922,27 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
             message_count: items.length,
           }
         });
+
+        // Check for incomplete stream and restore accumulated text
+        const state = loadStreamingState(conversationId);
+        if (state?.accumulatedText) {
+          accumulatedTextRef.current = state.accumulatedText;
+          // Add assistant message with resumed text - streaming will continue automatically
+          const assistantMsg: import("@/types/openai").ConversationMessage = {
+            id: `assistant-${Date.now()}`,
+            type: "message",
+            role: "assistant",
+            content: [{ type: "output_text", text: state.accumulatedText }],
+            status: "in_progress",
+          };
+          setChatItems([...items, assistantMsg]);
+          setIsStreaming(true);
+        }
+
+        // Scroll to bottom after loading conversation
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
       } catch {
         // 404 means conversation doesn't exist or has no items yet
         // This can happen if server restarted (in-memory store cleared)
@@ -719,7 +952,7 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
         useDevUIStore.setState({ conversationUsage: { total_tokens: 0, message_count: 0 } });
       }
 
-      accumulatedText.current = "";
+      accumulatedTextRef.current = "";
     },
     [availableConversations, onDebugEvent, setCurrentConversation, setChatItems, setIsStreaming]
   );
@@ -834,13 +1067,18 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
           }
         }
 
+        // Clear any previous streaming state for this conversation before starting new message
+        if (conversationToUse?.id) {
+          apiClient.clearStreamingState(conversationToUse.id);
+        }
+
         const apiRequest = {
           input: request.input,
           conversation_id: conversationToUse?.id,
         };
 
         // Clear text accumulator for new response
-        accumulatedText.current = "";
+        accumulatedTextRef.current = "";
 
         // Use OpenAI-compatible API streaming - direct event handling
         const streamGenerator = apiClient.streamAgentExecutionOpenAI(
@@ -926,7 +1164,7 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
             "delta" in openAIEvent &&
             openAIEvent.delta
           ) {
-            accumulatedText.current += openAIEvent.delta;
+            accumulatedTextRef.current += openAIEvent.delta;
 
             // Update assistant message with accumulated content
             const currentItems = useDevUIStore.getState().chatItems;
@@ -937,7 +1175,7 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
                     content: [
                       {
                         type: "text",
-                        text: accumulatedText.current,
+                        text: accumulatedTextRef.current,
                       } as import("@/types/openai").MessageTextContent,
                     ],
                     status: "in_progress" as const,

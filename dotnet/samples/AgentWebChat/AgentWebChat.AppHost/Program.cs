@@ -8,12 +8,35 @@ var azOpenAiResource = builder.AddParameterFromConfiguration("AzureOpenAIName", 
 var azOpenAiResourceGroup = builder.AddParameterFromConfiguration("AzureOpenAIResourceGroup", "AzureOpenAI:ResourceGroup");
 var chatModel = builder.AddAIModel("chat-model").AsAzureOpenAI("gpt-4o", o => o.AsExisting(azOpenAiResource, azOpenAiResourceGroup));
 
-var agentHost = builder.AddProject<Projects.AgentWebChat_AgentHost>("agenthost")
-        .WithReference(chatModel);
+var storage = builder.AddAzureStorage("storage").RunAsEmulator(emulator => emulator.WithDataBindMount());
+var grainState = storage.AddBlobs("state");
+var reminders = storage.AddTables("reminders");
 
+var redis = builder.AddRedis("redis")
+    .WithDataBindMount(".redis")
+    .WithRedisCommander()
+    .WithRedisInsight();
+
+var orleans = builder.AddOrleans("orleans-silo")
+    .WithGrainStorage("Default", grainState)
+    .WithReminders(reminders)
+    .WithDevelopmentClustering();
+
+// Gateway sits in front of agent host.
+var gateway = builder.AddProject<Projects.AgentGateway>("gateway")
+    .WithExternalHttpEndpoints()
+    .WithReference(orleans)
+    .WithReference(chatModel);
+
+var agentHost = builder.AddProject<Projects.AgentWebChat_AgentHost>("agenthost")
+    .WithEnvironment("Worker:GatewayBaseAddress", gateway.GetEndpoint("http")!)
+    .WithReference(chatModel)
+    .WithReference(redis);
+
+// Web front-end depends on gateway (not agent host directly anymore)
 builder.AddProject<Projects.AgentWebChat_Web>("webfrontend")
     .WithExternalHttpEndpoints()
-    .WithReference(agentHost)
-    .WaitFor(agentHost);
+    .WithReference(gateway)
+    .WaitFor(gateway);
 
 builder.Build().Run();

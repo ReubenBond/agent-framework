@@ -36,9 +36,6 @@ internal sealed class FunctionApprovalResponseEventGenerator(
         };
     }
 
-    public override IEnumerable<StreamingResponseEvent> Complete()
-    {
-        return [];
-    }
+    public override IEnumerable<StreamingResponseEvent> Complete() => [];
 }
 #pragma warning restore MEAI001 // Type is for evaluation purposes only and is subject to change or removal in future updates.

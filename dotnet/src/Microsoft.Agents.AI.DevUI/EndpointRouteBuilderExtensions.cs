@@ -1,26 +1,15 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.Agents.AI.DevUI;
 
-namespace Microsoft.Agents.AI.DevUI;
+namespace Microsoft.AspNetCore.Builder;
 
 /// <summary>
-/// Provides helper methods for configuring the Microsoft Agents AI DevUI in ASP.NET applications.
+/// Provides extension methods for configuring DevUI endpoints.
 /// </summary>
-public static class DevUIExtensions
+public static class MicrosoftAgentsAIDevUIEndpointRouteBuilderExtensions
 {
-    /// <summary>
-    /// Adds the necessary services for the DevUI to the application builder.
-    /// </summary>
-    public static IHostApplicationBuilder AddDevUI(this IHostApplicationBuilder builder)
-    {
-        ArgumentNullException.ThrowIfNull(builder);
-        builder.Services.AddInMemoryConversationStorage();
-        builder.Services.AddInMemoryAgentConversationIndex();
-
-        return builder;
-    }
-
     /// <summary>
     /// Maps an endpoint that serves the DevUI.
     /// </summary>

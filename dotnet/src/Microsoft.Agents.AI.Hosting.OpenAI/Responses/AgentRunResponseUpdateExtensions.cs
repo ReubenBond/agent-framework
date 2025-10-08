@@ -18,7 +18,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses;
 /// <summary>
 /// Extension methods for <see cref="AgentRunResponseUpdate"/>.
 /// </summary>
-internal static class AgentRunResponseUpdateExtensions
+public static class AgentRunResponseUpdateExtensions
 {
     /// <summary>
     /// Converts a stream of <see cref="AgentRunResponseUpdate"/> to stream of <see cref="StreamingResponseEvent"/>.
@@ -28,7 +28,7 @@ internal static class AgentRunResponseUpdateExtensions
     /// <param name="context">The agent invocation context.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>A stream of response events.</returns>
-    internal static async IAsyncEnumerable<StreamingResponseEvent> ToStreamingResponseAsync(
+    public static async IAsyncEnumerable<StreamingResponseEvent> ToStreamingResponseAsync(
         this IAsyncEnumerable<AgentRunResponseUpdate> updates,
         CreateResponse request,
         AgentInvocationContext context,
@@ -172,7 +172,7 @@ internal static class AgentRunResponseUpdateExtensions
                 ParallelToolCalls = request.ParallelToolCalls ?? true,
                 Tools = [.. request.Tools ?? []],
                 ToolChoice = request.ToolChoice,
-                ServiceTier = request.ServiceTier ?? "default",
+                ServiceTier = request.ServiceTier,
                 Store = request.Store ?? true,
                 PreviousResponseId = request.PreviousResponseId,
                 Reasoning = request.Reasoning,
@@ -227,7 +227,7 @@ internal static class AgentRunResponseUpdateExtensions
 
 #pragma warning disable IL2026 // Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code
 #pragma warning disable IL3050 // Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.
-            eventData = JsonSerializer.SerializeToElement(eventDataDict, ResponsesJsonSerializerOptions.Default);
+            eventData = JsonSerializer.SerializeToElement(eventDataDict, OpenAIJsonUtilities.DefaultOptions);
 #pragma warning restore IL3050 // Calling members annotated with 'RequiresDynamicCodeAttribute' may break functionality when AOT compiling.
 #pragma warning restore IL2026 // Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code
         }
@@ -235,7 +235,7 @@ internal static class AgentRunResponseUpdateExtensions
         {
             eventData = JsonSerializer.SerializeToElement(
                 "Unsupported. Workflow event serialization is currently only supported when JsonSerializer.IsReflectionEnabledByDefault is true.",
-                ResponsesJsonContext.Default.String);
+                OpenAIJsonContext.Default.String);
         }
 
         // Create the properly typed streaming workflow event

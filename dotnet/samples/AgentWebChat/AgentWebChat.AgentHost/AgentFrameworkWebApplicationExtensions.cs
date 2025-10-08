@@ -1,12 +1,12 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Diagnostics.CodeAnalysis;
-using System.Text.Json.Serialization;
+using AgentContracts;
 using Microsoft.Agents.AI.Hosting;
 
 namespace AgentWebChat.AgentHost;
 
-internal static class ActorFrameworkWebApplicationExtensions
+internal static class AgentFrameworkWebApplicationExtensions
 {
     public static void MapAgentDiscovery(this IEndpointRouteBuilder endpoints, [StringSyntax("Route")] string path)
     {
@@ -28,13 +28,5 @@ internal static class ActorFrameworkWebApplicationExtensions
                 return Results.Ok(results);
             })
             .WithName("GetAgents");
-    }
-
-    internal sealed class AgentDiscoveryCard
-    {
-        public required string Name { get; set; }
-
-        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-        public string? Description { get; set; }
     }
 }

@@ -9,7 +9,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
 /// <summary>
 /// Response containing a list of conversations.
 /// </summary>
-internal sealed class ConversationListResponse
+public sealed class ConversationListResponse
 {
     /// <summary>
     /// The object type, always "list".
