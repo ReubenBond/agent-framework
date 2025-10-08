@@ -1,20 +1,16 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Text.Json;
 
 namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 
 /// <summary>
 /// Extension methods for converting ItemParam (input) to ItemResource (output).
 /// </summary>
-internal static class ItemParamExtensions
+public static class ItemParamExtensions
 {
     /// <summary>
     /// Converts an ItemParam (input model) to an ItemResource (output model) by adding server-generated fields.
-    /// This is a simplified implementation that handles the most common message types used in conversations.
-    /// For other types, it performs a round-trip through JSON serialization to preserve all fields.
     /// </summary>
     /// <param name="param">The input item parameter.</param>
     /// <returns>An ItemResource with a generated ID.</returns>
@@ -29,25 +25,25 @@ internal static class ItemParamExtensions
             ResponsesUserMessageItemParam userMessageParam => new ResponsesUserMessageItemResource
             {
                 Id = generatedId,
-                Content = (IList<ItemContent>)userMessageParam.Content,
+                Content = userMessageParam.Content.ToItemContents(),
                 Status = ResponsesMessageItemResourceStatus.Completed
             },
             ResponsesSystemMessageItemParam systemMessageParam => new ResponsesSystemMessageItemResource
             {
                 Id = generatedId,
-                Content = (IList<ItemContent>)systemMessageParam.Content,
+                Content = systemMessageParam.Content.ToItemContents(),
                 Status = ResponsesMessageItemResourceStatus.Completed
             },
             ResponsesAssistantMessageItemParam assistantMessageParam => new ResponsesAssistantMessageItemResource
             {
                 Id = generatedId,
-                Content = (IList<ItemContent>)assistantMessageParam.Content,
+                Content = assistantMessageParam.Content.ToItemContents(),
                 Status = ResponsesMessageItemResourceStatus.Completed
             },
             ResponsesDeveloperMessageItemParam developerMessageParam => new ResponsesDeveloperMessageItemResource
             {
                 Id = generatedId,
-                Content = (IList<ItemContent>)developerMessageParam.Content,
+                Content = developerMessageParam.Content.ToItemContents(),
                 Status = ResponsesMessageItemResourceStatus.Completed
             },
             FunctionToolCallItemParam functionCallParam => new FunctionToolCallItemResource
@@ -64,36 +60,96 @@ internal static class ItemParamExtensions
                 CallId = functionOutputParam.CallId,
                 Output = functionOutputParam.Output
             },
-            // For all other types, do a round-trip JSON serialization to convert Param to Resource
-            // and inject the generated ID
-            _ => ConvertViaJsonSerialization(param, generatedId)
-        };
-    }
-
-    private static ItemResource ConvertViaJsonSerialization(ItemParam param, string generatedId)
-    {
-        // Serialize the param to JSON
-        string json = JsonSerializer.Serialize(param, OpenAIJsonContext.Default.ItemParam);
-
-        // Parse as JsonDocument and add the ID field
-        using var doc = JsonDocument.Parse(json);
-        using var stream = new System.IO.MemoryStream();
-        using (var writer = new Utf8JsonWriter(stream))
-        {
-            writer.WriteStartObject();
-            writer.WriteString("id", generatedId);
-
-            foreach (var property in doc.RootElement.EnumerateObject())
+            FileSearchToolCallItemParam fileSearchParam => new FileSearchToolCallItemResource
             {
-                property.WriteTo(writer);
-            }
-
-            writer.WriteEndObject();
-        }
-
-        // Deserialize as ItemResource
-        stream.Position = 0;
-        var resource = JsonSerializer.Deserialize(stream, OpenAIJsonContext.Default.ItemResource);
-        return resource ?? throw new InvalidOperationException($"Failed to convert {param.GetType().Name} to ItemResource");
+                Id = generatedId,
+                Queries = fileSearchParam.Queries,
+                Results = fileSearchParam.Results
+            },
+            ComputerToolCallItemParam computerCallParam => new ComputerToolCallItemResource
+            {
+                Id = generatedId,
+                CallId = computerCallParam.CallId,
+                Action = computerCallParam.Action,
+                PendingSafetyChecks = computerCallParam.PendingSafetyChecks
+            },
+            ComputerToolCallOutputItemParam computerOutputParam => new ComputerToolCallOutputItemResource
+            {
+                Id = generatedId,
+                CallId = computerOutputParam.CallId,
+                AcknowledgedSafetyChecks = computerOutputParam.AcknowledgedSafetyChecks,
+                Output = computerOutputParam.Output
+            },
+            WebSearchToolCallItemParam webSearchParam => new WebSearchToolCallItemResource
+            {
+                Id = generatedId,
+                Action = webSearchParam.Action
+            },
+            ReasoningItemParam reasoningParam => new ReasoningItemResource
+            {
+                Id = generatedId,
+                EncryptedContent = reasoningParam.EncryptedContent,
+                Summary = reasoningParam.Summary
+            },
+            ItemReferenceItemParam => new ItemReferenceItemResource
+            {
+                Id = generatedId
+            },
+            ImageGenerationToolCallItemParam imageGenParam => new ImageGenerationToolCallItemResource
+            {
+                Id = generatedId,
+                Result = imageGenParam.Result
+            },
+            CodeInterpreterToolCallItemParam codeInterpreterParam => new CodeInterpreterToolCallItemResource
+            {
+                Id = generatedId,
+                ContainerId = codeInterpreterParam.ContainerId,
+                Code = codeInterpreterParam.Code,
+                Outputs = codeInterpreterParam.Outputs
+            },
+            LocalShellToolCallItemParam localShellParam => new LocalShellToolCallItemResource
+            {
+                Id = generatedId,
+                CallId = localShellParam.CallId,
+                Action = localShellParam.Action
+            },
+            LocalShellToolCallOutputItemParam localShellOutputParam => new LocalShellToolCallOutputItemResource
+            {
+                Id = generatedId,
+                Output = localShellOutputParam.Output
+            },
+            MCPListToolsItemParam mcpListToolsParam => new MCPListToolsItemResource
+            {
+                Id = generatedId,
+                ServerLabel = mcpListToolsParam.ServerLabel,
+                Tools = mcpListToolsParam.Tools,
+                Error = mcpListToolsParam.Error
+            },
+            MCPApprovalRequestItemParam mcpApprovalRequestParam => new MCPApprovalRequestItemResource
+            {
+                Id = generatedId,
+                ServerLabel = mcpApprovalRequestParam.ServerLabel,
+                Name = mcpApprovalRequestParam.Name,
+                Arguments = mcpApprovalRequestParam.Arguments
+            },
+            MCPApprovalResponseItemParam mcpApprovalResponseParam => new MCPApprovalResponseItemResource
+            {
+                Id = generatedId,
+                ApprovalRequestId = mcpApprovalResponseParam.ApprovalRequestId,
+                Approve = mcpApprovalResponseParam.Approve,
+                Reason = mcpApprovalResponseParam.Reason
+            },
+            MCPCallItemParam mcpCallParam => new MCPCallItemResource
+            {
+                Id = generatedId,
+                ServerLabel = mcpCallParam.ServerLabel,
+                Name = mcpCallParam.Name,
+                Arguments = mcpCallParam.Arguments,
+                Output = mcpCallParam.Output,
+                Error = mcpCallParam.Error
+            },
+            // Fallback for unknown types
+            _ => throw new InvalidOperationException($"Unknown ItemParam type: {param.GetType().Name}")
+        };
     }
 }

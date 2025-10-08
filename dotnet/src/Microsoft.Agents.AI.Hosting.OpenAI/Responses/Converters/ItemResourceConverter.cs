@@ -12,8 +12,9 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Converters;
 /// JSON converter for ItemResource that handles type discrimination.
 /// </summary>
 [ExcludeFromCodeCoverage]
-internal sealed class ItemResourceConverter : JsonConverter<ItemResource>
+public sealed class ItemResourceConverter : JsonConverter<ItemResource>
 {
+    /// <inheritdoc/>
     public override ItemResource? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         // Clone the reader to peek at the JSON
@@ -77,6 +78,7 @@ internal sealed class ItemResourceConverter : JsonConverter<ItemResource>
         };
     }
 
+    /// <inheritdoc/>
     public override void Write(Utf8JsonWriter writer, ItemResource value, JsonSerializerOptions options)
     {
         // Directly serialize using the appropriate type info from the context

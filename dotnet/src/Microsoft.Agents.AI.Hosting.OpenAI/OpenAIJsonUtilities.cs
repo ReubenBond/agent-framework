@@ -13,7 +13,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI;
 /// <summary>
 /// Provides JSON serialization options and context for OpenAI Hosting APIs to support AOT and trimming.
 /// </summary>
-internal static class OpenAIJsonUtilities
+public static class OpenAIJsonUtilities
 {
     /// <summary>
     /// Gets the default <see cref="JsonSerializerOptions"/> instance used for OpenAI API serialization.
@@ -158,6 +158,7 @@ internal static class OpenAIJsonUtilities
 [JsonSerializable(typeof(Dictionary<string, object>))]
 [JsonSerializable(typeof(Dictionary<string, object>[]))]
 [JsonSerializable(typeof(List<Dictionary<string, object>>))]
+[JsonSerializable(typeof(IDictionary<string, object?>))]
 [JsonSerializable(typeof(object))]
 [ExcludeFromCodeCoverage]
 internal sealed partial class OpenAIJsonContext : JsonSerializerContext;
