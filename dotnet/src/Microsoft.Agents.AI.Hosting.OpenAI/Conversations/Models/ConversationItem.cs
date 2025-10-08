@@ -2,8 +2,11 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
+using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 using Microsoft.Extensions.AI;
 
 namespace Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
@@ -12,7 +15,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
 /// Represents a message in a conversation or response.
 /// This is the unified type used for both conversation items and response output items.
 /// </summary>
-internal sealed record ConversationItem
+public sealed record ConversationItem
 {
     /// <summary>
     /// The unique identifier for the message.
@@ -65,51 +68,43 @@ internal sealed record ConversationItem
     /// </summary>
     public ChatMessage ToChatMessage()
     {
-        var contents = new List<AIContent>();
+        // Parse the Content JsonElement into ItemResources, then convert to ChatMessage
+        // This leverages the centralized conversion logic in ItemResourceExtensions
+        var itemResources = new List<ItemResource>();
 
         if (this.Content.ValueKind == JsonValueKind.Array)
         {
             foreach (var item in this.Content.EnumerateArray())
             {
-                if (item.TryGetProperty("type", out var typeProperty))
+                // Deserialize each item as ItemResource using the proper context
+                var itemResource = JsonSerializer.Deserialize(item.GetRawText(), ConversationsJsonUtilities.DefaultOptions.GetTypeInfo(typeof(ItemResource))) as ItemResource;
+                if (itemResource is not null)
                 {
-                    var contentType = typeProperty.GetString();
-
-                    if (contentType == "text" || contentType == "input_text" || contentType == "output_text")
-                    {
-                        if (item.TryGetProperty("text", out var textProperty) && textProperty.ValueKind == JsonValueKind.String)
-                        {
-                            var text = textProperty.GetString();
-                            if (!string.IsNullOrEmpty(text))
-                            {
-                                contents.Add(new TextContent(text));
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // For other content types, deserialize using our context
-                        // This works in both AOT and non-AOT scenarios
-                        var aiContent = JsonSerializer.Deserialize(item.GetRawText(), ConversationsJsonUtilities.DefaultOptions.GetTypeInfo(typeof(AIContent))) as AIContent;
-                        if (aiContent is not null)
-                        {
-                            contents.Add(aiContent);
-                        }
-                    }
+                    itemResources.Add(itemResource);
                 }
             }
         }
         else if (this.Content.ValueKind == JsonValueKind.String)
         {
-            // Handle simple string content
+            // Handle simple string content by creating a text message item
             var text = this.Content.GetString();
             if (!string.IsNullOrEmpty(text))
             {
-                contents.Add(new TextContent(text));
+                itemResources.Add(new ResponsesAssistantMessageItemResource
+                {
+                    Id = this.Id,
+                    Status = ResponsesMessageItemResourceStatus.Completed,
+                    Content = [new ItemContentInputText { Text = text }]
+                });
             }
         }
 
-        return new ChatMessage(this.Role, contents);
+        // Convert the ItemResources to ChatMessage using the extension method
+        // This ensures consistent conversion logic across the codebase
+        var messages = itemResources.ToChatMessages(ConversationsJsonUtilities.DefaultOptions).ToList();
+
+        // Return the first message if available, otherwise create an empty message
+        return messages.Count > 0 ? messages[0] : new ChatMessage(this.Role, []);
     }
 
     /// <summary>

@@ -10,7 +10,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
 /// Generic list response for paginated results.
 /// Used for listing conversation items (ItemResource objects).
 /// </summary>
-internal sealed class ListResponse<T>
+public sealed class ListResponse<T>
 {
     /// <summary>
     /// The object type, always "list".

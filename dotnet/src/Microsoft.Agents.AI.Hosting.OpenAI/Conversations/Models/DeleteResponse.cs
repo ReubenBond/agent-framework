@@ -8,7 +8,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
 /// <summary>
 /// Response for a delete operation.
 /// </summary>
-internal sealed record DeleteResponse
+public sealed record DeleteResponse
 {
     /// <summary>
     /// The ID of the deleted object.
