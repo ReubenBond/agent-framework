@@ -14,16 +14,6 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Converters;
 [ExcludeFromCodeCoverage]
 internal sealed class ResponsesMessageItemResourceConverter : JsonConverter<ResponsesMessageItemResource>
 {
-    private readonly ResponsesJsonContext _context;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ResponsesMessageItemResourceConverter"/> class.
-    /// </summary>
-    public ResponsesMessageItemResourceConverter()
-    {
-        this._context = ResponsesJsonContext.Default;
-    }
-
     public override ResponsesMessageItemResource? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         // Clone the reader to peek at the JSON
@@ -66,10 +56,10 @@ internal sealed class ResponsesMessageItemResourceConverter : JsonConverter<Resp
         // Determine the concrete type based on the role and deserialize using the source generation context
         return role switch
         {
-            ResponsesAssistantMessageItemResource.RoleType => JsonSerializer.Deserialize(ref reader, this._context.ResponsesAssistantMessageItemResource),
-            ResponsesUserMessageItemResource.RoleType => JsonSerializer.Deserialize(ref reader, this._context.ResponsesUserMessageItemResource),
-            ResponsesSystemMessageItemResource.RoleType => JsonSerializer.Deserialize(ref reader, this._context.ResponsesSystemMessageItemResource),
-            ResponsesDeveloperMessageItemResource.RoleType => JsonSerializer.Deserialize(ref reader, this._context.ResponsesDeveloperMessageItemResource),
+            ResponsesAssistantMessageItemResource.RoleType => JsonSerializer.Deserialize(ref reader, OpenAIJsonContext.Default.ResponsesAssistantMessageItemResource),
+            ResponsesUserMessageItemResource.RoleType => JsonSerializer.Deserialize(ref reader, OpenAIJsonContext.Default.ResponsesUserMessageItemResource),
+            ResponsesSystemMessageItemResource.RoleType => JsonSerializer.Deserialize(ref reader, OpenAIJsonContext.Default.ResponsesSystemMessageItemResource),
+            ResponsesDeveloperMessageItemResource.RoleType => JsonSerializer.Deserialize(ref reader, OpenAIJsonContext.Default.ResponsesDeveloperMessageItemResource),
             _ => throw new JsonException($"Unknown message role: {role}")
         };
     }
@@ -80,16 +70,16 @@ internal sealed class ResponsesMessageItemResourceConverter : JsonConverter<Resp
         switch (value)
         {
             case ResponsesAssistantMessageItemResource assistant:
-                JsonSerializer.Serialize(writer, assistant, this._context.ResponsesAssistantMessageItemResource);
+                JsonSerializer.Serialize(writer, assistant, OpenAIJsonContext.Default.ResponsesAssistantMessageItemResource);
                 break;
             case ResponsesUserMessageItemResource user:
-                JsonSerializer.Serialize(writer, user, this._context.ResponsesUserMessageItemResource);
+                JsonSerializer.Serialize(writer, user, OpenAIJsonContext.Default.ResponsesUserMessageItemResource);
                 break;
             case ResponsesSystemMessageItemResource system:
-                JsonSerializer.Serialize(writer, system, this._context.ResponsesSystemMessageItemResource);
+                JsonSerializer.Serialize(writer, system, OpenAIJsonContext.Default.ResponsesSystemMessageItemResource);
                 break;
             case ResponsesDeveloperMessageItemResource developer:
-                JsonSerializer.Serialize(writer, developer, this._context.ResponsesDeveloperMessageItemResource);
+                JsonSerializer.Serialize(writer, developer, OpenAIJsonContext.Default.ResponsesDeveloperMessageItemResource);
                 break;
             default:
                 throw new JsonException($"Unknown message type: {value.GetType().Name}");

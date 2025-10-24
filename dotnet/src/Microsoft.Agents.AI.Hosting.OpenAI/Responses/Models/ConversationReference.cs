@@ -61,7 +61,7 @@ internal sealed class ConversationReferenceJsonConverter : JsonConverter<Convers
 
             if (root.TryGetProperty("metadata", out var metadataProp) && metadataProp.ValueKind == JsonValueKind.Object)
             {
-                metadata = JsonSerializer.Deserialize(metadataProp.GetRawText(), ResponsesJsonContext.Default.DictionaryStringString);
+                metadata = JsonSerializer.Deserialize(metadataProp.GetRawText(), OpenAIJsonContext.Default.DictionaryStringString);
             }
 
             return id is null ? null : ConversationReference.FromObject(id, metadata);
@@ -95,7 +95,7 @@ internal sealed class ConversationReferenceJsonConverter : JsonConverter<Convers
             if (value.Metadata is not null)
             {
                 writer.WritePropertyName("metadata");
-                JsonSerializer.Serialize(writer, value.Metadata, ResponsesJsonContext.Default.DictionaryStringString);
+                JsonSerializer.Serialize(writer, value.Metadata, OpenAIJsonContext.Default.DictionaryStringString);
             }
             writer.WriteEndObject();
         }

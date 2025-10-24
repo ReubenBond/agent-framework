@@ -2,7 +2,7 @@
 
 using System;
 using Microsoft.Agents.AI;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
+using Microsoft.Agents.AI.Hosting.OpenAI;
 using Microsoft.AspNetCore.Http.Json;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -21,7 +21,7 @@ public static class MicrosoftAgentAIHostingOpenAIServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
 
-        services.Configure<JsonOptions>(options => options.SerializerOptions.TypeInfoResolverChain.Add(ResponsesJsonSerializerOptions.Default.TypeInfoResolver!));
+        services.Configure<JsonOptions>(options => options.SerializerOptions.TypeInfoResolverChain.Add(OpenAIJsonContext.Default.Options.TypeInfoResolver!));
 
         return services;
     }
