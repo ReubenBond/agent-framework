@@ -1,0 +1,8 @@
+{
+  "error": {
+    "message": "Invalid value: ''. Supported values are: 'assistant', 'system', 'developer', and 'user'.",
+    "type": "invalid_request_error",
+    "param": "items[0]",
+    "code": "invalid_value"
+  }
+}

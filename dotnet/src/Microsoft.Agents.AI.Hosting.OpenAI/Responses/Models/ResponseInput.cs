@@ -176,7 +176,7 @@ internal sealed class ResponseInputJsonConverter : JsonConverter<ResponseInput>
         // Check if it's an array
         if (reader.TokenType == JsonTokenType.StartArray)
         {
-            var messages = JsonSerializer.Deserialize(ref reader, ResponsesJsonContext.Default.ListInputMessage);
+            var messages = JsonSerializer.Deserialize(ref reader, OpenAIJsonContext.Default.ListInputMessage);
             return messages is not null ? ResponseInput.FromMessages(messages) : null;
         }
 
@@ -191,7 +191,7 @@ internal sealed class ResponseInputJsonConverter : JsonConverter<ResponseInput>
         }
         else if (value.IsMessages)
         {
-            JsonSerializer.Serialize(writer, value.Messages!, ResponsesJsonContext.Default.IReadOnlyListInputMessage);
+            JsonSerializer.Serialize(writer, value.Messages!, OpenAIJsonContext.Default.IReadOnlyListInputMessage);
         }
         else
         {

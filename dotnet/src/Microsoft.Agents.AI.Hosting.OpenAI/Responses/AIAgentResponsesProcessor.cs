@@ -56,7 +56,7 @@ internal static class AIAgentResponsesProcessor
                 itemFormatter: static (sseItem, bufferWriter) =>
                 {
                     using var writer = new Utf8JsonWriter(bufferWriter);
-                    JsonSerializer.Serialize(writer, sseItem.Data, ResponsesJsonContext.Default.StreamingResponseEvent);
+                    JsonSerializer.Serialize(writer, sseItem.Data, OpenAIJsonContext.Default.StreamingResponseEvent);
                     writer.Flush();
                 },
                 cancellationToken);
