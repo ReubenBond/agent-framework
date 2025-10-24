@@ -1,0 +1,57 @@
+event: response.created
+data: {"type":"response.created","sequence_number":0,"response":{"id":"resp_07a4a6d400e645880068fb9ee312e8819695aedc785f1ebb36","object":"response","created_at":1761320675,"status":"in_progress","background":false,"conversation":{"id":"conv_68fb99253dac8196b5a8e7912bcb052e07a4a6d400e64588"},"error":null,"incomplete_details":null,"instructions":null,"max_output_tokens":100,"max_tool_calls":null,"model":"gpt-4o-mini-2024-07-18","output":[],"parallel_tool_calls":true,"previous_response_id":null,"prompt_cache_key":null,"reasoning":{"effort":null,"summary":null},"safety_identifier":null,"service_tier":"auto","store":true,"temperature":1.0,"text":{"format":{"type":"text"},"verbosity":"medium"},"tool_choice":"auto","tools":[{"type":"function","description":"Get the current weather in a given location","name":"get_weather","parameters":{"type":"object","properties":{"location":{"type":"string","description":"The city and state, e.g. San Francisco, CA"},"unit":{"type":"string","enum":["celsius","fahrenheit"]}},"required":["location","unit"],"additionalProperties":false},"strict":true}],"top_logprobs":0,"top_p":1.0,"truncation":"disabled","usage":null,"user":null,"metadata":{}}}
+
+event: response.in_progress
+data: {"type":"response.in_progress","sequence_number":1,"response":{"id":"resp_07a4a6d400e645880068fb9ee312e8819695aedc785f1ebb36","object":"response","created_at":1761320675,"status":"in_progress","background":false,"conversation":{"id":"conv_68fb99253dac8196b5a8e7912bcb052e07a4a6d400e64588"},"error":null,"incomplete_details":null,"instructions":null,"max_output_tokens":100,"max_tool_calls":null,"model":"gpt-4o-mini-2024-07-18","output":[],"parallel_tool_calls":true,"previous_response_id":null,"prompt_cache_key":null,"reasoning":{"effort":null,"summary":null},"safety_identifier":null,"service_tier":"auto","store":true,"temperature":1.0,"text":{"format":{"type":"text"},"verbosity":"medium"},"tool_choice":"auto","tools":[{"type":"function","description":"Get the current weather in a given location","name":"get_weather","parameters":{"type":"object","properties":{"location":{"type":"string","description":"The city and state, e.g. San Francisco, CA"},"unit":{"type":"string","enum":["celsius","fahrenheit"]}},"required":["location","unit"],"additionalProperties":false},"strict":true}],"top_logprobs":0,"top_p":1.0,"truncation":"disabled","usage":null,"user":null,"metadata":{}}}
+
+event: response.output_item.added
+data: {"type":"response.output_item.added","sequence_number":2,"output_index":0,"item":{"id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","type":"function_call","status":"in_progress","arguments":"","call_id":"call_8gSCyVcGZ6zz87ai6k5xYGew","name":"get_weather"}}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":3,"item_id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","output_index":0,"delta":"{\"","obfuscation":"pdfCIVY4nLPe67"}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":4,"item_id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","output_index":0,"delta":"location","obfuscation":"2XRRVQR9"}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":5,"item_id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","output_index":0,"delta":"\":\"","obfuscation":"dfImWHeTSjFkL"}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":6,"item_id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","output_index":0,"delta":"San","obfuscation":"6vb7RgFXew742"}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":7,"item_id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","output_index":0,"delta":" Francisco","obfuscation":"8OPmxr"}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":8,"item_id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","output_index":0,"delta":",","obfuscation":"DuJ7q7AXm6inJ12"}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":9,"item_id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","output_index":0,"delta":" CA","obfuscation":"LKMayrd71A4Ku"}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":10,"item_id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","output_index":0,"delta":"\",\"","obfuscation":"n6o3uOz6mGf48"}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":11,"item_id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","output_index":0,"delta":"unit","obfuscation":"y6jLzoh5UprK"}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":12,"item_id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","output_index":0,"delta":"\":\"","obfuscation":"1f0pbvMx8E7MC"}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":13,"item_id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","output_index":0,"delta":"c","obfuscation":"E3Am16vGDHbfmjJ"}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":14,"item_id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","output_index":0,"delta":"elsius","obfuscation":"9F3US4XZg8"}
+
+event: response.function_call_arguments.delta
+data: {"type":"response.function_call_arguments.delta","sequence_number":15,"item_id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","output_index":0,"delta":"\"}","obfuscation":"9lJgubFQbwO9yP"}
+
+event: response.function_call_arguments.done
+data: {"type":"response.function_call_arguments.done","sequence_number":16,"item_id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","output_index":0,"arguments":"{\"location\":\"San Francisco, CA\",\"unit\":\"celsius\"}"}
+
+event: response.output_item.done
+data: {"type":"response.output_item.done","sequence_number":17,"output_index":0,"item":{"id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","type":"function_call","status":"completed","arguments":"{\"location\":\"San Francisco, CA\",\"unit\":\"celsius\"}","call_id":"call_8gSCyVcGZ6zz87ai6k5xYGew","name":"get_weather"}}
+
+event: response.completed
+data: {"type":"response.completed","sequence_number":18,"response":{"id":"resp_07a4a6d400e645880068fb9ee312e8819695aedc785f1ebb36","object":"response","created_at":1761320675,"status":"completed","background":false,"conversation":{"id":"conv_68fb99253dac8196b5a8e7912bcb052e07a4a6d400e64588"},"error":null,"incomplete_details":null,"instructions":null,"max_output_tokens":100,"max_tool_calls":null,"model":"gpt-4o-mini-2024-07-18","output":[{"id":"fc_07a4a6d400e645880068fb9ee3fb7c8196bb06c26b894d3188","type":"function_call","status":"completed","arguments":"{\"location\":\"San Francisco, CA\",\"unit\":\"celsius\"}","call_id":"call_8gSCyVcGZ6zz87ai6k5xYGew","name":"get_weather"}],"parallel_tool_calls":true,"previous_response_id":null,"prompt_cache_key":null,"reasoning":{"effort":null,"summary":null},"safety_identifier":null,"service_tier":"default","store":true,"temperature":1.0,"text":{"format":{"type":"text"},"verbosity":"medium"},"tool_choice":"auto","tools":[{"type":"function","description":"Get the current weather in a given location","name":"get_weather","parameters":{"type":"object","properties":{"location":{"type":"string","description":"The city and state, e.g. San Francisco, CA"},"unit":{"type":"string","enum":["celsius","fahrenheit"]}},"required":["location","unit"],"additionalProperties":false},"strict":true}],"top_logprobs":0,"top_p":1.0,"truncation":"disabled","usage":{"input_tokens":74,"input_tokens_details":{"cached_tokens":0},"output_tokens":23,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":97},"user":null,"metadata":{}}}
+

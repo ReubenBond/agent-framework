@@ -135,7 +135,7 @@ public sealed class StreamingEventConformanceTests : ConformanceTestBase
 
         // Act
         string jsonString = createdEventJson.GetRawText();
-        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
 
         // Assert
         Assert.NotNull(evt);
@@ -168,7 +168,7 @@ public sealed class StreamingEventConformanceTests : ConformanceTestBase
 
         // Act
         string jsonString = inProgressEventJson.GetRawText();
-        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
 
         // Assert
         Assert.NotNull(evt);
@@ -200,7 +200,7 @@ public sealed class StreamingEventConformanceTests : ConformanceTestBase
 
         // Act
         string jsonString = itemAddedJson.GetRawText();
-        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
 
         // Assert
         Assert.NotNull(evt);
@@ -231,7 +231,7 @@ public sealed class StreamingEventConformanceTests : ConformanceTestBase
 
         // Act
         string jsonString = partAddedJson.GetRawText();
-        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
 
         // Assert
         Assert.NotNull(evt);
@@ -264,7 +264,7 @@ public sealed class StreamingEventConformanceTests : ConformanceTestBase
 
         // Act
         string jsonString = textDeltaJson.GetRawText();
-        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
 
         // Assert
         Assert.NotNull(evt);
@@ -301,7 +301,7 @@ public sealed class StreamingEventConformanceTests : ConformanceTestBase
         foreach (var eventJson in events)
         {
             string jsonString = eventJson.GetRawText();
-            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
 
             if (evt is StreamingOutputTextDelta delta)
             {
@@ -344,7 +344,7 @@ public sealed class StreamingEventConformanceTests : ConformanceTestBase
         foreach (var eventJson in events)
         {
             string jsonString = eventJson.GetRawText();
-            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
             Assert.NotNull(evt);
             sequenceNumbers.Add(evt.SequenceNumber);
         }
@@ -380,7 +380,7 @@ public sealed class StreamingEventConformanceTests : ConformanceTestBase
 
         // Act
         string jsonString = lastEventJson.GetRawText();
-        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
 
         // Assert
         Assert.NotNull(evt);
@@ -413,7 +413,7 @@ public sealed class StreamingEventConformanceTests : ConformanceTestBase
         foreach (var eventJson in ParseSseEvents(sseContent))
         {
             // Should not throw
-            StreamingResponseEvent? evt = JsonSerializer.Deserialize(eventJson.GetRawText(), Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+            StreamingResponseEvent? evt = JsonSerializer.Deserialize(eventJson.GetRawText(), OpenAIJsonContext.Default.StreamingResponseEvent);
             Assert.NotNull(evt);
 
             // Verify polymorphic deserialization worked
@@ -459,7 +459,7 @@ public sealed class StreamingEventConformanceTests : ConformanceTestBase
         foreach (var eventJson in events)
         {
             string jsonString = eventJson.GetRawText();
-            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
             Assert.NotNull(evt);
 
             string? responseId = null;
@@ -499,7 +499,7 @@ public sealed class StreamingEventConformanceTests : ConformanceTestBase
         foreach (var eventJson in events)
         {
             string jsonString = eventJson.GetRawText();
-            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
 
             string? itemId = evt switch
             {
@@ -545,7 +545,7 @@ public sealed class StreamingEventConformanceTests : ConformanceTestBase
         // Assert - All events with output_index should have valid values
         foreach (var eventJson in ParseSseEvents(await httpResponse.Content.ReadAsStringAsync()))
         {
-            StreamingResponseEvent? evt = JsonSerializer.Deserialize(eventJson.GetRawText(), Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+            StreamingResponseEvent? evt = JsonSerializer.Deserialize(eventJson.GetRawText(), OpenAIJsonContext.Default.StreamingResponseEvent);
             Assert.NotNull(evt);
 
             if (evt is StreamingOutputItemAdded or StreamingOutputItemDone or StreamingContentPartAdded or StreamingContentPartDone or
@@ -607,7 +607,7 @@ public sealed class StreamingEventConformanceTests : ConformanceTestBase
         foreach (var eventJson in events)
         {
             string jsonString = eventJson.GetRawText();
-            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
             Assert.NotNull(evt);
 
             if (evt is StreamingResponseCreated created)
@@ -722,7 +722,7 @@ public sealed class StreamingEventConformanceTests : ConformanceTestBase
         foreach (var eventJson in events)
         {
             string jsonString = eventJson.GetRawText();
-            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
             Assert.NotNull(evt);
 
             switch (evt)
@@ -774,7 +774,7 @@ public sealed class StreamingEventConformanceTests : ConformanceTestBase
         foreach (var eventJson in events)
         {
             string jsonString = eventJson.GetRawText();
-            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
             Assert.NotNull(evt);
 
             Assert.True(sequenceNumbers.Add(evt.SequenceNumber),

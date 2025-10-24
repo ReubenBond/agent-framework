@@ -1,0 +1,8 @@
+{
+  "id": "conv_68fb99253dac8196b5a8e7912bcb052e07a4a6d400e64588",
+  "object": "conversation",
+  "created_at": 1761319205,
+  "metadata": {
+    "test_type": "tool_call_streaming"
+  }
+}

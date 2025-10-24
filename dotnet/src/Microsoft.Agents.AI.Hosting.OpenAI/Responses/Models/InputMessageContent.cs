@@ -162,7 +162,7 @@ internal sealed class InputMessageContentJsonConverter : JsonConverter<InputMess
         // Check if it's an array of ItemContent
         if (reader.TokenType == JsonTokenType.StartArray)
         {
-            var contents = JsonSerializer.Deserialize(ref reader, ResponsesJsonContext.Default.ListItemContent);
+            var contents = JsonSerializer.Deserialize(ref reader, OpenAIJsonContext.Default.ListItemContent);
             return contents?.Count > 0
                 ? InputMessageContent.FromContents(contents)
                 : InputMessageContent.FromText(string.Empty);
@@ -179,7 +179,7 @@ internal sealed class InputMessageContentJsonConverter : JsonConverter<InputMess
         }
         else if (value.IsContents)
         {
-            JsonSerializer.Serialize(writer, value.Contents, ResponsesJsonContext.Default.ListItemContent);
+            JsonSerializer.Serialize(writer, value.Contents, OpenAIJsonContext.Default.ListItemContent);
         }
         else
         {
