@@ -12,7 +12,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 /// Base class for all item resources (output items from a response).
 /// </summary>
 [JsonConverter(typeof(ItemResourceConverter))]
-internal abstract record ItemResource
+public abstract record ItemResource
 {
     /// <summary>
     /// The unique identifier for the item.
@@ -31,7 +31,7 @@ internal abstract record ItemResource
 /// Base class for message item resources.
 /// </summary>
 [JsonConverter(typeof(ResponsesMessageItemResourceConverter))]
-internal abstract record ResponsesMessageItemResource : ItemResource
+public abstract record ResponsesMessageItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for message items.
@@ -57,7 +57,7 @@ internal abstract record ResponsesMessageItemResource : ItemResource
 /// <summary>
 /// An assistant message item resource.
 /// </summary>
-internal sealed record ResponsesAssistantMessageItemResource : ResponsesMessageItemResource
+public sealed record ResponsesAssistantMessageItemResource : ResponsesMessageItemResource
 {
     /// <summary>
     /// The constant role type identifier for assistant messages.
@@ -71,13 +71,13 @@ internal sealed record ResponsesAssistantMessageItemResource : ResponsesMessageI
     /// The content of the message.
     /// </summary>
     [JsonPropertyName("content")]
-    public required IList<ItemContent> Content { get; init; }
+    public required IReadOnlyList<ItemContent> Content { get; init; }
 }
 
 /// <summary>
 /// A user message item resource.
 /// </summary>
-internal sealed record ResponsesUserMessageItemResource : ResponsesMessageItemResource
+public sealed record ResponsesUserMessageItemResource : ResponsesMessageItemResource
 {
     /// <summary>
     /// The constant role type identifier for user messages.
@@ -91,13 +91,13 @@ internal sealed record ResponsesUserMessageItemResource : ResponsesMessageItemRe
     /// The content of the message.
     /// </summary>
     [JsonPropertyName("content")]
-    public required IList<ItemContent> Content { get; init; }
+    public required IReadOnlyList<ItemContent> Content { get; init; }
 }
 
 /// <summary>
 /// A system message item resource.
 /// </summary>
-internal sealed record ResponsesSystemMessageItemResource : ResponsesMessageItemResource
+public sealed record ResponsesSystemMessageItemResource : ResponsesMessageItemResource
 {
     /// <summary>
     /// The constant role type identifier for system messages.
@@ -111,13 +111,13 @@ internal sealed record ResponsesSystemMessageItemResource : ResponsesMessageItem
     /// The content of the message.
     /// </summary>
     [JsonPropertyName("content")]
-    public required IList<ItemContent> Content { get; init; }
+    public required IReadOnlyList<ItemContent> Content { get; init; }
 }
 
 /// <summary>
 /// A developer message item resource.
 /// </summary>
-internal sealed record ResponsesDeveloperMessageItemResource : ResponsesMessageItemResource
+public sealed record ResponsesDeveloperMessageItemResource : ResponsesMessageItemResource
 {
     /// <summary>
     /// The constant role type identifier for developer messages.
@@ -131,13 +131,13 @@ internal sealed record ResponsesDeveloperMessageItemResource : ResponsesMessageI
     /// The content of the message.
     /// </summary>
     [JsonPropertyName("content")]
-    public required IList<ItemContent> Content { get; init; }
+    public required IReadOnlyList<ItemContent> Content { get; init; }
 }
 
 /// <summary>
 /// A function tool call item resource.
 /// </summary>
-internal sealed record FunctionToolCallItemResource : ItemResource
+public sealed record FunctionToolCallItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for function call items.
@@ -175,7 +175,7 @@ internal sealed record FunctionToolCallItemResource : ItemResource
 /// <summary>
 /// A function tool call output item resource.
 /// </summary>
-internal sealed record FunctionToolCallOutputItemResource : ItemResource
+public sealed record FunctionToolCallOutputItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for function call output items.
@@ -266,7 +266,7 @@ public enum FunctionToolCallOutputItemResourceStatus
 [JsonDerivedType(typeof(ItemContentOutputText), "output_text")]
 [JsonDerivedType(typeof(ItemContentOutputAudio), "output_audio")]
 [JsonDerivedType(typeof(ItemContentRefusal), "refusal")]
-internal abstract record ItemContent
+public abstract record ItemContent
 {
     /// <summary>
     /// The type of the content.
@@ -285,7 +285,7 @@ internal abstract record ItemContent
 /// <summary>
 /// Text input content.
 /// </summary>
-internal sealed record ItemContentInputText : ItemContent
+public sealed record ItemContentInputText : ItemContent
 {
     /// <inheritdoc/>
     [JsonIgnore]
@@ -301,7 +301,7 @@ internal sealed record ItemContentInputText : ItemContent
 /// <summary>
 /// Audio input content.
 /// </summary>
-internal sealed record ItemContentInputAudio : ItemContent
+public sealed record ItemContentInputAudio : ItemContent
 {
     /// <inheritdoc/>
     [JsonIgnore]
@@ -323,7 +323,7 @@ internal sealed record ItemContentInputAudio : ItemContent
 /// <summary>
 /// Image input content.
 /// </summary>
-internal sealed record ItemContentInputImage : ItemContent
+public sealed record ItemContentInputImage : ItemContent
 {
     /// <inheritdoc/>
     [JsonIgnore]
@@ -352,7 +352,7 @@ internal sealed record ItemContentInputImage : ItemContent
 /// <summary>
 /// File input content.
 /// </summary>
-internal sealed record ItemContentInputFile : ItemContent
+public sealed record ItemContentInputFile : ItemContent
 {
     /// <inheritdoc/>
     [JsonIgnore]
@@ -380,7 +380,7 @@ internal sealed record ItemContentInputFile : ItemContent
 /// <summary>
 /// Text output content.
 /// </summary>
-internal sealed record ItemContentOutputText : ItemContent
+public sealed record ItemContentOutputText : ItemContent
 {
     /// <inheritdoc/>
     [JsonIgnore]
@@ -408,7 +408,7 @@ internal sealed record ItemContentOutputText : ItemContent
 /// <summary>
 /// Audio output content.
 /// </summary>
-internal sealed record ItemContentOutputAudio : ItemContent
+public sealed record ItemContentOutputAudio : ItemContent
 {
     /// <inheritdoc/>
     [JsonIgnore]
@@ -430,7 +430,7 @@ internal sealed record ItemContentOutputAudio : ItemContent
 /// <summary>
 /// Refusal content.
 /// </summary>
-internal sealed record ItemContentRefusal : ItemContent
+public sealed record ItemContentRefusal : ItemContent
 {
     /// <inheritdoc/>
     [JsonIgnore]
@@ -448,7 +448,7 @@ internal sealed record ItemContentRefusal : ItemContent
 /// <summary>
 /// A file search tool call item resource.
 /// </summary>
-internal sealed record FileSearchToolCallItemResource : ItemResource
+public sealed record FileSearchToolCallItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for file search call items.
@@ -463,12 +463,24 @@ internal sealed record FileSearchToolCallItemResource : ItemResource
     /// </summary>
     [JsonPropertyName("status")]
     public string? Status { get; init; }
+
+    /// <summary>
+    /// The queries used to search for files.
+    /// </summary>
+    [JsonPropertyName("queries")]
+    public IReadOnlyList<string>? Queries { get; init; }
+
+    /// <summary>
+    /// The results of the file search tool call.
+    /// </summary>
+    [JsonPropertyName("results")]
+    public IReadOnlyList<JsonElement>? Results { get; init; }
 }
 
 /// <summary>
 /// A computer tool call item resource.
 /// </summary>
-internal sealed record ComputerToolCallItemResource : ItemResource
+public sealed record ComputerToolCallItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for computer call items.
@@ -483,12 +495,30 @@ internal sealed record ComputerToolCallItemResource : ItemResource
     /// </summary>
     [JsonPropertyName("status")]
     public string? Status { get; init; }
+
+    /// <summary>
+    /// An identifier used when responding to the tool call with output.
+    /// </summary>
+    [JsonPropertyName("call_id")]
+    public string? CallId { get; init; }
+
+    /// <summary>
+    /// The action to perform.
+    /// </summary>
+    [JsonPropertyName("action")]
+    public JsonElement? Action { get; init; }
+
+    /// <summary>
+    /// The pending safety checks for the computer call.
+    /// </summary>
+    [JsonPropertyName("pending_safety_checks")]
+    public IReadOnlyList<JsonElement>? PendingSafetyChecks { get; init; }
 }
 
 /// <summary>
 /// A computer tool call output item resource.
 /// </summary>
-internal sealed record ComputerToolCallOutputItemResource : ItemResource
+public sealed record ComputerToolCallOutputItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for computer call output items.
@@ -503,12 +533,30 @@ internal sealed record ComputerToolCallOutputItemResource : ItemResource
     /// </summary>
     [JsonPropertyName("status")]
     public string? Status { get; init; }
+
+    /// <summary>
+    /// The ID of the computer tool call that produced the output.
+    /// </summary>
+    [JsonPropertyName("call_id")]
+    public string? CallId { get; init; }
+
+    /// <summary>
+    /// The safety checks reported by the API that have been acknowledged by the developer.
+    /// </summary>
+    [JsonPropertyName("acknowledged_safety_checks")]
+    public IReadOnlyList<JsonElement>? AcknowledgedSafetyChecks { get; init; }
+
+    /// <summary>
+    /// The output of the computer tool call.
+    /// </summary>
+    [JsonPropertyName("output")]
+    public JsonElement? Output { get; init; }
 }
 
 /// <summary>
 /// A web search tool call item resource.
 /// </summary>
-internal sealed record WebSearchToolCallItemResource : ItemResource
+public sealed record WebSearchToolCallItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for web search call items.
@@ -523,12 +571,18 @@ internal sealed record WebSearchToolCallItemResource : ItemResource
     /// </summary>
     [JsonPropertyName("status")]
     public string? Status { get; init; }
+
+    /// <summary>
+    /// An object describing the specific action taken in this web search call.
+    /// </summary>
+    [JsonPropertyName("action")]
+    public JsonElement? Action { get; init; }
 }
 
 /// <summary>
 /// A reasoning item resource.
 /// </summary>
-internal sealed record ReasoningItemResource : ItemResource
+public sealed record ReasoningItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for reasoning items.
@@ -543,12 +597,25 @@ internal sealed record ReasoningItemResource : ItemResource
     /// </summary>
     [JsonPropertyName("status")]
     public string? Status { get; init; }
+
+    /// <summary>
+    /// The encrypted content of the reasoning item - populated when a response is
+    /// generated with reasoning.encrypted_content in the include parameter.
+    /// </summary>
+    [JsonPropertyName("encrypted_content")]
+    public string? EncryptedContent { get; init; }
+
+    /// <summary>
+    /// Reasoning text contents.
+    /// </summary>
+    [JsonPropertyName("summary")]
+    public IReadOnlyList<JsonElement>? Summary { get; init; }
 }
 
 /// <summary>
 /// An item reference item resource.
 /// </summary>
-internal sealed record ItemReferenceItemResource : ItemResource
+public sealed record ItemReferenceItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for item reference items.
@@ -562,7 +629,7 @@ internal sealed record ItemReferenceItemResource : ItemResource
 /// <summary>
 /// An image generation tool call item resource.
 /// </summary>
-internal sealed record ImageGenerationToolCallItemResource : ItemResource
+public sealed record ImageGenerationToolCallItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for image generation call items.
@@ -577,12 +644,18 @@ internal sealed record ImageGenerationToolCallItemResource : ItemResource
     /// </summary>
     [JsonPropertyName("status")]
     public string? Status { get; init; }
+
+    /// <summary>
+    /// The generated image encoded in base64.
+    /// </summary>
+    [JsonPropertyName("result")]
+    public string? Result { get; init; }
 }
 
 /// <summary>
 /// A code interpreter tool call item resource.
 /// </summary>
-internal sealed record CodeInterpreterToolCallItemResource : ItemResource
+public sealed record CodeInterpreterToolCallItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for code interpreter call items.
@@ -597,12 +670,31 @@ internal sealed record CodeInterpreterToolCallItemResource : ItemResource
     /// </summary>
     [JsonPropertyName("status")]
     public string? Status { get; init; }
+
+    /// <summary>
+    /// The ID of the container used to run the code.
+    /// </summary>
+    [JsonPropertyName("container_id")]
+    public string? ContainerId { get; init; }
+
+    /// <summary>
+    /// The code to run, or null if not available.
+    /// </summary>
+    [JsonPropertyName("code")]
+    public string? Code { get; init; }
+
+    /// <summary>
+    /// The outputs generated by the code interpreter, such as logs or images.
+    /// Can be null if no outputs are available.
+    /// </summary>
+    [JsonPropertyName("outputs")]
+    public IReadOnlyList<JsonElement>? Outputs { get; init; }
 }
 
 /// <summary>
 /// A local shell tool call item resource.
 /// </summary>
-internal sealed record LocalShellToolCallItemResource : ItemResource
+public sealed record LocalShellToolCallItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for local shell call items.
@@ -617,12 +709,24 @@ internal sealed record LocalShellToolCallItemResource : ItemResource
     /// </summary>
     [JsonPropertyName("status")]
     public string? Status { get; init; }
+
+    /// <summary>
+    /// The unique ID of the local shell tool call generated by the model.
+    /// </summary>
+    [JsonPropertyName("call_id")]
+    public string? CallId { get; init; }
+
+    /// <summary>
+    /// The action to execute.
+    /// </summary>
+    [JsonPropertyName("action")]
+    public JsonElement? Action { get; init; }
 }
 
 /// <summary>
 /// A local shell tool call output item resource.
 /// </summary>
-internal sealed record LocalShellToolCallOutputItemResource : ItemResource
+public sealed record LocalShellToolCallOutputItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for local shell call output items.
@@ -637,12 +741,18 @@ internal sealed record LocalShellToolCallOutputItemResource : ItemResource
     /// </summary>
     [JsonPropertyName("status")]
     public string? Status { get; init; }
+
+    /// <summary>
+    /// A JSON string of the output of the local shell tool call.
+    /// </summary>
+    [JsonPropertyName("output")]
+    public string? Output { get; init; }
 }
 
 /// <summary>
 /// An MCP list tools item resource.
 /// </summary>
-internal sealed record MCPListToolsItemResource : ItemResource
+public sealed record MCPListToolsItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for MCP list tools items.
@@ -651,12 +761,30 @@ internal sealed record MCPListToolsItemResource : ItemResource
 
     /// <inheritdoc/>
     public override string Type => ItemType;
+
+    /// <summary>
+    /// The label of the MCP server.
+    /// </summary>
+    [JsonPropertyName("server_label")]
+    public string? ServerLabel { get; init; }
+
+    /// <summary>
+    /// The tools available on the server.
+    /// </summary>
+    [JsonPropertyName("tools")]
+    public IReadOnlyList<JsonElement>? Tools { get; init; }
+
+    /// <summary>
+    /// Error message if the server could not list tools.
+    /// </summary>
+    [JsonPropertyName("error")]
+    public string? Error { get; init; }
 }
 
 /// <summary>
 /// An MCP approval request item resource.
 /// </summary>
-internal sealed record MCPApprovalRequestItemResource : ItemResource
+public sealed record MCPApprovalRequestItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for MCP approval request items.
@@ -665,12 +793,30 @@ internal sealed record MCPApprovalRequestItemResource : ItemResource
 
     /// <inheritdoc/>
     public override string Type => ItemType;
+
+    /// <summary>
+    /// The label of the MCP server making the request.
+    /// </summary>
+    [JsonPropertyName("server_label")]
+    public string? ServerLabel { get; init; }
+
+    /// <summary>
+    /// The name of the tool to run.
+    /// </summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; init; }
+
+    /// <summary>
+    /// A JSON string of arguments for the tool.
+    /// </summary>
+    [JsonPropertyName("arguments")]
+    public string? Arguments { get; init; }
 }
 
 /// <summary>
 /// An MCP approval response item resource.
 /// </summary>
-internal sealed record MCPApprovalResponseItemResource : ItemResource
+public sealed record MCPApprovalResponseItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for MCP approval response items.
@@ -679,12 +825,30 @@ internal sealed record MCPApprovalResponseItemResource : ItemResource
 
     /// <inheritdoc/>
     public override string Type => ItemType;
+
+    /// <summary>
+    /// The ID of the approval request being answered.
+    /// </summary>
+    [JsonPropertyName("approval_request_id")]
+    public string? ApprovalRequestId { get; init; }
+
+    /// <summary>
+    /// Whether the request was approved.
+    /// </summary>
+    [JsonPropertyName("approve")]
+    public bool? Approve { get; init; }
+
+    /// <summary>
+    /// Optional reason for the decision.
+    /// </summary>
+    [JsonPropertyName("reason")]
+    public string? Reason { get; init; }
 }
 
 /// <summary>
 /// An MCP call item resource.
 /// </summary>
-internal sealed record MCPCallItemResource : ItemResource
+public sealed record MCPCallItemResource : ItemResource
 {
     /// <summary>
     /// The constant item type identifier for MCP call items.
@@ -693,4 +857,34 @@ internal sealed record MCPCallItemResource : ItemResource
 
     /// <inheritdoc/>
     public override string Type => ItemType;
+
+    /// <summary>
+    /// The label of the MCP server running the tool.
+    /// </summary>
+    [JsonPropertyName("server_label")]
+    public string? ServerLabel { get; init; }
+
+    /// <summary>
+    /// The name of the tool that was run.
+    /// </summary>
+    [JsonPropertyName("name")]
+    public string? Name { get; init; }
+
+    /// <summary>
+    /// A JSON string of the arguments passed to the tool.
+    /// </summary>
+    [JsonPropertyName("arguments")]
+    public string? Arguments { get; init; }
+
+    /// <summary>
+    /// The output from the tool call.
+    /// </summary>
+    [JsonPropertyName("output")]
+    public string? Output { get; init; }
+
+    /// <summary>
+    /// The error from the tool call, if any.
+    /// </summary>
+    [JsonPropertyName("error")]
+    public string? Error { get; init; }
 }

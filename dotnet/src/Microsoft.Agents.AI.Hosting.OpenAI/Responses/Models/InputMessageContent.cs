@@ -14,7 +14,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 /// Aligns with the OpenAI typespec: string | InputContent[]
 /// </summary>
 [JsonConverter(typeof(InputMessageContentJsonConverter))]
-internal sealed class InputMessageContent : IEquatable<InputMessageContent>
+public sealed class InputMessageContent : IEquatable<InputMessageContent>
 {
     private InputMessageContent(string text)
     {
@@ -62,12 +62,14 @@ internal sealed class InputMessageContent : IEquatable<InputMessageContent>
     /// Gets whether this content is text.
     /// </summary>
     [MemberNotNullWhen(true, nameof(Text))]
+    [MemberNotNullWhen(false, nameof(Contents))]
     public bool IsText => this.Text is not null;
 
     /// <summary>
     /// Gets whether this content is a list of ItemContent items.
     /// </summary>
     [MemberNotNullWhen(true, nameof(Contents))]
+    [MemberNotNullWhen(false, nameof(Text))]
     public bool IsContents => this.Contents is not null;
 
     /// <summary>
@@ -143,13 +145,24 @@ internal sealed class InputMessageContent : IEquatable<InputMessageContent>
     {
         return !Equals(left, right);
     }
+
+    /// <summary>
+    /// Converts this instance to a list of ItemContent.
+    /// </summary>
+    public IReadOnlyList<ItemContent> ToItemContents()
+    {
+        return this.IsText
+            ? [new ItemContentInputText { Text = this.Text }]
+            : this.Contents;
+    }
 }
 
 /// <summary>
 /// JSON converter for <see cref="InputMessageContent"/>.
 /// </summary>
-internal sealed class InputMessageContentJsonConverter : JsonConverter<InputMessageContent>
+public sealed class InputMessageContentJsonConverter : JsonConverter<InputMessageContent>
 {
+    /// <inheritdoc/>
     public override InputMessageContent? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         // Check if it's a string
@@ -162,7 +175,7 @@ internal sealed class InputMessageContentJsonConverter : JsonConverter<InputMess
         // Check if it's an array of ItemContent
         if (reader.TokenType == JsonTokenType.StartArray)
         {
-            var contents = JsonSerializer.Deserialize(ref reader, ResponsesJsonContext.Default.ListItemContent);
+            var contents = JsonSerializer.Deserialize(ref reader, OpenAIJsonContext.Default.ListItemContent);
             return contents?.Count > 0
                 ? InputMessageContent.FromContents(contents)
                 : InputMessageContent.FromText(string.Empty);
@@ -171,6 +184,7 @@ internal sealed class InputMessageContentJsonConverter : JsonConverter<InputMess
         throw new JsonException($"Unexpected token type for InputMessageContent: {reader.TokenType}");
     }
 
+    /// <inheritdoc/>
     public override void Write(Utf8JsonWriter writer, InputMessageContent value, JsonSerializerOptions options)
     {
         if (value.IsText)
@@ -179,7 +193,7 @@ internal sealed class InputMessageContentJsonConverter : JsonConverter<InputMess
         }
         else if (value.IsContents)
         {
-            JsonSerializer.Serialize(writer, value.Contents, ResponsesJsonContext.Default.ListItemContent);
+            JsonSerializer.Serialize(writer, value.Contents, OpenAIJsonContext.Default.IReadOnlyListItemContent);
         }
         else
         {

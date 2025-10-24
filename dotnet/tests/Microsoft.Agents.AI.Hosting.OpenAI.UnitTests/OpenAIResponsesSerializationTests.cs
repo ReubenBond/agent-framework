@@ -25,7 +25,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("basic/request.json");
 
         // Act
-        CreateResponse? request = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.CreateResponse);
+        CreateResponse? request = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.CreateResponse);
 
         // Assert
         Assert.NotNull(request);
@@ -41,9 +41,9 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string originalJson = LoadTraceFile("basic/request.json");
 
         // Act
-        CreateResponse? request = JsonSerializer.Deserialize(originalJson, Responses.ResponsesJsonContext.Default.CreateResponse);
-        string reserializedJson = JsonSerializer.Serialize(request, Responses.ResponsesJsonContext.Default.CreateResponse);
-        CreateResponse? roundtripped = JsonSerializer.Deserialize(reserializedJson, Responses.ResponsesJsonContext.Default.CreateResponse);
+        CreateResponse? request = JsonSerializer.Deserialize(originalJson, OpenAIJsonContext.Default.CreateResponse);
+        string reserializedJson = JsonSerializer.Serialize(request, OpenAIJsonContext.Default.CreateResponse);
+        CreateResponse? roundtripped = JsonSerializer.Deserialize(reserializedJson, OpenAIJsonContext.Default.CreateResponse);
 
         // Assert
         Assert.NotNull(request);
@@ -59,7 +59,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("streaming/request.json");
 
         // Act
-        CreateResponse? request = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.CreateResponse);
+        CreateResponse? request = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.CreateResponse);
 
         // Assert
         Assert.NotNull(request);
@@ -74,7 +74,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("conversation/request.json");
 
         // Act
-        CreateResponse? request = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.CreateResponse);
+        CreateResponse? request = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.CreateResponse);
 
         // Assert
         Assert.NotNull(request);
@@ -89,7 +89,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("metadata/request.json");
 
         // Act
-        CreateResponse? request = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.CreateResponse);
+        CreateResponse? request = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.CreateResponse);
 
         // Assert
         Assert.NotNull(request);
@@ -142,7 +142,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         };
 
         // Act
-        string json = JsonSerializer.Serialize(request, Responses.ResponsesJsonContext.Default.CreateResponse);
+        string json = JsonSerializer.Serialize(request, OpenAIJsonContext.Default.CreateResponse);
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
@@ -175,7 +175,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         };
 
         // Act
-        string json = JsonSerializer.Serialize(request, Responses.ResponsesJsonContext.Default.CreateResponse);
+        string json = JsonSerializer.Serialize(request, OpenAIJsonContext.Default.CreateResponse);
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
@@ -203,7 +203,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         };
 
         // Act
-        string json = JsonSerializer.Serialize(request, Responses.ResponsesJsonContext.Default.CreateResponse);
+        string json = JsonSerializer.Serialize(request, OpenAIJsonContext.Default.CreateResponse);
         using var doc = JsonDocument.Parse(json);
         var root = doc.RootElement;
 
@@ -223,7 +223,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("image_input/request.json");
 
         // Act
-        CreateResponse? request = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.CreateResponse);
+        CreateResponse? request = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.CreateResponse);
 
         // Assert
         Assert.NotNull(request);
@@ -237,7 +237,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("image_input_streaming/request.json");
 
         // Act
-        CreateResponse? request = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.CreateResponse);
+        CreateResponse? request = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.CreateResponse);
 
         // Assert
         Assert.NotNull(request);
@@ -252,7 +252,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("json_output/request.json");
 
         // Act
-        CreateResponse? request = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.CreateResponse);
+        CreateResponse? request = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.CreateResponse);
 
         // Assert
         Assert.NotNull(request);
@@ -263,7 +263,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         var jsonSchemaFormat = (ResponseTextFormatConfigurationJsonSchema)request.Text.Format;
         Assert.Equal("json_schema", jsonSchemaFormat.Type);
         Assert.NotNull(jsonSchemaFormat.Name);
-        Assert.NotNull(jsonSchemaFormat.Schema);
+        Assert.NotEqual(default, jsonSchemaFormat.Schema);
     }
 
     [Fact]
@@ -273,7 +273,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("json_output_streaming/request.json");
 
         // Act
-        CreateResponse? request = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.CreateResponse);
+        CreateResponse? request = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.CreateResponse);
 
         // Assert
         Assert.NotNull(request);
@@ -293,7 +293,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("reasoning/request.json");
 
         // Act
-        CreateResponse? request = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.CreateResponse);
+        CreateResponse? request = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.CreateResponse);
 
         // Assert
         Assert.NotNull(request);
@@ -307,7 +307,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("reasoning_streaming/request.json");
 
         // Act
-        CreateResponse? request = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.CreateResponse);
+        CreateResponse? request = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.CreateResponse);
 
         // Assert
         Assert.NotNull(request);
@@ -322,7 +322,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("refusal/request.json");
 
         // Act
-        CreateResponse? request = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.CreateResponse);
+        CreateResponse? request = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.CreateResponse);
 
         // Assert
         Assert.NotNull(request);
@@ -336,7 +336,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("refusal_streaming/request.json");
 
         // Act
-        CreateResponse? request = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.CreateResponse);
+        CreateResponse? request = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.CreateResponse);
 
         // Assert
         Assert.NotNull(request);
@@ -370,7 +370,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
             string json = LoadTraceFile(path);
 
             // Act & Assert - Should not throw
-            CreateResponse? request = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.CreateResponse);
+            CreateResponse? request = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.CreateResponse);
             Assert.NotNull(request);
             Assert.NotNull(request.Input);
         }
@@ -387,7 +387,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("basic/response.json");
 
         // Act
-        Response? response = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.Response);
+        Response? response = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.Response);
 
         // Assert
         Assert.NotNull(response);
@@ -406,7 +406,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("basic/response.json");
 
         // Act
-        Response? response = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.Response);
+        Response? response = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.Response);
 
         // Assert
         Assert.NotNull(response);
@@ -417,7 +417,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         Assert.NotNull(outputItem);
 
         // Verify it's a message type
-        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(outputItem, Responses.ResponsesJsonContext.Default.ItemResource));
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(outputItem, OpenAIJsonContext.Default.ItemResource));
         var root = doc.RootElement;
         Assert.Equal("message", root.GetProperty("type").GetString());
     }
@@ -429,7 +429,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("basic/response.json");
 
         // Act
-        Response? response = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.Response);
+        Response? response = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.Response);
 
         // Assert
         Assert.NotNull(response);
@@ -448,7 +448,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("conversation/response.json");
 
         // Act
-        Response? response = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.Response);
+        Response? response = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.Response);
 
         // Assert
         Assert.NotNull(response);
@@ -464,7 +464,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("metadata/response.json");
 
         // Act
-        Response? response = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.Response);
+        Response? response = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.Response);
 
         // Assert
         Assert.NotNull(response);
@@ -481,7 +481,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("metadata/response.json");
 
         // Act
-        Response? response = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.Response);
+        Response? response = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.Response);
 
         // Assert
         Assert.NotNull(response);
@@ -497,7 +497,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("metadata/response.json");
 
         // Act
-        Response? response = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.Response);
+        Response? response = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.Response);
 
         // Assert
         Assert.NotNull(response);
@@ -512,7 +512,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("metadata/response.json");
 
         // Act
-        Response? response = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.Response);
+        Response? response = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.Response);
 
         // Assert
         Assert.NotNull(response);
@@ -528,7 +528,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("tool_call/response.json");
 
         // Act
-        Response? response = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.Response);
+        Response? response = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.Response);
 
         // Assert
         Assert.NotNull(response);
@@ -536,7 +536,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         Assert.Single(response.Output);
 
         // Verify the output is a function_call type
-        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(response.Output[0], Responses.ResponsesJsonContext.Default.ItemResource));
+        using var doc = JsonDocument.Parse(JsonSerializer.Serialize(response.Output[0], OpenAIJsonContext.Default.ItemResource));
         var root = doc.RootElement;
         Assert.Equal("function_call", root.GetProperty("type").GetString());
         Assert.Equal("get_weather", root.GetProperty("name").GetString());
@@ -552,7 +552,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("tool_call/response.json");
 
         // Act
-        Response? response = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.Response);
+        Response? response = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.Response);
 
         // Assert
         Assert.NotNull(response);
@@ -576,7 +576,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("image_input/response.json");
 
         // Act
-        Response? response = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.Response);
+        Response? response = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.Response);
 
         // Assert
         Assert.NotNull(response);
@@ -591,7 +591,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("json_output/response.json");
 
         // Act
-        Response? response = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.Response);
+        Response? response = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.Response);
 
         // Assert
         Assert.NotNull(response);
@@ -611,7 +611,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("reasoning/response.json");
 
         // Act
-        Response? response = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.Response);
+        Response? response = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.Response);
 
         // Assert
         Assert.NotNull(response);
@@ -627,7 +627,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string json = LoadTraceFile("refusal/response.json");
 
         // Act
-        Response? response = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.Response);
+        Response? response = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.Response);
 
         // Assert
         Assert.NotNull(response);
@@ -656,7 +656,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
             string json = LoadTraceFile(path);
 
             // Act
-            Response? response = JsonSerializer.Deserialize(json, Responses.ResponsesJsonContext.Default.Response);
+            Response? response = JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.Response);
 
             // Assert
             Assert.NotNull(response);
@@ -675,9 +675,9 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         string originalJson = LoadTraceFile("basic/response.json");
 
         // Act - Deserialize and re-serialize
-        Response? response = JsonSerializer.Deserialize(originalJson, Responses.ResponsesJsonContext.Default.Response);
-        string reserializedJson = JsonSerializer.Serialize(response, Responses.ResponsesJsonContext.Default.Response);
-        Response? roundtripped = JsonSerializer.Deserialize(reserializedJson, Responses.ResponsesJsonContext.Default.Response);
+        Response? response = JsonSerializer.Deserialize(originalJson, OpenAIJsonContext.Default.Response);
+        string reserializedJson = JsonSerializer.Serialize(response, OpenAIJsonContext.Default.Response);
+        Response? roundtripped = JsonSerializer.Deserialize(reserializedJson, OpenAIJsonContext.Default.Response);
 
         // Assert
         Assert.NotNull(response);
@@ -742,7 +742,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
 
         // Act
         string jsonString = createdEventJson.GetRawText();
-        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
 
         // Assert
         Assert.NotNull(evt);
@@ -764,7 +764,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
 
         // Act
         string jsonString = inProgressEventJson.GetRawText();
-        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
 
         // Assert
         Assert.NotNull(evt);
@@ -785,7 +785,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
 
         // Act
         string jsonString = itemAddedJson.GetRawText();
-        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
 
         // Assert
         Assert.NotNull(evt);
@@ -805,7 +805,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
 
         // Act
         string jsonString = partAddedJson.GetRawText();
-        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
 
         // Assert
         Assert.NotNull(evt);
@@ -827,7 +827,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
 
         // Act
         string jsonString = textDeltaJson.GetRawText();
-        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
 
         // Assert
         Assert.NotNull(evt);
@@ -853,7 +853,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         foreach (var eventJson in events)
         {
             string jsonString = eventJson.GetRawText();
-            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
 
             if (evt is StreamingOutputTextDelta delta)
             {
@@ -885,7 +885,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         foreach (var eventJson in events)
         {
             string jsonString = eventJson.GetRawText();
-            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+            StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
             Assert.NotNull(evt);
             sequenceNumbers.Add(evt.SequenceNumber);
         }
@@ -910,7 +910,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
 
         // Act
         string jsonString = lastEventJson.GetRawText();
-        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+        StreamingResponseEvent? evt = JsonSerializer.Deserialize(jsonString, OpenAIJsonContext.Default.StreamingResponseEvent);
 
         // Assert
         Assert.NotNull(evt);
@@ -935,7 +935,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         Assert.NotEmpty(events);
         Assert.All(events, evt =>
         {
-            StreamingResponseEvent? parsed = JsonSerializer.Deserialize(evt.GetRawText(), Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+            StreamingResponseEvent? parsed = JsonSerializer.Deserialize(evt.GetRawText(), OpenAIJsonContext.Default.StreamingResponseEvent);
             Assert.NotNull(parsed);
         });
     }
@@ -953,7 +953,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         Assert.NotEmpty(events);
         Assert.All(events, evt =>
         {
-            StreamingResponseEvent? parsed = JsonSerializer.Deserialize(evt.GetRawText(), Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+            StreamingResponseEvent? parsed = JsonSerializer.Deserialize(evt.GetRawText(), OpenAIJsonContext.Default.StreamingResponseEvent);
             Assert.NotNull(parsed);
         });
     }
@@ -974,7 +974,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         Assert.Contains("response.created", eventTypes);
         Assert.All(events, evt =>
         {
-            StreamingResponseEvent? parsed = JsonSerializer.Deserialize(evt.GetRawText(), Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+            StreamingResponseEvent? parsed = JsonSerializer.Deserialize(evt.GetRawText(), OpenAIJsonContext.Default.StreamingResponseEvent);
             Assert.NotNull(parsed);
         });
     }
@@ -994,7 +994,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         // Should have refusal-related events
         Assert.All(events, evt =>
         {
-            StreamingResponseEvent? parsed = JsonSerializer.Deserialize(evt.GetRawText(), Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+            StreamingResponseEvent? parsed = JsonSerializer.Deserialize(evt.GetRawText(), OpenAIJsonContext.Default.StreamingResponseEvent);
             Assert.NotNull(parsed);
         });
     }
@@ -1020,7 +1020,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
             foreach (var eventJson in ParseSseEventsFromContent(sseContent))
             {
                 // Should not throw
-                StreamingResponseEvent? evt = JsonSerializer.Deserialize(eventJson.GetRawText(), Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+                StreamingResponseEvent? evt = JsonSerializer.Deserialize(eventJson.GetRawText(), OpenAIJsonContext.Default.StreamingResponseEvent);
                 Assert.NotNull(evt);
             }
         }
@@ -1036,7 +1036,7 @@ public sealed class OpenAIResponsesSerializationTests : ConformanceTestBase
         foreach (var eventJson in ParseSseEventsFromContent(sseContent))
         {
             // Should not throw
-            StreamingResponseEvent? evt = JsonSerializer.Deserialize(eventJson.GetRawText(), Responses.ResponsesJsonContext.Default.StreamingResponseEvent);
+            StreamingResponseEvent? evt = JsonSerializer.Deserialize(eventJson.GetRawText(), OpenAIJsonContext.Default.StreamingResponseEvent);
             Assert.NotNull(evt);
 
             // Verify polymorphic deserialization worked

@@ -9,7 +9,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Converters;
 /// <summary>
 /// Provides bidirectional conversion between <see cref="AIContent"/> and <see cref="ItemContent"/> types.
 /// </summary>
-internal static class ItemContentConverter
+public static class ItemContentConverter
 {
     /// <summary>
     /// Converts <see cref="ItemContent"/> to <see cref="AIContent"/>.
@@ -104,22 +104,16 @@ internal static class ItemContentConverter
                     ImageUrl = uriContent.Uri?.ToString(),
                     Detail = GetImageDetail(uriContent)
                 },
-            DataContent dataContent when dataContent.HasTopLevelMediaType("image") =>
-                new ItemContentInputImage
-                {
-                    ImageUrl = dataContent.Uri,
-                    Detail = GetImageDetail(dataContent)
-                },
             HostedFileContent hostedFile =>
                 new ItemContentInputFile
                 {
                     FileId = hostedFile.FileId
                 },
-            DataContent fileData when !fileData.HasTopLevelMediaType("image") && !fileData.HasTopLevelMediaType("audio") =>
-                new ItemContentInputFile
+            DataContent dataContent when dataContent.HasTopLevelMediaType("image") =>
+                new ItemContentInputImage
                 {
-                    FileData = fileData.Uri,
-                    Filename = fileData.Name
+                    ImageUrl = dataContent.Uri,
+                    Detail = GetImageDetail(dataContent)
                 },
             DataContent audioData when audioData.HasTopLevelMediaType("audio") =>
                 new ItemContentInputAudio
@@ -132,6 +126,12 @@ internal static class ItemContentConverter
                         audioData.MediaType.Equals("audio/flac", StringComparison.OrdinalIgnoreCase) ? "flac" :
                         audioData.MediaType.Equals("audio/pcm", StringComparison.OrdinalIgnoreCase) ? "pcm16" :
                         "mp3" // Default to mp3
+                },
+            DataContent fileData =>
+                new ItemContentInputFile
+                {
+                    FileData = fileData.Uri,
+                    Filename = fileData.Name
                 },
             // Other AIContent types (FunctionCallContent, FunctionResultContent, etc.)
             // are handled separately in the Responses API as different ItemResource types, not ItemContent

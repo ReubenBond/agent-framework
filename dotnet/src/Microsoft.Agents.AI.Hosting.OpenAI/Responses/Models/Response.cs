@@ -48,7 +48,7 @@ public enum ResponseStatus
 /// <summary>
 /// Response from creating a model response.
 /// </summary>
-internal sealed record Response
+public sealed record Response
 {
     /// <summary>
     /// The unique identifier for the response.
@@ -256,7 +256,7 @@ internal sealed record Response
 /// <summary>
 /// An error object returned when the model fails to generate a response.
 /// </summary>
-internal sealed record ResponseError
+public sealed record ResponseError
 {
     /// <summary>
     /// The error code for the response.
@@ -274,7 +274,7 @@ internal sealed record ResponseError
 /// <summary>
 /// Details about why the response is incomplete.
 /// </summary>
-internal sealed record IncompleteDetails
+public sealed record IncompleteDetails
 {
     /// <summary>
     /// The reason why the response is incomplete. One of "max_output_tokens" or "content_filter".
@@ -286,8 +286,11 @@ internal sealed record IncompleteDetails
 /// <summary>
 /// Usage statistics for a response.
 /// </summary>
-internal sealed record ResponseUsage
+public sealed record ResponseUsage
 {
+    /// <summary>
+    /// Gets a zero usage instance.
+    /// </summary>
     public static ResponseUsage Zero { get; } = new()
     {
         InputTokens = 0,
@@ -353,7 +356,7 @@ internal sealed record ResponseUsage
 /// <summary>
 /// A detailed breakdown of the input tokens.
 /// </summary>
-internal sealed record InputTokensDetails
+public sealed record InputTokensDetails
 {
     /// <summary>
     /// The number of tokens that were retrieved from the cache.
@@ -365,7 +368,7 @@ internal sealed record InputTokensDetails
 /// <summary>
 /// A detailed breakdown of the output tokens.
 /// </summary>
-internal sealed record OutputTokensDetails
+public sealed record OutputTokensDetails
 {
     /// <summary>
     /// The number of reasoning tokens.

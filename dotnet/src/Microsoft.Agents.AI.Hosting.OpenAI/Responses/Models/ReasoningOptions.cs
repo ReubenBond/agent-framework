@@ -7,7 +7,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 /// <summary>
 /// Configuration options for reasoning models.
 /// </summary>
-internal sealed record ReasoningOptions
+public sealed record ReasoningOptions
 {
     /// <summary>
     /// Constrains effort on reasoning for reasoning models.

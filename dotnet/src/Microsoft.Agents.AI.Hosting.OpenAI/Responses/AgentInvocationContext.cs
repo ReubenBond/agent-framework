@@ -9,7 +9,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses;
 /// </summary>
 /// <param name="idGenerator">The ID generator.</param>
 /// <param name="jsonSerializerOptions">The JSON serializer options. If not provided, default options will be used.</param>
-internal sealed class AgentInvocationContext(IdGenerator idGenerator, JsonSerializerOptions? jsonSerializerOptions = null)
+public sealed class AgentInvocationContext(IdGenerator idGenerator, JsonSerializerOptions? jsonSerializerOptions = null)
 {
     /// <summary>
     /// Gets the ID generator for this context.
@@ -29,5 +29,5 @@ internal sealed class AgentInvocationContext(IdGenerator idGenerator, JsonSerial
     /// <summary>
     /// Gets the JSON serializer options.
     /// </summary>
-    public JsonSerializerOptions JsonSerializerOptions { get; } = jsonSerializerOptions ?? ResponsesJsonSerializerOptions.Default;
+    public JsonSerializerOptions JsonSerializerOptions { get; } = jsonSerializerOptions ?? OpenAIJsonUtilities.DefaultOptions;
 }

@@ -13,7 +13,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 /// Represents the input to a response request, which can be either a simple string or a list of messages.
 /// </summary>
 [JsonConverter(typeof(ResponseInputJsonConverter))]
-internal sealed class ResponseInput : IEquatable<ResponseInput>
+public sealed class ResponseInput : IEquatable<ResponseInput>
 {
     private ResponseInput(string text)
     {
@@ -80,6 +80,7 @@ internal sealed class ResponseInput : IEquatable<ResponseInput>
     /// <summary>
     /// Gets the input as a list of InputMessage objects.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1024:Use properties where appropriate", Justification = "Method performs transformation logic")]
     public IReadOnlyList<InputMessage> GetInputMessages()
     {
         if (this.Text is not null)
@@ -162,8 +163,9 @@ internal sealed class ResponseInput : IEquatable<ResponseInput>
 /// <summary>
 /// JSON converter for ResponseInput.
 /// </summary>
-internal sealed class ResponseInputJsonConverter : JsonConverter<ResponseInput>
+public sealed class ResponseInputJsonConverter : JsonConverter<ResponseInput>
 {
+    /// <inheritdoc/>
     public override ResponseInput? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         // Check if it's a string
@@ -176,13 +178,14 @@ internal sealed class ResponseInputJsonConverter : JsonConverter<ResponseInput>
         // Check if it's an array
         if (reader.TokenType == JsonTokenType.StartArray)
         {
-            var messages = JsonSerializer.Deserialize(ref reader, ResponsesJsonContext.Default.ListInputMessage);
+            var messages = JsonSerializer.Deserialize(ref reader, OpenAIJsonContext.Default.ListInputMessage);
             return messages is not null ? ResponseInput.FromMessages(messages) : null;
         }
 
         throw new JsonException($"Unexpected token type for ResponseInput: {reader.TokenType}");
     }
 
+    /// <inheritdoc/>
     public override void Write(Utf8JsonWriter writer, ResponseInput value, JsonSerializerOptions options)
     {
         if (value.IsText)
@@ -191,7 +194,7 @@ internal sealed class ResponseInputJsonConverter : JsonConverter<ResponseInput>
         }
         else if (value.IsMessages)
         {
-            JsonSerializer.Serialize(writer, value.Messages!, ResponsesJsonContext.Default.IReadOnlyListInputMessage);
+            JsonSerializer.Serialize(writer, value.Messages!, OpenAIJsonContext.Default.IReadOnlyListInputMessage);
         }
         else
         {
