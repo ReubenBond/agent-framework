@@ -59,8 +59,7 @@ public sealed record ResponsesUserMessageItemParam : ResponsesMessageItemParam
     /// The content of the message. Can be a simple string or an array of content parts.
     /// </summary>
     [JsonPropertyName("content")]
-    [JsonConverter(typeof(MessageContentConverter))]
-    public required object Content { get; init; } // string | IList<ItemContent>
+    public required InputMessageContent Content { get; init; }
 }
 
 /// <summary>
@@ -80,8 +79,7 @@ public sealed record ResponsesAssistantMessageItemParam : ResponsesMessageItemPa
     /// The content of the message. Can be a simple string or an array of content parts.
     /// </summary>
     [JsonPropertyName("content")]
-    [JsonConverter(typeof(MessageContentConverter))]
-    public required object Content { get; init; } // string | IList<ItemContent>
+    public required InputMessageContent Content { get; init; }
 }
 
 /// <summary>
@@ -101,8 +99,7 @@ public sealed record ResponsesSystemMessageItemParam : ResponsesMessageItemParam
     /// The content of the message. Can be a simple string or an array of content parts.
     /// </summary>
     [JsonPropertyName("content")]
-    [JsonConverter(typeof(MessageContentConverter))]
-    public required object Content { get; init; } // string | IList<ItemContent>
+    public required InputMessageContent Content { get; init; }
 }
 
 /// <summary>
@@ -122,8 +119,7 @@ public sealed record ResponsesDeveloperMessageItemParam : ResponsesMessageItemPa
     /// The content of the message. Can be a simple string or an array of content parts.
     /// </summary>
     [JsonPropertyName("content")]
-    [JsonConverter(typeof(MessageContentConverter))]
-    public required object Content { get; init; } // string | IList<ItemContent>
+    public required InputMessageContent Content { get; init; }
 }
 
 /// <summary>
