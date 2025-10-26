@@ -1,6 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Converters;
 using Microsoft.Extensions.AI;
@@ -197,14 +198,13 @@ public sealed record FileSearchToolCallItemParam : ItemParam
     /// The queries used to search for files.
     /// </summary>
     [JsonPropertyName("queries")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "Matches OpenAI API specification")]
-    public required string[] Queries { get; init; }
+    public required IReadOnlyList<string> Queries { get; init; }
 
     /// <summary>
     /// The results of the file search tool call.
     /// </summary>
     [JsonPropertyName("results")]
-    public object? Results { get; init; }
+    public JsonElement? Results { get; init; }
 }
 
 /// <summary>
@@ -230,14 +230,13 @@ public sealed record ComputerToolCallItemParam : ItemParam
     /// The action to perform.
     /// </summary>
     [JsonPropertyName("action")]
-    public required object Action { get; init; }
+    public required JsonElement Action { get; init; }
 
     /// <summary>
     /// The pending safety checks for the computer call.
     /// </summary>
     [JsonPropertyName("pending_safety_checks")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "Matches OpenAI API specification")]
-    public object[]? PendingSafetyChecks { get; init; }
+    public IReadOnlyList<JsonElement>? PendingSafetyChecks { get; init; }
 }
 
 /// <summary>
@@ -263,14 +262,13 @@ public sealed record ComputerToolCallOutputItemParam : ItemParam
     /// The safety checks reported by the API that have been acknowledged by the developer.
     /// </summary>
     [JsonPropertyName("acknowledged_safety_checks")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "Matches OpenAI API specification")]
-    public object[]? AcknowledgedSafetyChecks { get; init; }
+    public IReadOnlyList<JsonElement>? AcknowledgedSafetyChecks { get; init; }
 
     /// <summary>
     /// The output of the computer tool call.
     /// </summary>
     [JsonPropertyName("output")]
-    public required object Output { get; init; }
+    public required JsonElement Output { get; init; }
 }
 
 /// <summary>
@@ -290,7 +288,7 @@ public sealed record WebSearchToolCallItemParam : ItemParam
     /// An object describing the specific action taken in this web search call.
     /// </summary>
     [JsonPropertyName("action")]
-    public required object Action { get; init; }
+    public required JsonElement Action { get; init; }
 }
 
 /// <summary>
@@ -316,8 +314,7 @@ public sealed record ReasoningItemParam : ItemParam
     /// Reasoning text contents.
     /// </summary>
     [JsonPropertyName("summary")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "Matches OpenAI API specification")]
-    public object[]? Summary { get; init; }
+    public IReadOnlyList<JsonElement>? Summary { get; init; }
 }
 
 /// <summary>
