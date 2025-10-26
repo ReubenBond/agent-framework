@@ -12,57 +12,6 @@ namespace AgentGateway.Conversations;
 /// </summary>
 public static class ConversationsHttpApi
 {
-    /// <summary>
-    /// Converts an ItemParam to an ItemResource by adding server-generated fields.
-    /// </summary>
-    private static ItemResource ToItemResource(this ItemParam param)
-    {
-        string generatedId = $"msg_{Guid.NewGuid():N}";
-
-        return param switch
-        {
-            ResponsesUserMessageItemParam userMessageParam => new ResponsesUserMessageItemResource
-            {
-                Id = generatedId,
-                Content = (IList<ItemContent>)userMessageParam.Content,
-                Status = ResponsesMessageItemResourceStatus.Completed
-            },
-            ResponsesSystemMessageItemParam systemMessageParam => new ResponsesSystemMessageItemResource
-            {
-                Id = generatedId,
-                Content = (IList<ItemContent>)systemMessageParam.Content,
-                Status = ResponsesMessageItemResourceStatus.Completed
-            },
-            ResponsesAssistantMessageItemParam assistantMessageParam => new ResponsesAssistantMessageItemResource
-            {
-                Id = generatedId,
-                Content = (IList<ItemContent>)assistantMessageParam.Content,
-                Status = ResponsesMessageItemResourceStatus.Completed
-            },
-            ResponsesDeveloperMessageItemParam developerMessageParam => new ResponsesDeveloperMessageItemResource
-            {
-                Id = generatedId,
-                Content = (IList<ItemContent>)developerMessageParam.Content,
-                Status = ResponsesMessageItemResourceStatus.Completed
-            },
-            FunctionToolCallItemParam functionCallParam => new FunctionToolCallItemResource
-            {
-                Id = generatedId,
-                Name = functionCallParam.Name,
-                CallId = functionCallParam.CallId,
-                Arguments = functionCallParam.Arguments,
-                Status = FunctionToolCallItemResourceStatus.Completed
-            },
-            FunctionToolCallOutputItemParam functionOutputParam => new FunctionToolCallOutputItemResource
-            {
-                Id = generatedId,
-                CallId = functionOutputParam.CallId,
-                Output = functionOutputParam.Output
-            },
-            _ => throw new NotSupportedException($"ItemParam type {param.GetType().Name} is not supported")
-        };
-    }
-
     public static IEndpointConventionBuilder MapConversations(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/v1/conversations")

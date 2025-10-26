@@ -9,7 +9,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 /// <summary>
 /// Extension methods for converting ItemParam (input) to ItemResource (output).
 /// </summary>
-internal static class ItemParamExtensions
+public static class ItemParamExtensions
 {
     /// <summary>
     /// Converts an ItemParam (input model) to an ItemResource (output model) by adding server-generated fields.
@@ -29,25 +29,25 @@ internal static class ItemParamExtensions
             ResponsesUserMessageItemParam userMessageParam => new ResponsesUserMessageItemResource
             {
                 Id = generatedId,
-                Content = (IList<ItemContent>)userMessageParam.Content,
+                Content = NormalizeContent(userMessageParam.Content, isInput: true),
                 Status = ResponsesMessageItemResourceStatus.Completed
             },
             ResponsesSystemMessageItemParam systemMessageParam => new ResponsesSystemMessageItemResource
             {
                 Id = generatedId,
-                Content = (IList<ItemContent>)systemMessageParam.Content,
+                Content = NormalizeContent(systemMessageParam.Content, isInput: true),
                 Status = ResponsesMessageItemResourceStatus.Completed
             },
             ResponsesAssistantMessageItemParam assistantMessageParam => new ResponsesAssistantMessageItemResource
             {
                 Id = generatedId,
-                Content = (IList<ItemContent>)assistantMessageParam.Content,
+                Content = NormalizeContent(assistantMessageParam.Content, isInput: false),
                 Status = ResponsesMessageItemResourceStatus.Completed
             },
             ResponsesDeveloperMessageItemParam developerMessageParam => new ResponsesDeveloperMessageItemResource
             {
                 Id = generatedId,
-                Content = (IList<ItemContent>)developerMessageParam.Content,
+                Content = NormalizeContent(developerMessageParam.Content, isInput: true),
                 Status = ResponsesMessageItemResourceStatus.Completed
             },
             FunctionToolCallItemParam functionCallParam => new FunctionToolCallItemResource
@@ -68,6 +68,33 @@ internal static class ItemParamExtensions
             // and inject the generated ID
             _ => ConvertViaJsonSerialization(param, generatedId)
         };
+    }
+
+    /// <summary>
+    /// Normalizes message content from string or IList&lt;ItemContent&gt; to IList&lt;ItemContent&gt;.
+    /// </summary>
+    /// <param name="content">The content which can be a string or IList&lt;ItemContent&gt;.</param>
+    /// <param name="isInput">Whether this is input content (true) or output content (false).</param>
+    /// <returns>A list of ItemContent objects.</returns>
+    private static IList<ItemContent> NormalizeContent(object content, bool isInput)
+    {
+        if (content is string textContent)
+        {
+            // Convert string to appropriate ItemContent type
+            ItemContent itemContent = isInput
+                ? new ItemContentInputText { Text = textContent }
+                : new ItemContentOutputText { Text = textContent, Annotations = [] };
+
+            return new List<ItemContent> { itemContent };
+        }
+        else if (content is IList<ItemContent> contentList)
+        {
+            return contentList;
+        }
+        else
+        {
+            throw new InvalidOperationException($"Unexpected content type: {content?.GetType().Name ?? "null"}");
+        }
     }
 
     private static ItemResource ConvertViaJsonSerialization(ItemParam param, string generatedId)
