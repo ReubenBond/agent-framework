@@ -302,51 +302,6 @@ internal sealed class ResponseGrain(
         return (response, items);
     }
 
-    /// <summary>
-    /// Converts an ItemResource to a ChatMessage.
-    /// </summary>
-    private static ChatMessage ItemResourceToChatMessage(ItemResource itemResource)
-    {
-        if (itemResource is ResponsesMessageItemResource messageItem)
-        {
-            var content = messageItem switch
-            {
-                ResponsesAssistantMessageItemResource assistant => assistant.Content,
-                ResponsesUserMessageItemResource user => user.Content,
-                ResponsesSystemMessageItemResource system => system.Content,
-                ResponsesDeveloperMessageItemResource developer => developer.Content,
-                _ => throw new NotSupportedException($"Message item type {messageItem.GetType().Name} not supported")
-            };
-
-            // Convert ItemContent to AIContent
-            var aiContents = new List<AIContent>();
-            foreach (var itemContent in content)
-            {
-                if (itemContent is ItemContentInputText text)
-                {
-                    aiContents.Add(new TextContent(text.Text));
-                }
-                // Add other content type conversions as needed
-            }
-            return new ChatMessage(messageItem.Role, aiContents);
-        }
-
-        throw new NotSupportedException($"ItemResource type {itemResource.GetType().Name} not supported for conversion to ChatMessage");
-    }
-
-    /// <summary>
-    /// Converts AIContent to ItemContent.
-    /// </summary>
-    private static ItemContentInputText? ConvertToItemContent(AIContent aiContent)
-    {
-        return aiContent switch
-        {
-            TextContent tc => new ItemContentInputText { Text = tc.Text },
-            // Add other content type conversions as needed
-            _ => null
-        };
-    }
-
     private async Task<(List<ChatMessage> Messages, string? LastMessageId, AgentThread? Thread)> GetThreadAsync(CreateResponse request, ChatClientAgent agent, CancellationToken cancellationToken)
     {
         var messages = new List<ChatMessage>();
@@ -378,7 +333,7 @@ internal sealed class ResponseGrain(
                     // Use the thread from the previous response directly
                     foreach (var item in previousItems)
                     {
-                        messages.Add(ItemResourceToChatMessage(item));
+                        messages.Add(item.ToChatMessage());
                     }
                     // Track the last message ID from the previous response's output
                     if (previousResponse.Output.Count > 0)
@@ -406,8 +361,8 @@ internal sealed class ResponseGrain(
             // Use GetAllItemsAsync to stream all items
             await foreach (var itemResource in conversationGrain.GetAllItemsAsync(SortOrder.Ascending))
             {
-                // Convert ItemResource to ChatMessage using InputMessage conversion
-                var chatMessage = ItemResourceToChatMessage(itemResource);
+                // Convert ItemResource to ChatMessage using extension method
+                var chatMessage = itemResource.ToChatMessage();
                 messages.Add(chatMessage);
                 lastMessageId = itemResource.Id; // Track the last message ID
             }
@@ -612,7 +567,7 @@ internal sealed class ResponseGrain(
                             responseState.State.StreamingUpdates.Add(textDoneEvent);
                         }
 
-                        var itemContent = ConvertToItemContent(kvp.Value.Content);
+                        var itemContent = ItemContentConverter.ToItemContent(kvp.Value.Content);
                         if (itemContent is not null)
                         {
                             var contentDoneEvent = new StreamingContentPartDone
@@ -703,7 +658,7 @@ internal sealed class ResponseGrain(
                         maxContentIndex = Math.Max(maxContentIndex, contentIndex);
 
                         // Emit content_part.added event
-                        var itemContent = ConvertToItemContent(content);
+                        var itemContent = ItemContentConverter.ToItemContent(content);
                         if (itemContent is not null)
                         {
                             var partAddedEvent = new StreamingContentPartAdded
@@ -779,7 +734,7 @@ internal sealed class ResponseGrain(
                     responseState.State.StreamingUpdates.Add(textDoneEvent);
                 }
 
-                var itemContent = ConvertToItemContent(kvp.Value.Content);
+                var itemContent = ItemContentConverter.ToItemContent(kvp.Value.Content);
                 if (itemContent is not null)
                 {
                     var contentDoneEvent = new StreamingContentPartDone
