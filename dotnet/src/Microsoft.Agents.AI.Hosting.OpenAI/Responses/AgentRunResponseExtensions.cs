@@ -94,16 +94,13 @@ public static class AgentRunResponseExtensions
             switch (content)
             {
                 case FunctionCallContent functionCallContent:
-                    // message.Role == ChatRole.Assistant
                     yield return functionCallContent.ToFunctionToolCallItemResource(idGenerator.GenerateFunctionCallId(), jsonSerializerOptions);
                     break;
                 case FunctionResultContent functionResultContent:
-                    // message.Role == ChatRole.Tool
                     yield return functionResultContent.ToFunctionToolCallOutputItemResource(
                         idGenerator.GenerateFunctionOutputId());
                     break;
                 default:
-                    // message.Role == ChatRole.Assistant
                     if (ItemContentConverter.ToItemContent(content) is { } itemContent)
                     {
                         contents.Add(itemContent);
@@ -115,11 +112,35 @@ public static class AgentRunResponseExtensions
 
         if (contents.Count > 0)
         {
-            yield return new ResponsesAssistantMessageItemResource
+            IReadOnlyList<ItemContent> contentArray = contents.ToArray();
+            string messageId = idGenerator.GenerateMessageId();
+
+            yield return message.Role.Value.ToUpperInvariant() switch
             {
-                Id = idGenerator.GenerateMessageId(),
-                Status = ResponsesMessageItemResourceStatus.Completed,
-                Content = contents.ToArray()
+                "USER" => new ResponsesUserMessageItemResource
+                {
+                    Id = messageId,
+                    Status = ResponsesMessageItemResourceStatus.Completed,
+                    Content = contentArray
+                },
+                "SYSTEM" => new ResponsesSystemMessageItemResource
+                {
+                    Id = messageId,
+                    Status = ResponsesMessageItemResourceStatus.Completed,
+                    Content = contentArray
+                },
+                "DEVELOPER" => new ResponsesDeveloperMessageItemResource
+                {
+                    Id = messageId,
+                    Status = ResponsesMessageItemResourceStatus.Completed,
+                    Content = contentArray
+                },
+                _ => new ResponsesAssistantMessageItemResource
+                {
+                    Id = messageId,
+                    Status = ResponsesMessageItemResourceStatus.Completed,
+                    Content = contentArray
+                }
             };
         }
     }

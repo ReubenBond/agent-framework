@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using AgentContracts;
 using AgentGateway;
@@ -9,9 +9,9 @@ using AgentGateway.Responses;
 using AgentGateway.Threads;
 using AgentGateway.Utilities;
 using Microsoft.Agents.AI.DevUI;
-using Microsoft.Agents.AI.Hosting.OpenAI;
 using Microsoft.Extensions.AI;
 using Orleans.Serialization;
+using Orleans.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,21 +30,27 @@ builder.Services.AddSingleton<ForwardingHttpClientProvider>();
 // Configure Orleans
 builder.Host.UseOrleans(siloBuilder =>
 {
-    // Configure System.Text.Json serialization for all Microsoft.Agents.* types
-    // This uses OpenAIJsonUtilities which chains together all the necessary type resolvers
-    // including AIJsonUtilities from Microsoft.Extensions.AI
+    // Configure System.Text.Json serialization for all Microsoft.Agents.* and AgentGateway types
+    // This uses AgentGatewayJsonUtilities which chains together all the necessary type resolvers
+    // including OpenAIJsonUtilities (OpenAI Hosting types), AIJsonUtilities (Microsoft.Extensions.AI), and grain states
     siloBuilder.Services.AddSerializer(serializerBuilder =>
     {
-        // Support all Microsoft.Agents.* types using OpenAIJsonUtilities
+        // Support all Microsoft.Agents.*, AgentContracts, and AgentGateway types using AgentGatewayJsonUtilities
         // which includes proper type resolver chaining for:
+        // - Grain state types (ConversationState, ResponseState, AgentConversationIndexState)
         // - OpenAI Hosting types (Conversation, ItemResource, Response, etc.)
         // - Microsoft.Extensions.AI types (AIContent, ChatMessage, etc.)
         // - AgentContracts types (via AgentContractsJsonUtilities)
         serializerBuilder.AddJsonSerializer(
             isSupported: type => type.Namespace?.StartsWith("Microsoft.Agents", StringComparison.Ordinal) == true ||
-                                type.Namespace?.StartsWith("AgentContracts", StringComparison.Ordinal) == true,
-            jsonSerializerOptions: OpenAIJsonUtilities.DefaultOptions);
+                                type.Namespace?.StartsWith("AgentContracts", StringComparison.Ordinal) == true ||
+                                type.Namespace?.StartsWith("AgentGateway", StringComparison.Ordinal) == true,
+            jsonSerializerOptions: AgentGatewayJsonUtilities.DefaultOptions);
     });
+
+    // Register System.Text.Json-based grain storage serializer
+    siloBuilder.Services.AddSingleton<IGrainStorageSerializer>(sp =>
+        new SystemTextJsonGrainStorageSerializer(AgentGatewayJsonUtilities.DefaultOptions));
 });
 
 // Register conversation storage - choose between in-memory and Orleans-backed
@@ -69,7 +75,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.TypeInfoResolverChain.Add(contractsOptions.TypeInfoResolver!);
 
     // Add Gateway-specific context at the front for priority
-    options.SerializerOptions.TypeInfoResolverChain.Insert(0, GatewayJsonSerializerContext.Default);
+    options.SerializerOptions.TypeInfoResolverChain.Insert(0, AgentGatewayJsonContext.Default);
 });
 
 builder.Services.AddOpenApi();

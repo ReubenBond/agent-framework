@@ -12,8 +12,9 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Converters;
 /// JSON converter for ResponsesMessageItemResource that handles nested type/role discrimination.
 /// </summary>
 [ExcludeFromCodeCoverage]
-internal sealed class ResponsesMessageItemResourceConverter : JsonConverter<ResponsesMessageItemResource>
+public sealed class ResponsesMessageItemResourceConverter : JsonConverter<ResponsesMessageItemResource>
 {
+    /// <inheritdoc/>
     public override ResponsesMessageItemResource? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         // Clone the reader to peek at the JSON
@@ -64,6 +65,7 @@ internal sealed class ResponsesMessageItemResourceConverter : JsonConverter<Resp
         };
     }
 
+    /// <inheritdoc/>
     public override void Write(Utf8JsonWriter writer, ResponsesMessageItemResource value, JsonSerializerOptions options)
     {
         // Directly serialize using the appropriate type info from the context

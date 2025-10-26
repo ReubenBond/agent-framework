@@ -6,6 +6,7 @@ using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Orleans.Serialization;
+using Orleans.Storage;
 using Orleans.TestingHost;
 
 namespace AgentGateway.UnitTests;
@@ -87,26 +88,32 @@ public sealed class OrleansTestClusterFixture : IAsyncLifetime
         var builder = new InProcessTestClusterBuilder();
         builder.ConfigureHost(hostBuilder =>
         {
-            // Configure System.Text.Json serialization for all Microsoft.Agents.* types
-            // This uses OpenAIJsonUtilities which chains together all the necessary type resolvers
-            // including AIJsonUtilities from Microsoft.Extensions.AI
+            // Configure System.Text.Json serialization for all Microsoft.Agents.* and AgentGateway types
+            // This uses AgentGatewayJsonUtilities which chains together all the necessary type resolvers
+            // including OpenAIJsonUtilities (OpenAI Hosting types), AIJsonUtilities (Microsoft.Extensions.AI), and grain states
             hostBuilder.Services.AddSerializer(serializerBuilder =>
             {
-                // Support all Microsoft.Agents.* types using OpenAIJsonUtilities
+                // Support all Microsoft.Agents.*, AgentContracts, and AgentGateway types using AgentGatewayJsonUtilities
                 // which includes proper type resolver chaining for:
+                // - Grain state types (ConversationState, ResponseState, AgentConversationIndexState)
                 // - OpenAI Hosting types (Conversation, ItemResource, Response, etc.)
                 // - Microsoft.Extensions.AI types (AIContent, ChatMessage, etc.)
                 // - AgentContracts types (via AgentContractsJsonUtilities)
                 serializerBuilder.AddJsonSerializer(
                     isSupported: type => type.Namespace?.StartsWith("Microsoft.Agents", StringComparison.Ordinal) == true ||
-                                        type.Namespace?.StartsWith("AgentContracts", StringComparison.Ordinal) == true,
-                    jsonSerializerOptions: OpenAIJsonUtilities.DefaultOptions);
+                                        type.Namespace?.StartsWith("AgentContracts", StringComparison.Ordinal) == true ||
+                                        type.Namespace?.StartsWith("AgentGateway", StringComparison.Ordinal) == true,
+                    jsonSerializerOptions: AgentGateway.AgentGatewayJsonUtilities.DefaultOptions);
             });
         })
         .ConfigureSilo((_, siloBuilder) =>
         {
             siloBuilder.AddMemoryGrainStorageAsDefault();
             siloBuilder.UseInMemoryReminderService();
+
+            // Register System.Text.Json-based grain storage serializer
+            siloBuilder.Services.AddSingleton<IGrainStorageSerializer>(sp =>
+                new AgentGateway.Utilities.SystemTextJsonGrainStorageSerializer(AgentGateway.AgentGatewayJsonUtilities.DefaultOptions));
 
             // Register the shared mock IChatClient for testing
             siloBuilder.Services.AddSingleton(_ => this.ChatClientMock.Object);
