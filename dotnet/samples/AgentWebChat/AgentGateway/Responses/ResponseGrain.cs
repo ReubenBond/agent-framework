@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Diagnostics;
 using System.Text.Json;
@@ -248,11 +248,10 @@ internal sealed class ResponseGrain(
         {
             // Use a simple IdGenerator for generating IDs
             var idGenerator = new IdGenerator(this.ConversationId, this.ResponseId);
-            var jsonOptions = JsonSerializerOptions.Default;
 
             foreach (var inputMessage in responseState.State.Request.Input.GetInputMessages())
             {
-                itemResources.AddRange(inputMessage.ToChatMessage().ToItemResource(idGenerator, jsonOptions));
+                itemResources.AddRange(inputMessage.ToItemResource(idGenerator));
             }
         }
 
@@ -288,11 +287,10 @@ internal sealed class ResponseGrain(
         if (responseState.State.Request is not null)
         {
             var idGenerator = new IdGenerator(this.ConversationId, this.ResponseId);
-            var jsonOptions = JsonSerializerOptions.Default;
 
             foreach (var inputMessage in responseState.State.Request.Input.GetInputMessages())
             {
-                items.AddRange(inputMessage.ToChatMessage().ToItemResource(idGenerator, jsonOptions));
+                items.AddRange(inputMessage.ToItemResource(idGenerator));
             }
         }
 
@@ -802,26 +800,20 @@ internal sealed class ResponseGrain(
             // Build the list of messages to append
             var messagesToAppend = new List<ItemResource>();
             var idGenerator = new IdGenerator(this.ConversationId, this.ResponseId);
-            var jsonOptions = JsonSerializerOptions.Default;
 
             foreach (var inputMessage in request.Input.GetInputMessages())
             {
-                messagesToAppend.AddRange(inputMessage.ToChatMessage().ToItemResource(idGenerator, jsonOptions));
+                messagesToAppend.AddRange(inputMessage.ToItemResource(idGenerator));
             }
 
             // Add output items - they're already ItemResource
             messagesToAppend.AddRange(response.Output);
 
-            try
+            var appendedCount = await conversationGrain.AppendItemsAsync(messagesToAppend, lastMessageIdBeforeExecution);
+            if (appendedCount != messagesToAppend.Count)
             {
-                var appendedCount = await conversationGrain.AppendItemsAsync(messagesToAppend, lastMessageIdBeforeExecution);
-            }
-            catch (InvalidOperationException ex)
-            {
-                // Log the error but don't fail the response - the conversation update can be retried
-                logger.LogError(ex, "Failed to append messages to conversation {ConversationId}, will retry on next reminder",
-                    request.Conversation.Id);
-                throw;
+                logger.LogWarning("Appended {AppendedCount} out of {TotalCount} messages to conversation {ConversationId} for response {ResponseId}",
+                    appendedCount, messagesToAppend.Count, request.Conversation.Id, this.ResponseId);
             }
         }
 

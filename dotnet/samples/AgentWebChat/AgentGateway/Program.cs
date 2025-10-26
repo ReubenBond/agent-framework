@@ -10,6 +10,7 @@ using AgentGateway.Threads;
 using AgentGateway.Utilities;
 using Microsoft.Agents.AI.DevUI;
 using Microsoft.Extensions.AI;
+using Orleans.Configuration;
 using Orleans.Serialization;
 using Orleans.Storage;
 
@@ -35,12 +36,6 @@ builder.Host.UseOrleans(siloBuilder =>
     // including OpenAIJsonUtilities (OpenAI Hosting types), AIJsonUtilities (Microsoft.Extensions.AI), and grain states
     siloBuilder.Services.AddSerializer(serializerBuilder =>
     {
-        // Support all Microsoft.Agents.*, AgentContracts, and AgentGateway types using AgentGatewayJsonUtilities
-        // which includes proper type resolver chaining for:
-        // - Grain state types (ConversationState, ResponseState, AgentConversationIndexState)
-        // - OpenAI Hosting types (Conversation, ItemResource, Response, etc.)
-        // - Microsoft.Extensions.AI types (AIContent, ChatMessage, etc.)
-        // - AgentContracts types (via AgentContractsJsonUtilities)
         serializerBuilder.AddJsonSerializer(
             isSupported: type => type.Namespace?.StartsWith("Microsoft.Agents", StringComparison.Ordinal) == true ||
                                 type.Namespace?.StartsWith("AgentContracts", StringComparison.Ordinal) == true ||
@@ -51,6 +46,11 @@ builder.Host.UseOrleans(siloBuilder =>
     // Register System.Text.Json-based grain storage serializer
     siloBuilder.Services.AddSingleton<IGrainStorageSerializer>(sp =>
         new SystemTextJsonGrainStorageSerializer(AgentGatewayJsonUtilities.DefaultOptions));
+    siloBuilder.Configure<ClusterMembershipOptions>(o =>
+    {
+        o.NumMissedTableIAmAliveLimit = 2;
+        o.IAmAliveTablePublishTimeout = TimeSpan.FromSeconds(10);
+    });
 });
 
 // Register conversation storage - choose between in-memory and Orleans-backed
