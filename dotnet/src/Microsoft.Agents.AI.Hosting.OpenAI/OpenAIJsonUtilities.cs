@@ -158,6 +158,7 @@ public static class OpenAIJsonUtilities
 [JsonSerializable(typeof(Dictionary<string, object>))]
 [JsonSerializable(typeof(Dictionary<string, object>[]))]
 [JsonSerializable(typeof(List<Dictionary<string, object>>))]
+[JsonSerializable(typeof(IDictionary<string, object?>))]
 [JsonSerializable(typeof(object))]
 [ExcludeFromCodeCoverage]
 internal sealed partial class OpenAIJsonContext : JsonSerializerContext;

@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -48,20 +48,15 @@ public static class ItemResourceExtensions
 
         if (itemResource is FunctionToolCallItemResource functionCall)
         {
-            // Parse the arguments back to a dictionary
-            var arguments = string.IsNullOrEmpty(functionCall.Arguments)
-                ? new Dictionary<string, object?>()
-                : JsonSerializer.Deserialize<IDictionary<string, object?>>(functionCall.Arguments, jsonSerializerOptions) as Dictionary<string, object?> ?? new Dictionary<string, object?>();
-
             return new ChatMessage(ChatRole.Assistant, [
-                new FunctionCallContent(functionCall.CallId, functionCall.Name, arguments)
+                functionCall.ToFunctionCallContent(jsonSerializerOptions)
             ]);
         }
 
         if (itemResource is FunctionToolCallOutputItemResource functionOutput)
         {
             return new ChatMessage(ChatRole.Tool, [
-                new FunctionResultContent(functionOutput.CallId, functionOutput.Output)
+                functionOutput.ToFunctionResultContent()
             ]);
         }
 
@@ -146,10 +141,9 @@ public static class ItemResourceExtensions
     /// <param name="itemResources">The ItemResources to convert.</param>
     /// <param name="jsonSerializerOptions">The JSON serializer options for deserializing function arguments.</param>
     /// <returns>An enumerable of ChatMessages.</returns>
-    [UnconditionalSuppressMessage("Trimming", "IL2026:RequiresUnreferencedCode", Justification = "Function arguments are inherently dynamic and require runtime reflection.")]
-    [UnconditionalSuppressMessage("AOT", "IL3050:RequiresDynamicCode", Justification = "Function arguments are inherently dynamic and require runtime code generation.")]
     public static IEnumerable<ChatMessage> ToChatMessages(this IEnumerable<ItemResource> itemResources, JsonSerializerOptions? jsonSerializerOptions = null)
     {
+        var options = jsonSerializerOptions ?? OpenAIJsonUtilities.DefaultOptions;
         ChatMessage? currentMessage = null;
         var currentContents = new List<AIContent>();
 
@@ -196,11 +190,7 @@ public static class ItemResourceExtensions
                     currentMessage = null;
                 }
 
-                var arguments = string.IsNullOrEmpty(functionCall.Arguments)
-                    ? new Dictionary<string, object?>()
-                    : JsonSerializer.Deserialize<IDictionary<string, object?>>(functionCall.Arguments, jsonSerializerOptions) as Dictionary<string, object?> ?? new Dictionary<string, object?>();
-
-                currentContents.Add(new FunctionCallContent(functionCall.CallId, functionCall.Name, arguments));
+                currentContents.Add(functionCall.ToFunctionCallContent(options));
                 currentMessage = new ChatMessage(ChatRole.Assistant, [.. currentContents]);
             }
             else if (item is FunctionToolCallOutputItemResource functionOutput)
@@ -213,7 +203,7 @@ public static class ItemResourceExtensions
                     currentMessage = null;
                 }
 
-                currentContents.Add(new FunctionResultContent(functionOutput.CallId, functionOutput.Output));
+                currentContents.Add(functionOutput.ToFunctionResultContent());
                 currentMessage = new ChatMessage(ChatRole.Tool, [.. currentContents]);
             }
         }
@@ -223,5 +213,33 @@ public static class ItemResourceExtensions
         {
             yield return new ChatMessage(currentMessage.Role, [.. currentContents]);
         }
+    }
+
+    /// <summary>
+    /// Converts a FunctionToolCallItemResource to FunctionCallContent.
+    /// Uses the official Microsoft.Extensions.AI pattern via CreateFromParsedArguments to properly handle parsing errors.
+    /// </summary>
+    /// <param name="functionCall">The function call item resource to convert.</param>
+    /// <param name="jsonSerializerOptions">The JSON serializer options for deserializing function arguments. Currently ignored as we use source-generated context.</param>
+    /// <returns>A FunctionCallContent with properly parsed arguments. If parsing fails, the Exception property will be set.</returns>
+    public static FunctionCallContent ToFunctionCallContent(this FunctionToolCallItemResource functionCall, JsonSerializerOptions? jsonSerializerOptions = null)
+    {
+        // Use the same pattern as Microsoft.Extensions.AI.OpenAI's ParseCallContent method
+        // This properly handles parsing errors by setting the Exception property on FunctionCallContent
+        return FunctionCallContent.CreateFromParsedArguments(
+            functionCall.Arguments ?? "{}",
+            functionCall.CallId,
+            functionCall.Name,
+            static json => JsonSerializer.Deserialize(json, OpenAIJsonContext.Default.IDictionaryStringObject)!);
+    }
+
+    /// <summary>
+    /// Converts a FunctionToolCallOutputItemResource to FunctionResultContent.
+    /// </summary>
+    /// <param name="functionOutput">The function output item resource to convert.</param>
+    /// <returns>A FunctionResultContent.</returns>
+    public static FunctionResultContent ToFunctionResultContent(this FunctionToolCallOutputItemResource functionOutput)
+    {
+        return new FunctionResultContent(functionOutput.CallId, functionOutput.Output);
     }
 }
