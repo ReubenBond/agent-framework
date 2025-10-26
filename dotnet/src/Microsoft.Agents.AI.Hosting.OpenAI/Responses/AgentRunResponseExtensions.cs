@@ -119,7 +119,7 @@ public static class AgentRunResponseExtensions
             {
                 Id = idGenerator.GenerateMessageId(),
                 Status = ResponsesMessageItemResourceStatus.Completed,
-                Content = contents
+                Content = contents.ToArray()
             };
         }
     }
