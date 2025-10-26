@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -62,12 +62,14 @@ public sealed class InputMessageContent : IEquatable<InputMessageContent>
     /// Gets whether this content is text.
     /// </summary>
     [MemberNotNullWhen(true, nameof(Text))]
+    [MemberNotNullWhen(false, nameof(Contents))]
     public bool IsText => this.Text is not null;
 
     /// <summary>
     /// Gets whether this content is a list of ItemContent items.
     /// </summary>
     [MemberNotNullWhen(true, nameof(Contents))]
+    [MemberNotNullWhen(false, nameof(Text))]
     public bool IsContents => this.Contents is not null;
 
     /// <summary>
@@ -142,6 +144,16 @@ public sealed class InputMessageContent : IEquatable<InputMessageContent>
     public static bool operator !=(InputMessageContent? left, InputMessageContent? right)
     {
         return !Equals(left, right);
+    }
+
+    /// <summary>
+    /// Converts this instance to a list of ItemContent.
+    /// </summary>
+    public IReadOnlyList<ItemContent> ToItemContents()
+    {
+        return this.IsText
+            ? [new ItemContentInputText { Text = this.Text }]
+            : this.Contents;
     }
 }
 

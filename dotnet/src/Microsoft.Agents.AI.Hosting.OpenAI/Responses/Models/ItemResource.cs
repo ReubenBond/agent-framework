@@ -71,7 +71,7 @@ public sealed record ResponsesAssistantMessageItemResource : ResponsesMessageIte
     /// The content of the message.
     /// </summary>
     [JsonPropertyName("content")]
-    public required IList<ItemContent> Content { get; init; }
+    public required IReadOnlyList<ItemContent> Content { get; init; }
 }
 
 /// <summary>
@@ -91,7 +91,7 @@ public sealed record ResponsesUserMessageItemResource : ResponsesMessageItemReso
     /// The content of the message.
     /// </summary>
     [JsonPropertyName("content")]
-    public required IList<ItemContent> Content { get; init; }
+    public required IReadOnlyList<ItemContent> Content { get; init; }
 }
 
 /// <summary>
@@ -111,7 +111,7 @@ public sealed record ResponsesSystemMessageItemResource : ResponsesMessageItemRe
     /// The content of the message.
     /// </summary>
     [JsonPropertyName("content")]
-    public required IList<ItemContent> Content { get; init; }
+    public required IReadOnlyList<ItemContent> Content { get; init; }
 }
 
 /// <summary>
@@ -131,7 +131,7 @@ public sealed record ResponsesDeveloperMessageItemResource : ResponsesMessageIte
     /// The content of the message.
     /// </summary>
     [JsonPropertyName("content")]
-    public required IList<ItemContent> Content { get; init; }
+    public required IReadOnlyList<ItemContent> Content { get; init; }
 }
 
 /// <summary>
