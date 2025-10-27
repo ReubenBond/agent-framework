@@ -330,7 +330,12 @@ class ApiClient {
         // Otherwise, use POST to create a new response
         let response: Response;
         if (currentResponseId) {
-          response = await fetch(`${this.baseUrl}/v1/responses/${currentResponseId}`, {
+          const params = new URLSearchParams();
+          params.set("stream", "true");
+          if (lastSequenceNumber >= 0) {
+            params.set("starting_after", lastSequenceNumber.toString());
+          }
+          response = await fetch(`${this.baseUrl}/v1/responses/${currentResponseId}?${params.toString()}`, {
             method: "GET",
             headers: {
               Accept: "text/event-stream",
