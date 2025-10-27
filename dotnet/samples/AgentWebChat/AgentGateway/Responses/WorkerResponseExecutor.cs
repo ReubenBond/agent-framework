@@ -3,6 +3,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 
 namespace AgentGateway.Responses;
@@ -31,8 +32,7 @@ public sealed class WorkerResponseExecutor : IResponseExecutor
     }
 
     public async IAsyncEnumerable<StreamingResponseEvent> ExecuteAsync(
-        string responseId,
-        string? conversationId,
+        AgentInvocationContext context,
         CreateResponse request,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -65,7 +65,7 @@ public sealed class WorkerResponseExecutor : IResponseExecutor
 
         this._logger.LogInformation(
             "Forwarding response {ResponseId} for agent {AgentName} to worker {WorkerId} at {WorkerEndpoint}",
-            responseId, agentName, worker.Id, workerEndpoint);
+            context.ResponseId, agentName, worker.Id, workerEndpoint);
 
         // Send the request and process the SSE stream
         HttpResponseMessage httpResponse;

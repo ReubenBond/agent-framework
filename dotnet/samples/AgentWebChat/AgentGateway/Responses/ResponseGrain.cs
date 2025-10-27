@@ -521,10 +521,14 @@ internal sealed class ResponseGrain(
         // Get the last message ID before execution for idempotent appending
         responseState.State.LastMessageIdBeforeExecution = await this.GetLastMessageIdAsync(request, cancellationToken);
 
+        // Create agent invocation context
+        // To ensure idempotency, we derive a random seed from the response ID hash code.
+        var randomSeed = (int)this.GetGrainId().GetUniformHashCode();
+        var context = new AgentInvocationContext(new IdGenerator(responseId: this.ResponseId, conversationId: this.ConversationId, randomSeed: randomSeed));
+
         // Use the injected response executor to generate the response
         await foreach (var streamingEvent in responseExecutor.ExecuteAsync(
-            this.ResponseId,
-            this.ConversationId,
+            context,
             request,
             cancellationToken))
         {

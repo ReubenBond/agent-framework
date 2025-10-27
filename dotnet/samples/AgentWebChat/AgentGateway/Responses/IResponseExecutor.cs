@@ -1,5 +1,6 @@
 // Copyright (c) Microsoft. All rights reserved.
 
+using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 
 namespace AgentGateway.Responses;
@@ -13,14 +14,12 @@ public interface IResponseExecutor
     /// <summary>
     /// Executes a response generation request and returns streaming events.
     /// </summary>
-    /// <param name="responseId">The unique identifier for the response.</param>
-    /// <param name="conversationId">The conversation ID if applicable.</param>
+    /// <param name="context">The agent invocation context containing the ID generator and other context information.</param>
     /// <param name="request">The create response request.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>An async enumerable of streaming response events.</returns>
     IAsyncEnumerable<StreamingResponseEvent> ExecuteAsync(
-        string responseId,
-        string? conversationId,
+        AgentInvocationContext context,
         CreateResponse request,
         CancellationToken cancellationToken = default);
 }

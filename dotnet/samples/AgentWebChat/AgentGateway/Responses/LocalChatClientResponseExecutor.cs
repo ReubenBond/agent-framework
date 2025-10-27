@@ -27,8 +27,7 @@ public sealed class LocalChatClientResponseExecutor : IResponseExecutor
     }
 
     public async IAsyncEnumerable<StreamingResponseEvent> ExecuteAsync(
-        string responseId,
-        string? conversationId,
+        AgentInvocationContext context,
         CreateResponse request,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -37,14 +36,9 @@ public sealed class LocalChatClientResponseExecutor : IResponseExecutor
             instructions: request.Instructions,
             name: "ResponseAgent");
 
-        var (messages, _) = await this.GetThreadAsync(request, agent, conversationId, cancellationToken);
+        var (messages, _) = await this.GetThreadAsync(request, agent, context.ConversationId, cancellationToken);
 
         var runOptions = request.ToRunOptions();
-
-        // Create agent invocation context
-        // To ensure idempotency, we derive a random seed from the response ID hash code.
-        var randomSeed = responseId.GetHashCode();
-        var context = new AgentInvocationContext(new IdGenerator(responseId: responseId, conversationId: conversationId, randomSeed: randomSeed));
 
         // Use the extension method to convert streaming updates to streaming response events
         await foreach (var streamingEvent in agent.RunStreamingAsync(messages, agent.GetNewThread(), runOptions, cancellationToken)
