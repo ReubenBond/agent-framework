@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Collections.Generic;
 using System.Text.Json;
@@ -47,10 +47,21 @@ public abstract record StreamingResponseEvent
 }
 
 /// <summary>
+/// Denotes an <see cref="StreamingResponseEvent"/> instance which contains an update to the <see cref="Models.Response"/> instance.
+/// </summary>
+public interface IStreamingResponseEventWithResponse
+{
+    /// <summary>
+    /// Gets the response object associated with this streaming event.
+    /// </summary>
+    Response Response { get; }
+}
+
+/// <summary>
 /// Represents a streaming response event indicating that a new response has been created and streaming has begun.
 /// This is typically the first event sent in a streaming response sequence.
 /// </summary>
-public sealed record StreamingResponseCreated : StreamingResponseEvent
+public sealed record StreamingResponseCreated : StreamingResponseEvent, IStreamingResponseEventWithResponse
 {
     /// <summary>
     /// The constant event type identifier for response created events.
@@ -72,7 +83,7 @@ public sealed record StreamingResponseCreated : StreamingResponseEvent
 /// <summary>
 /// Represents a streaming response event indicating that the response is in progress.
 /// </summary>
-public sealed record StreamingResponseInProgress : StreamingResponseEvent
+public sealed record StreamingResponseInProgress : StreamingResponseEvent, IStreamingResponseEventWithResponse
 {
     /// <summary>
     /// The constant event type identifier for response in progress events.
@@ -94,7 +105,7 @@ public sealed record StreamingResponseInProgress : StreamingResponseEvent
 /// Represents a streaming response event indicating that the response has been completed.
 /// This is typically the last event sent in a streaming response sequence.
 /// </summary>
-public sealed record StreamingResponseCompleted : StreamingResponseEvent
+public sealed record StreamingResponseCompleted : StreamingResponseEvent, IStreamingResponseEventWithResponse
 {
     /// <summary>
     /// The constant event type identifier for response completed events.
@@ -116,7 +127,7 @@ public sealed record StreamingResponseCompleted : StreamingResponseEvent
 /// <summary>
 /// Represents a streaming response event indicating that the response finished as incomplete.
 /// </summary>
-public sealed record StreamingResponseIncomplete : StreamingResponseEvent
+public sealed record StreamingResponseIncomplete : StreamingResponseEvent, IStreamingResponseEventWithResponse
 {
     /// <summary>
     /// The constant event type identifier for response incomplete events.
@@ -137,7 +148,7 @@ public sealed record StreamingResponseIncomplete : StreamingResponseEvent
 /// <summary>
 /// Represents a streaming response event indicating that the response has failed.
 /// </summary>
-public sealed record StreamingResponseFailed : StreamingResponseEvent
+public sealed record StreamingResponseFailed : StreamingResponseEvent, IStreamingResponseEventWithResponse
 {
     /// <summary>
     /// The constant event type identifier for response failed events.

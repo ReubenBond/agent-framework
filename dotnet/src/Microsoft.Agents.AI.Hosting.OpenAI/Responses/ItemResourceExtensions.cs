@@ -166,7 +166,7 @@ public static class ItemResourceExtensions
                     ResponsesUserMessageItemResource user => user.Content,
                     ResponsesSystemMessageItemResource system => system.Content,
                     ResponsesDeveloperMessageItemResource developer => developer.Content,
-                    _ => Array.Empty<ItemContent>()
+                    _ => []
                 };
 
                 foreach (var content in aiContents)

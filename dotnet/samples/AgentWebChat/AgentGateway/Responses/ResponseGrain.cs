@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Converters;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 using AgentGateway.Conversations;
 using Microsoft.Agents.AI;
@@ -150,21 +149,31 @@ internal sealed class ResponseGrain(
             throw new InvalidOperationException($"Response with ID '{this.ResponseId}' already exists.");
         }
 
+        // Per OpenAI documentation: "To start response generation in the background, make an API request with background set to true"
+        // and "You can create a background Response and start streaming events from it right away... create a Response with both background and stream set to true."
+        // See: https://platform.openai.com/docs/guides/background
+        if (request.Stream == true)
+        {
+            throw new InvalidOperationException("Cannot create a streaming response using CreateAsync. Use CreateStreamingAsync instead.");
+        }
+
         // Store the request and create initial response
         await this.InitializeResponseAsync(request, cancellationToken);
         Debug.Assert(responseState.State.Response is not null);
 
+        // Start execution task for both background and non-background requests
+        // Background requests will return immediately with queued status
+        Debug.Assert(this._executionTask is null);
+        this._executionTask = this.RunAsync(this._shutdownCts.Token);
+
         // If background execution is requested, return immediately with queued status
+        // The execution task will continue running in the background
         if (request.Background == true)
         {
             return responseState.State.Response;
         }
 
-        // Start execution and wait for completion
-        Debug.Assert(this._executionTask is null);
-        this._executionTask = this.RunAsync(this._shutdownCts.Token);
-
-        // Wait for completion by watching for terminal status
+        // For non-background requests, wait for completion by watching for terminal status
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -188,11 +197,21 @@ internal sealed class ResponseGrain(
             throw new InvalidOperationException($"Response with ID '{this.ResponseId}' already exists.");
         }
 
+        // Per OpenAI documentation: "You can create a background Response and start streaming events from it right away...
+        // create a Response with both background and stream set to true."
+        // See: https://platform.openai.com/docs/guides/background
+        if (request.Stream == false)
+        {
+            throw new InvalidOperationException("Cannot create a non-streaming response using CreateStreamingAsync. Use CreateAsync instead.");
+        }
+
         // Store the request and create initial response
         await this.InitializeResponseAsync(request, cancellationToken);
         Debug.Assert(responseState.State.Response is not null);
 
-        // Start execution
+        // Start execution task
+        // For background streaming, the task runs in background and events are streamed as they happen
+        // For non-background streaming, the task runs and we stream all events until completion
         this._executionTask = this.RunAsync(this._shutdownCts.Token);
 
         // Stream updates as they become available
@@ -218,6 +237,7 @@ internal sealed class ResponseGrain(
             await this._streamingUpdatedEvent.WaitAsync(cancellationToken);
         }
 
+        // Wait for execution task to complete to ensure all cleanup is done
         await this._executionTask.WaitAsync(cancellationToken);
     }
 
@@ -242,19 +262,7 @@ internal sealed class ResponseGrain(
 
         limit = Math.Clamp(limit, 1, 100);
 
-        // Generate input items (messages) from the stored request
-        var itemResources = new List<ItemResource>();
-        if (responseState.State.Request is not null)
-        {
-            // Use a simple IdGenerator for generating IDs
-            var idGenerator = new IdGenerator(this.ConversationId, this.ResponseId);
-
-            foreach (var inputMessage in responseState.State.Request.Input.GetInputMessages())
-            {
-                itemResources.AddRange(inputMessage.ToItemResource(idGenerator));
-            }
-        }
-
+        List<ItemResource> itemResources = this.GetInputItems();
         var limitedItems = itemResources.Take(limit).ToList();
 
         return Task.FromResult(new ListResponse<ItemResource>
@@ -264,6 +272,24 @@ internal sealed class ResponseGrain(
             LastId = limitedItems.Count > 0 ? limitedItems[^1].Id : null,
             HasMore = itemResources.Count > limit
         });
+    }
+
+    private List<ItemResource> GetInputItems()
+    {
+        // Generate input items (messages) from the stored request
+        var itemResources = new List<ItemResource>();
+        if (responseState.State.Request is not null)
+        {
+            // Use a deterministic random seed. We add 1 to avoid clashing with the output message ids, which otherwise use the same seed.
+            var randomSeed = (int)unchecked(this.GetGrainId().GetUniformHashCode() + 1);
+            var idGenerator = new IdGenerator(this.ConversationId, this.ResponseId, randomSeed: randomSeed);
+            foreach (var inputMessage in responseState.State.Request.Input.GetInputMessages())
+            {
+                itemResources.AddRange(inputMessage.ToItemResource(idGenerator));
+            }
+        }
+
+        return itemResources;
     }
 
     public async Task<(Response Response, List<ItemResource> Items)?> GetWithThreadAsync(CancellationToken cancellationToken = default)
@@ -281,23 +307,7 @@ internal sealed class ResponseGrain(
         }
 
         var response = responseState.State.Response;
-        var items = new List<ItemResource>();
-
-        // Add input items
-        if (responseState.State.Request is not null)
-        {
-            var idGenerator = new IdGenerator(this.ConversationId, this.ResponseId);
-
-            foreach (var inputMessage in responseState.State.Request.Input.GetInputMessages())
-            {
-                items.AddRange(inputMessage.ToItemResource(idGenerator));
-            }
-        }
-
-        // Add output items - they're already ItemResource
-        items.AddRange(response.Output);
-
-        return (response, items);
+        return (response, [.. this.GetInputItems(), .. response.Output]);
     }
 
     private async Task<(List<ChatMessage> Messages, string? LastMessageId, AgentThread? Thread)> GetThreadAsync(CreateResponse request, ChatClientAgent agent, CancellationToken cancellationToken)
@@ -342,11 +352,7 @@ internal sealed class ResponseGrain(
             }
         }
 
-        // Add the new input messages
-        foreach (var inputMessage in request.Input.GetInputMessages())
-        {
-            messages.Add(inputMessage.ToChatMessage());
-        }
+        messages.AddRange(this.GetInputItems().ToChatMessages());
 
         var thread = agent.GetNewThread();
         return (messages, lastMessageId, thread);
@@ -372,6 +378,8 @@ internal sealed class ResponseGrain(
     /// <summary>
     /// Initializes the response state with the request and creates the initial response object.
     /// </summary>
+    /// <param name="request">The create response request.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     private async Task InitializeResponseAsync(CreateResponse request, CancellationToken cancellationToken)
     {
         var metadata = request.Metadata ?? [];
@@ -390,12 +398,14 @@ internal sealed class ResponseGrain(
         }
 
         // Create initial response
+        // Background responses always start as "queued", non-background as "in_progress"
+        var initialStatus = request.Background is true ? ResponseStatus.Queued : ResponseStatus.InProgress;
         var response = new Response
         {
             Id = this.ResponseId,
             CreatedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
             Model = request.Model ?? "default",
-            Status = request.Background is true ? ResponseStatus.Queued : ResponseStatus.InProgress,
+            Status = initialStatus,
             Error = null,
             IncompleteDetails = null,
             Output = [],
@@ -414,14 +424,6 @@ internal sealed class ResponseGrain(
         responseState.State.Request = request;
         responseState.State.Response = response;
         responseState.State.StreamingUpdates.Clear();
-
-        // Emit response.created event
-        var createdEvent = new StreamingResponseCreated
-        {
-            SequenceNumber = 1,
-            Response = response
-        };
-        responseState.State.StreamingUpdates.Add(createdEvent);
 
         await responseState.WriteStateAsync(cancellationToken);
 
@@ -490,25 +492,6 @@ internal sealed class ResponseGrain(
     {
         var request = responseState.State.Request;
         Debug.Assert(request is not null);
-        var response = responseState.State.Response;
-        Debug.Assert(response is not null);
-
-        // Update status to in_progress and emit event
-        if (response.Status != ResponseStatus.InProgress)
-        {
-            responseState.State.Response = response with { Status = ResponseStatus.InProgress };
-            await responseState.WriteStateAsync(cancellationToken);
-
-            // Emit in_progress event
-            var inProgressEvent = new StreamingResponseInProgress
-            {
-                SequenceNumber = responseState.State.StreamingUpdates.Count + 1,
-                Response = responseState.State.Response
-            };
-            responseState.State.StreamingUpdates.Add(inProgressEvent);
-            await responseState.WriteStateAsync(cancellationToken);
-            this._streamingUpdatedEvent.SignalAndReset();
-        }
 
         var agent = new ChatClientAgent(
             chatClient,
@@ -522,264 +505,35 @@ internal sealed class ResponseGrain(
 
         var runOptions = request.ToRunOptions();
 
-        // Create ID generator and JSON options for converting messages
-        var idGenerator = new IdGenerator(this.ConversationId, this.ResponseId);
-        var jsonOptions = JsonSerializerOptions.Default;
+        // Create agent invocation context
+        // To ensure idempotency, we derive a random seed from the grain ID hash code.
+        var randomSeed = (int)this.GetGrainId().GetUniformHashCode();
+        var context = new AgentInvocationContext(new IdGenerator(this.ConversationId, this.ResponseId, randomSeed: randomSeed));
 
-        // Track streaming state
-        var sequenceNumber = responseState.State.StreamingUpdates.Count + 1;
-        var outputIndex = 0;
-        var allUpdates = new List<AgentRunResponseUpdate>();
-        string? currentItemId = null;
-        var currentContentParts = new Dictionary<int, (AIContent Content, System.Text.StringBuilder? TextBuilder)>();
-        var maxContentIndex = -1;
-
-        // Stream the response and emit events following OpenAI spec
-        await foreach (var update in agent.RunStreamingAsync(messages, thread, runOptions, cancellationToken))
+        // Use the extension method to convert streaming updates to streaming response events
+        await foreach (var streamingEvent in agent.RunStreamingAsync(messages, thread, runOptions, cancellationToken)
+            .ToStreamingResponseAsync(request, context, cancellationToken))
         {
-            allUpdates.Add(update);
+            responseState.State.StreamingUpdates.Add(streamingEvent);
+            this._streamingUpdatedEvent.SignalAndReset();
 
-            // Check if this is a new message
-            if (!string.IsNullOrEmpty(update.MessageId) && update.MessageId != currentItemId)
+            // For each event which updates the underlying Response object, update the current state with the response.
+            if (streamingEvent is IStreamingResponseEventWithResponse responseEvent)
             {
-                // Complete previous item if exists
-                if (currentItemId is not null && allUpdates.Count > 1)
-                {
-                    var previousUpdates = allUpdates.Take(allUpdates.Count - 1).Where(u => u.MessageId == currentItemId).ToList();
-                    var previousMessage = previousUpdates.ToAgentRunResponse().Messages[0];
-                    var previousItems = previousMessage.ToItemResource(idGenerator, jsonOptions).ToList();
-
-                    // Emit done events for all content parts
-                    foreach (var kvp in currentContentParts.OrderBy(x => x.Key))
-                    {
-                        if (kvp.Value.Content is TextContent && kvp.Value.TextBuilder?.Length > 0)
-                        {
-                            var textDoneEvent = new StreamingOutputTextDone
-                            {
-                                SequenceNumber = sequenceNumber++,
-                                ItemId = currentItemId,
-                                OutputIndex = outputIndex,
-                                ContentIndex = kvp.Key,
-                                Text = kvp.Value.TextBuilder.ToString()
-                            };
-                            responseState.State.StreamingUpdates.Add(textDoneEvent);
-                        }
-
-                        var itemContent = ItemContentConverter.ToItemContent(kvp.Value.Content);
-                        if (itemContent is not null)
-                        {
-                            var contentDoneEvent = new StreamingContentPartDone
-                            {
-                                SequenceNumber = sequenceNumber++,
-                                ItemId = currentItemId,
-                                OutputIndex = outputIndex,
-                                ContentIndex = kvp.Key,
-                                Part = itemContent
-                            };
-                            responseState.State.StreamingUpdates.Add(contentDoneEvent);
-                        }
-                    }
-
-                    var itemDoneEvent = new StreamingOutputItemDone
-                    {
-                        SequenceNumber = sequenceNumber++,
-                        OutputIndex = outputIndex,
-                        Item = previousItems[0] // Use the first converted item
-                    };
-                    responseState.State.StreamingUpdates.Add(itemDoneEvent);
-                }
-
-                // Start new item
-                currentItemId = update.MessageId;
-                currentContentParts.Clear();
-                maxContentIndex = -1;
-                outputIndex++;
-
-                // Create a placeholder item for output_item.added event
-                var placeholderMessage = new ChatMessage(ChatRole.Assistant, [])
-                {
-                    MessageId = currentItemId,
-                    CreatedAt = update.CreatedAt
-                };
-                var placeholderItems = placeholderMessage.ToItemResource(idGenerator, jsonOptions).ToList();
-
-                var itemAddedEvent = new StreamingOutputItemAdded
-                {
-                    SequenceNumber = sequenceNumber++,
-                    OutputIndex = outputIndex,
-                    Item = placeholderItems.Count > 0 ? placeholderItems[0] : new ResponsesAssistantMessageItemResource
-                    {
-                        Id = currentItemId,
-                        Status = ResponsesMessageItemResourceStatus.Completed,
-                        Content = []
-                    }
-                };
-                responseState.State.StreamingUpdates.Add(itemAddedEvent);
+                await UpdateResponse(responseEvent.Response, cancellationToken);
             }
+        }
 
-            // Process all content items in this update
-            if (update.Contents is { Count: > 0 } && currentItemId is not null)
-            {
-                foreach (var content in update.Contents)
-                {
-                    // Skip usage content as it's handled separately
-                    if (content is UsageContent usageContent)
-                    {
-                        if (usageContent.Details is not null)
-                        {
-                            responseState.State.Response = responseState.State.Response! with
-                            {
-#pragma warning disable CS8601 // Possible null reference assignment
-                                Usage = usageContent.Details.ToResponseUsage()
-#pragma warning restore CS8601
-                            };
-                        }
-                        continue;
-                    }
+        await responseState.WriteStateAsync(cancellationToken);
+        this._streamingUpdatedEvent.SignalAndReset();
 
-                    // Determine content index - for streaming, text usually comes in the same index
-                    var contentIndex = content switch
-                    {
-                        TextContent => 0, // Text content is typically at index 0
-                        FunctionCallContent fc => currentContentParts.Values
-                            .Select((v, i) => (v, i))
-                            .FirstOrDefault(x => x.v.Content is FunctionCallContent fcc && fcc.CallId == fc.CallId)
-                            .i,
-                        DataContent or UriContent => ++maxContentIndex, // Images and other media
-                        _ => ++maxContentIndex
-                    };
-
-                    // Track or update content part
-                    if (!currentContentParts.TryGetValue(contentIndex, out var existingContent))
-                    {
-                        currentContentParts[contentIndex] = (content, content is TextContent ? new System.Text.StringBuilder() : null);
-                        maxContentIndex = Math.Max(maxContentIndex, contentIndex);
-
-                        // Emit content_part.added event
-                        var itemContent = ItemContentConverter.ToItemContent(content);
-                        if (itemContent is not null)
-                        {
-                            var partAddedEvent = new StreamingContentPartAdded
-                            {
-                                SequenceNumber = sequenceNumber++,
-                                ItemId = currentItemId,
-                                OutputIndex = outputIndex,
-                                ContentIndex = contentIndex,
-                                Part = itemContent
-                            };
-                            responseState.State.StreamingUpdates.Add(partAddedEvent);
-                        }
-                    }
-                    else
-                    {
-                        // Update existing content part (e.g., accumulating text)
-                        if (content is TextContent tc && existingContent.TextBuilder is not null)
-                        {
-                            currentContentParts[contentIndex] = (content, existingContent.TextBuilder);
-                        }
-                        else if (content is FunctionCallContent fc)
-                        {
-                            // Update function call content (arguments may be streaming)
-                            currentContentParts[contentIndex] = (content, null);
-                        }
-                    }
-
-                    // Emit specific delta events based on content type
-                    if (content is TextContent textContent && !string.IsNullOrEmpty(textContent.Text))
-                    {
-                        currentContentParts[contentIndex].TextBuilder?.Append(textContent.Text);
-
-                        var textDeltaEvent = new StreamingOutputTextDelta
-                        {
-                            SequenceNumber = sequenceNumber++,
-                            ItemId = currentItemId,
-                            OutputIndex = outputIndex,
-                            ContentIndex = contentIndex,
-                            Delta = textContent.Text
-                        };
-                        responseState.State.StreamingUpdates.Add(textDeltaEvent);
-                    }
-                    // Note: For function calls, images, etc., the content_part.added event is sufficient
-                    // The OpenAI spec has specific events for function_call_arguments.delta, but we emit
-                    // content_part.added which contains the full function call information
-                }
-            }
+        async Task UpdateResponse(Response response, CancellationToken cancellationToken)
+        {
+            responseState.State.Response = response;
 
             await responseState.WriteStateAsync(cancellationToken);
             this._streamingUpdatedEvent.SignalAndReset();
         }
-
-        // Complete the last item
-        if (currentItemId is not null)
-        {
-            var finalUpdates = allUpdates.Where(u => u.MessageId == currentItemId).ToList();
-            var finalMessage = finalUpdates.ToAgentRunResponse().Messages[0];
-            var finalItems = finalMessage.ToItemResource(idGenerator, jsonOptions).ToList();
-
-            // Emit done events for all content parts
-            foreach (var kvp in currentContentParts.OrderBy(x => x.Key))
-            {
-                if (kvp.Value.Content is TextContent && kvp.Value.TextBuilder?.Length > 0)
-                {
-                    var textDoneEvent = new StreamingOutputTextDone
-                    {
-                        SequenceNumber = sequenceNumber++,
-                        ItemId = currentItemId,
-                        OutputIndex = outputIndex,
-                        ContentIndex = kvp.Key,
-                        Text = kvp.Value.TextBuilder.ToString()
-                    };
-                    responseState.State.StreamingUpdates.Add(textDoneEvent);
-                }
-
-                var itemContent = ItemContentConverter.ToItemContent(kvp.Value.Content);
-                if (itemContent is not null)
-                {
-                    var contentDoneEvent = new StreamingContentPartDone
-                    {
-                        SequenceNumber = sequenceNumber++,
-                        ItemId = currentItemId,
-                        OutputIndex = outputIndex,
-                        ContentIndex = kvp.Key,
-                        Part = itemContent
-                    };
-                    responseState.State.StreamingUpdates.Add(contentDoneEvent);
-                }
-            }
-
-            var itemDoneEvent = new StreamingOutputItemDone
-            {
-                SequenceNumber = sequenceNumber++,
-                OutputIndex = outputIndex,
-                Item = finalItems[0] // Use the first converted item
-            };
-            responseState.State.StreamingUpdates.Add(itemDoneEvent);
-        }
-
-        var output = allUpdates.ToAgentRunResponse();
-
-        // Update the response with completion data
-        responseState.State.Response = responseState.State.Response! with
-        {
-            Status = ResponseStatus.Completed,
-            Error = null,
-            IncompleteDetails = null,
-            Output = output.Messages.SelectMany(msg => msg.ToItemResource(idGenerator, jsonOptions)).ToList(),
-#pragma warning disable CS8601 // Possible null reference assignment
-            Usage = output.Usage.ToResponseUsage()
-#pragma warning restore CS8601
-        };
-
-        // Emit completed event
-        var completedEvent = new StreamingResponseCompleted
-        {
-            SequenceNumber = sequenceNumber++,
-            Response = responseState.State.Response
-        };
-        responseState.State.StreamingUpdates.Add(completedEvent);
-
-        await responseState.WriteStateAsync(cancellationToken);
-        this._streamingUpdatedEvent.SignalAndReset();
     }
 
     private async Task FinalizeResponseAsync(CancellationToken cancellationToken)
@@ -799,12 +553,7 @@ internal sealed class ResponseGrain(
 
             // Build the list of messages to append
             var messagesToAppend = new List<ItemResource>();
-            var idGenerator = new IdGenerator(this.ConversationId, this.ResponseId);
-
-            foreach (var inputMessage in request.Input.GetInputMessages())
-            {
-                messagesToAppend.AddRange(inputMessage.ToItemResource(idGenerator));
-            }
+            messagesToAppend.AddRange(this.GetInputItems());
 
             // Add output items - they're already ItemResource
             messagesToAppend.AddRange(response.Output);
