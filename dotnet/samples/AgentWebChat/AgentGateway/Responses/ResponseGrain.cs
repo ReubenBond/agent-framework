@@ -5,8 +5,6 @@ using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 using AgentGateway.Conversations;
-using Microsoft.Agents.AI;
-using Microsoft.Extensions.AI;
 
 namespace AgentGateway.Responses;
 
@@ -103,7 +101,7 @@ public interface IResponseGrain : IGrainWithStringKey
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes", Justification = "Instantiated by Orleans framework")]
 internal sealed class ResponseGrain(
     [PersistentState("state")] IPersistentState<ResponseState> responseState,
-    IChatClient chatClient,
+    IResponseExecutor responseExecutor,
     ILogger<ResponseGrain> logger) : Grain, IResponseGrain, IRemindable, IDisposable
 {
     private const string BackgroundExecutionReminderName = "BackgroundExecution";
@@ -350,16 +348,22 @@ internal sealed class ResponseGrain(
         return (response, [.. this.GetInputItems(), .. response.Output]);
     }
 
-    private async Task<(List<ChatMessage> Messages, string? LastMessageId, AgentThread? Thread)> GetThreadAsync(CreateResponse request, ChatClientAgent agent, CancellationToken cancellationToken)
+    /// <summary>
+    /// Gets the last message ID from the conversation or previous response for idempotent message appending.
+    /// </summary>
+    private async Task<string?> GetLastMessageIdAsync(CreateResponse request, CancellationToken cancellationToken)
     {
-        var messages = new List<ChatMessage>();
         string? lastMessageId = null;
-        string? conversationId;
 
         if (request.Conversation is not null && !string.IsNullOrEmpty(request.Conversation.Id))
         {
-            conversationId = request.Conversation.Id;
-            lastMessageId = await LoadConversationAsync(messages, lastMessageId, conversationId);
+            var conversationGrain = this.GrainFactory.GetGrain<IConversationGrain>(request.Conversation.Id);
+
+            // Get the last message ID from the conversation
+            await foreach (var itemResource in conversationGrain.GetAllItemsAsync(SortOrder.Ascending))
+            {
+                lastMessageId = itemResource.Id;
+            }
         }
         else if (!string.IsNullOrEmpty(request.PreviousResponseId))
         {
@@ -368,21 +372,22 @@ internal sealed class ResponseGrain(
 
             if (previousResult is not null)
             {
-                var (previousResponse, previousItems) = previousResult.Value;
+                var (previousResponse, _) = previousResult.Value;
 
-                // Check if we have a conversation ID to load messages from
-                conversationId = previousResponse.Conversation?.Id;
+                // Check if we have a conversation ID to load the last message from
+                var conversationId = previousResponse.Conversation?.Id;
                 if (conversationId is not null)
                 {
-                    lastMessageId = await LoadConversationAsync(messages, lastMessageId, conversationId);
+                    var conversationGrain = this.GrainFactory.GetGrain<IConversationGrain>(conversationId);
+
+                    // Get the last message ID from the conversation
+                    await foreach (var itemResource in conversationGrain.GetAllItemsAsync(SortOrder.Ascending))
+                    {
+                        lastMessageId = itemResource.Id;
+                    }
                 }
                 else
                 {
-                    // Use the thread from the previous response directly
-                    foreach (var item in previousItems)
-                    {
-                        messages.Add(item.ToChatMessage());
-                    }
                     // Track the last message ID from the previous response's output
                     if (previousResponse.Output.Count > 0)
                     {
@@ -392,27 +397,7 @@ internal sealed class ResponseGrain(
             }
         }
 
-        messages.AddRange(this.GetInputItems().ToChatMessages());
-
-        var thread = agent.GetNewThread();
-        return (messages, lastMessageId, thread);
-
-        async Task<string?> LoadConversationAsync(List<ChatMessage> messages, string? lastMessageId, string conversationId)
-        {
-            // Get the conversation messages
-            var conversationGrain = this.GrainFactory.GetGrain<IConversationGrain>(conversationId);
-
-            // Use GetAllItemsAsync to stream all items
-            await foreach (var itemResource in conversationGrain.GetAllItemsAsync(SortOrder.Ascending))
-            {
-                // Convert ItemResource to ChatMessage using extension method
-                var chatMessage = itemResource.ToChatMessage();
-                messages.Add(chatMessage);
-                lastMessageId = itemResource.Id; // Track the last message ID
-            }
-
-            return lastMessageId;
-        }
+        return lastMessageId;
     }
 
     /// <summary>
@@ -533,26 +518,15 @@ internal sealed class ResponseGrain(
         var request = responseState.State.Request;
         Debug.Assert(request is not null);
 
-        var agent = new ChatClientAgent(
-            chatClient,
-            instructions: request.Instructions,
-            name: "ResponseAgent");
+        // Get the last message ID before execution for idempotent appending
+        responseState.State.LastMessageIdBeforeExecution = await this.GetLastMessageIdAsync(request, cancellationToken);
 
-        var (messages, lastMessageId, thread) = await this.GetThreadAsync(request, agent, cancellationToken);
-
-        // Store the last message ID before execution for idempotent appending
-        responseState.State.LastMessageIdBeforeExecution = lastMessageId;
-
-        var runOptions = request.ToRunOptions();
-
-        // Create agent invocation context
-        // To ensure idempotency, we derive a random seed from the grain ID hash code.
-        var randomSeed = (int)this.GetGrainId().GetUniformHashCode();
-        var context = new AgentInvocationContext(new IdGenerator(responseId: this.ResponseId, conversationId: this.ConversationId, randomSeed: randomSeed));
-
-        // Use the extension method to convert streaming updates to streaming response events
-        await foreach (var streamingEvent in agent.RunStreamingAsync(messages, thread, runOptions, cancellationToken)
-            .ToStreamingResponseAsync(request, context, cancellationToken))
+        // Use the injected response executor to generate the response
+        await foreach (var streamingEvent in responseExecutor.ExecuteAsync(
+            this.ResponseId,
+            this.ConversationId,
+            request,
+            cancellationToken))
         {
             responseState.State.StreamingUpdates.Add(streamingEvent);
             this._streamingUpdatedEvent.SignalAndReset();

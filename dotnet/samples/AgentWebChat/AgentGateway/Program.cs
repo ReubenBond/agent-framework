@@ -64,6 +64,16 @@ builder.AddChatClient("chat-model");
 // Register responses service
 builder.Services.AddSingleton<ResponsesService>();
 
+// Register response executors
+// Choose between local execution (using ChatClientAgent) or worker forwarding
+// Comment/uncomment based on desired behavior:
+
+// Option 1: Local execution using ChatClientAgent (default)
+builder.Services.AddSingleton<IResponseExecutor, LocalChatClientResponseExecutor>();
+
+// Option 2: Worker forwarding via HTTP (comment out option 1 and uncomment this)
+// builder.Services.AddSingleton<IResponseExecutor, WorkerResponseExecutor>();
+
 // Configure JSON serialization to use snake_case naming (web conventions)
 // Uses source-generated JSON serializer context for better performance and trimming support
 // Chains with AgentContractsJsonUtilities for worker registration and conversation types
