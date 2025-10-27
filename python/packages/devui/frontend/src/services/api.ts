@@ -59,7 +59,7 @@ const DEFAULT_API_BASE_URL =
 
 // Retry configuration for streaming
 const RETRY_INTERVAL_MS = 1000; // Retry every second
-const MAX_RETRY_ATTEMPTS = 60; // Max 60 retries (1 minute total)
+const MAX_RETRY_ATTEMPTS = 600; // Max 600 retries (10 minutes total)
 
 // Get backend URL from localStorage or default
 function getBackendUrl(): string {
