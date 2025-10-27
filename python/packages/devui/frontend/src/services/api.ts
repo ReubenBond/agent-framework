@@ -57,6 +57,10 @@ const DEFAULT_API_BASE_URL =
     ? import.meta.env.VITE_API_BASE_URL
     : "http://localhost:8080";
 
+// Retry configuration for streaming
+const RETRY_INTERVAL_MS = 1000; // Retry every second
+const MAX_RETRY_ATTEMPTS = 60; // Max 60 retries (1 minute total)
+
 // Get backend URL from localStorage or default
 function getBackendUrl(): string {
   const stored = localStorage.getItem("devui_backend_url");
@@ -69,6 +73,11 @@ function getBackendUrl(): string {
   }
   
   return DEFAULT_API_BASE_URL;
+}
+
+// Helper to sleep for a given duration
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 class ApiClient {
@@ -321,84 +330,137 @@ class ApiClient {
     return yield* this.streamAgentExecutionOpenAIDirect(agentId, openAIRequest);
   }
 
-  // Stream agent execution using direct OpenAI format
+  // Stream agent execution using direct OpenAI format with retry logic
   async *streamAgentExecutionOpenAIDirect(
     _agentId: string,
     openAIRequest: AgentFrameworkRequest
   ): AsyncGenerator<ExtendedResponseStreamEvent, void, unknown> {
+    let lastSequenceNumber = -1;
+    let retryCount = 0;
+    let hasYieldedAnyEvent = false;
 
-    const response = await fetch(`${this.baseUrl}/v1/responses`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "text/event-stream",
-      },
-      body: JSON.stringify(openAIRequest),
-    });
-
-    if (!response.ok) {
-      // Try to extract detailed error message from response body
-      let errorMessage = `Request failed with status ${response.status}`;
+    while (retryCount <= MAX_RETRY_ATTEMPTS) {
       try {
-        const errorBody = await response.json();
-        if (errorBody.error && errorBody.error.message) {
-          errorMessage = errorBody.error.message;
-        } else if (errorBody.detail) {
-          errorMessage = errorBody.detail;
-        }
-      } catch {
-        // Fallback to generic message if parsing fails
-      }
-      throw new Error(errorMessage);
-    }
+        const response = await fetch(`${this.baseUrl}/v1/responses`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "text/event-stream",
+          },
+          body: JSON.stringify(openAIRequest),
+        });
 
-    const reader = response.body?.getReader();
-    if (!reader) {
-      throw new Error("Response body is not readable");
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-
-        if (done) {
-          break;
+        if (!response.ok) {
+          // Try to extract detailed error message from response body
+          let errorMessage = `Request failed with status ${response.status}`;
+          try {
+            const errorBody = await response.json();
+            if (errorBody.error && errorBody.error.message) {
+              errorMessage = errorBody.error.message;
+            } else if (errorBody.detail) {
+              errorMessage = errorBody.detail;
+            }
+          } catch {
+            // Fallback to generic message if parsing fails
+          }
+          throw new Error(errorMessage);
         }
 
-        buffer += decoder.decode(value, { stream: true });
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error("Response body is not readable");
+        }
 
-        // Parse SSE events
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || ""; // Keep incomplete line in buffer
+        const decoder = new TextDecoder();
+        let buffer = "";
 
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const dataStr = line.slice(6);
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
 
-            // Handle [DONE] signal
-            if (dataStr === "[DONE]") {
+            if (done) {
+              // Stream completed successfully
               return;
             }
 
-            try {
-              const openAIEvent: ExtendedResponseStreamEvent =
-                JSON.parse(dataStr);
-              yield openAIEvent; // Direct pass-through - no conversion!
-            } catch (e) {
-              console.error("Failed to parse OpenAI SSE event:", e);
+            buffer += decoder.decode(value, { stream: true });
+
+            // Parse SSE events
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || ""; // Keep incomplete line in buffer
+
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                const dataStr = line.slice(6);
+
+                // Handle [DONE] signal
+                if (dataStr === "[DONE]") {
+                  return;
+                }
+
+                try {
+                  const openAIEvent: ExtendedResponseStreamEvent =
+                    JSON.parse(dataStr);
+
+                  // Check for sequence number restart (server restarted response)
+                  const eventSeq = "sequence_number" in openAIEvent ? openAIEvent.sequence_number : undefined;
+                  if (eventSeq !== undefined) {
+                    // If we've received events before and sequence restarted from 0/1
+                    if (hasYieldedAnyEvent && eventSeq <= 1 && lastSequenceNumber > 1) {
+                      // Server restarted the response - yield error event
+                      yield {
+                        type: "error",
+                        message: "Connection lost - previous response failed. Starting new response.",
+                      } as ExtendedResponseStreamEvent;
+                      lastSequenceNumber = eventSeq;
+                      hasYieldedAnyEvent = true;
+                      yield openAIEvent;
+                    }
+                    // Skip events we've already seen (resume from last position)
+                    else if (eventSeq <= lastSequenceNumber) {
+                      continue; // Skip duplicate event
+                    } else {
+                      lastSequenceNumber = eventSeq;
+                      hasYieldedAnyEvent = true;
+                      yield openAIEvent;
+                    }
+                  } else {
+                    // No sequence number - just yield the event
+                    hasYieldedAnyEvent = true;
+                    yield openAIEvent;
+                  }
+                } catch (e) {
+                  console.error("Failed to parse OpenAI SSE event:", e);
+                }
+              }
             }
           }
+        } finally {
+          reader.releaseLock();
         }
+      } catch (error) {
+        // Network error occurred - prepare to retry
+        retryCount++;
+
+        if (retryCount > MAX_RETRY_ATTEMPTS) {
+          // Max retries exceeded - give up
+          throw new Error(
+            `Connection failed after ${MAX_RETRY_ATTEMPTS} retry attempts: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+
+        // Wait before retrying
+        console.warn(
+          `Stream connection lost (attempt ${retryCount}/${MAX_RETRY_ATTEMPTS}). Retrying in ${RETRY_INTERVAL_MS}ms...`,
+          error
+        );
+        await sleep(RETRY_INTERVAL_MS);
+        // Loop will retry with same request
       }
-    } finally {
-      reader.releaseLock();
     }
   }
 
-  // Stream workflow execution using OpenAI format - direct event pass-through
+  // Stream workflow execution using OpenAI format with retry logic
   async *streamWorkflowExecutionOpenAI(
     workflowId: string,
     request: RunWorkflowRequest
@@ -411,74 +473,128 @@ class ApiClient {
       conversation: request.conversation_id, // Include conversation if present
     };
 
-    const response = await fetch(`${this.baseUrl}/v1/responses`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "text/event-stream",
-      },
-      body: JSON.stringify(openAIRequest),
-    });
+    let lastSequenceNumber = -1;
+    let retryCount = 0;
+    let hasYieldedAnyEvent = false;
 
-    if (!response.ok) {
-      // Try to extract detailed error message from response body
-      let errorMessage = `Request failed with status ${response.status}`;
+    while (retryCount <= MAX_RETRY_ATTEMPTS) {
       try {
-        const errorBody = await response.json();
-        if (errorBody.error && errorBody.error.message) {
-          errorMessage = errorBody.error.message;
-        } else if (errorBody.detail) {
-          errorMessage = errorBody.detail;
-        }
-      } catch {
-        // Fallback to generic message if parsing fails
-      }
-      throw new Error(errorMessage);
-    }
+        const response = await fetch(`${this.baseUrl}/v1/responses`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "text/event-stream",
+          },
+          body: JSON.stringify(openAIRequest),
+        });
 
-    const reader = response.body?.getReader();
-    if (!reader) {
-      throw new Error("Response body is not readable");
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-
-        if (done) {
-          break;
+        if (!response.ok) {
+          // Try to extract detailed error message from response body
+          let errorMessage = `Request failed with status ${response.status}`;
+          try {
+            const errorBody = await response.json();
+            if (errorBody.error && errorBody.error.message) {
+              errorMessage = errorBody.error.message;
+            } else if (errorBody.detail) {
+              errorMessage = errorBody.detail;
+            }
+          } catch {
+            // Fallback to generic message if parsing fails
+          }
+          throw new Error(errorMessage);
         }
 
-        buffer += decoder.decode(value, { stream: true });
+        const reader = response.body?.getReader();
+        if (!reader) {
+          throw new Error("Response body is not readable");
+        }
 
-        // Parse SSE events
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || ""; // Keep incomplete line in buffer
+        const decoder = new TextDecoder();
+        let buffer = "";
 
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const dataStr = line.slice(6);
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
 
-            // Handle [DONE] signal
-            if (dataStr === "[DONE]") {
+            if (done) {
+              // Stream completed successfully
               return;
             }
 
-            try {
-              const openAIEvent: ExtendedResponseStreamEvent =
-                JSON.parse(dataStr);
-              yield openAIEvent; // Direct pass-through - no conversion!
-            } catch (e) {
-              console.error("Failed to parse OpenAI SSE event:", e);
+            buffer += decoder.decode(value, { stream: true });
+
+            // Parse SSE events
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || ""; // Keep incomplete line in buffer
+
+            for (const line of lines) {
+              if (line.startsWith("data: ")) {
+                const dataStr = line.slice(6);
+
+                // Handle [DONE] signal
+                if (dataStr === "[DONE]") {
+                  return;
+                }
+
+                try {
+                  const openAIEvent: ExtendedResponseStreamEvent =
+                    JSON.parse(dataStr);
+
+                  // Check for sequence number restart (server restarted response)
+                  const eventSeq = "sequence_number" in openAIEvent ? openAIEvent.sequence_number : undefined;
+                  if (eventSeq !== undefined) {
+                    // If we've received events before and sequence restarted from 0/1
+                    if (hasYieldedAnyEvent && eventSeq <= 1 && lastSequenceNumber > 1) {
+                      // Server restarted the response - yield error event
+                      yield {
+                        type: "error",
+                        message: "Connection lost - previous response failed. Starting new response.",
+                      } as ExtendedResponseStreamEvent;
+                      lastSequenceNumber = eventSeq;
+                      hasYieldedAnyEvent = true;
+                      yield openAIEvent;
+                    }
+                    // Skip events we've already seen (resume from last position)
+                    else if (eventSeq <= lastSequenceNumber) {
+                      continue; // Skip duplicate event
+                    } else {
+                      lastSequenceNumber = eventSeq;
+                      hasYieldedAnyEvent = true;
+                      yield openAIEvent;
+                    }
+                  } else {
+                    // No sequence number - just yield the event
+                    hasYieldedAnyEvent = true;
+                    yield openAIEvent;
+                  }
+                } catch (e) {
+                  console.error("Failed to parse OpenAI SSE event:", e);
+                }
+              }
             }
           }
+        } finally {
+          reader.releaseLock();
         }
+      } catch (error) {
+        // Network error occurred - prepare to retry
+        retryCount++;
+
+        if (retryCount > MAX_RETRY_ATTEMPTS) {
+          // Max retries exceeded - give up
+          throw new Error(
+            `Connection failed after ${MAX_RETRY_ATTEMPTS} retry attempts: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+
+        // Wait before retrying
+        console.warn(
+          `Stream connection lost (attempt ${retryCount}/${MAX_RETRY_ATTEMPTS}). Retrying in ${RETRY_INTERVAL_MS}ms...`,
+          error
+        );
+        await sleep(RETRY_INTERVAL_MS);
+        // Loop will retry with same request
       }
-    } finally {
-      reader.releaseLock();
     }
   }
 
