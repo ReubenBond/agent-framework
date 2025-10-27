@@ -322,7 +322,7 @@ internal sealed class ResponseGrain(
         {
             // Use a deterministic random seed. We add 1 to avoid clashing with the output message ids, which otherwise use the same seed.
             var randomSeed = (int)unchecked(this.GetGrainId().GetUniformHashCode() + 1);
-            var idGenerator = new IdGenerator(this.ConversationId, this.ResponseId, randomSeed: randomSeed);
+            var idGenerator = new IdGenerator(responseId: this.ResponseId, conversationId: this.ConversationId, randomSeed: randomSeed);
             foreach (var inputMessage in responseState.State.Request.Input.GetInputMessages())
             {
                 itemResources.AddRange(inputMessage.ToItemResource(idGenerator));
@@ -548,7 +548,7 @@ internal sealed class ResponseGrain(
         // Create agent invocation context
         // To ensure idempotency, we derive a random seed from the grain ID hash code.
         var randomSeed = (int)this.GetGrainId().GetUniformHashCode();
-        var context = new AgentInvocationContext(new IdGenerator(this.ConversationId, this.ResponseId, randomSeed: randomSeed));
+        var context = new AgentInvocationContext(new IdGenerator(responseId: this.ResponseId, conversationId: this.ConversationId, randomSeed: randomSeed));
 
         // Use the extension method to convert streaming updates to streaming response events
         await foreach (var streamingEvent in agent.RunStreamingAsync(messages, thread, runOptions, cancellationToken)
