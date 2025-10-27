@@ -14,6 +14,12 @@ import type {
 } from "@/types";
 import type { AgentFrameworkRequest } from "@/types/agent-framework";
 import type { ExtendedResponseStreamEvent } from "@/types/openai";
+import {
+  loadStreamingState,
+  updateStreamingState,
+  markStreamingCompleted,
+  clearStreamingState,
+} from "./streaming-state";
 
 // Backend API response type - polymorphic entity that can be agent or workflow
 // This matches the Python Pydantic EntityInfo model which has all fields optional
@@ -290,6 +296,8 @@ class ApiClient {
       await this.request(`/v1/conversations/${conversationId}`, {
         method: "DELETE",
       });
+      // Clear streaming state when conversation is deleted
+      clearStreamingState(conversationId);
       return true;
     } catch {
       return false;
@@ -317,12 +325,35 @@ class ApiClient {
 
   // Private helper method that handles the actual streaming with retry logic
   private async *streamOpenAIResponse(
-    openAIRequest: AgentFrameworkRequest
+    openAIRequest: AgentFrameworkRequest,
+    conversationId?: string
   ): AsyncGenerator<ExtendedResponseStreamEvent, void, unknown> {
     let lastSequenceNumber = -1;
     let retryCount = 0;
     let hasYieldedAnyEvent = false;
     let currentResponseId: string | undefined = undefined;
+    let lastMessageId: string | undefined = undefined;
+
+    // Try to resume from stored state if conversation ID is provided
+    if (conversationId) {
+      const storedState = loadStreamingState(conversationId);
+      if (storedState) {
+        console.log(
+          `Resuming stream from stored state: responseId=${storedState.responseId}, ` +
+          `lastSeq=${storedState.lastSequenceNumber}, events=${storedState.events.length}`
+        );
+        
+        currentResponseId = storedState.responseId;
+        lastSequenceNumber = storedState.lastSequenceNumber;
+        lastMessageId = storedState.lastMessageId;
+        
+        // Replay stored events
+        for (const event of storedState.events) {
+          hasYieldedAnyEvent = true;
+          yield event;
+        }
+      }
+    }
 
     while (retryCount <= MAX_RETRY_ATTEMPTS) {
       try {
@@ -382,6 +413,9 @@ class ApiClient {
 
             if (done) {
               // Stream completed successfully
+              if (conversationId) {
+                markStreamingCompleted(conversationId);
+              }
               return;
             }
 
@@ -397,6 +431,9 @@ class ApiClient {
 
                 // Handle [DONE] signal
                 if (dataStr === "[DONE]") {
+                  if (conversationId) {
+                    markStreamingCompleted(conversationId);
+                  }
                   return;
                 }
 
@@ -411,18 +448,32 @@ class ApiClient {
                     currentResponseId = openAIEvent.id;
                   }
 
+                  // Track last message ID if present (for user/assistant messages)
+                  if ("item_id" in openAIEvent && openAIEvent.item_id) {
+                    lastMessageId = openAIEvent.item_id;
+                  }
+
                   // Check for sequence number restart (server restarted response)
                   const eventSeq = "sequence_number" in openAIEvent ? openAIEvent.sequence_number : undefined;
                   if (eventSeq !== undefined) {
                     // If we've received events before and sequence restarted from 0/1
                     if (hasYieldedAnyEvent && eventSeq <= 1 && lastSequenceNumber > 1) {
-                      // Server restarted the response - yield error event
+                      // Server restarted the response - clear old state and start fresh
+                      if (conversationId) {
+                        clearStreamingState(conversationId);
+                      }
                       yield {
                         type: "error",
                         message: "Connection lost - previous response failed. Starting new response.",
                       } as ExtendedResponseStreamEvent;
                       lastSequenceNumber = eventSeq;
                       hasYieldedAnyEvent = true;
+                      
+                      // Save new event to storage
+                      if (conversationId && currentResponseId) {
+                        updateStreamingState(conversationId, openAIEvent, currentResponseId, lastMessageId);
+                      }
+                      
                       yield openAIEvent;
                     }
                     // Skip events we've already seen (resume from last position)
@@ -431,11 +482,23 @@ class ApiClient {
                     } else {
                       lastSequenceNumber = eventSeq;
                       hasYieldedAnyEvent = true;
+                      
+                      // Save event to storage before yielding
+                      if (conversationId && currentResponseId) {
+                        updateStreamingState(conversationId, openAIEvent, currentResponseId, lastMessageId);
+                      }
+                      
                       yield openAIEvent;
                     }
                   } else {
                     // No sequence number - just yield the event
                     hasYieldedAnyEvent = true;
+                    
+                    // Still save to storage if we have conversation context
+                    if (conversationId && currentResponseId) {
+                      updateStreamingState(conversationId, openAIEvent, currentResponseId, lastMessageId);
+                    }
+                    
                     yield openAIEvent;
                   }
                 } catch (e) {
@@ -482,15 +545,16 @@ class ApiClient {
       conversation: request.conversation_id, // OpenAI standard conversation param
     };
 
-    return yield* this.streamAgentExecutionOpenAIDirect(agentId, openAIRequest);
+    return yield* this.streamAgentExecutionOpenAIDirect(agentId, openAIRequest, request.conversation_id);
   }
 
   // Stream agent execution using direct OpenAI format
   async *streamAgentExecutionOpenAIDirect(
     _agentId: string,
-    openAIRequest: AgentFrameworkRequest
+    openAIRequest: AgentFrameworkRequest,
+    conversationId?: string
   ): AsyncGenerator<ExtendedResponseStreamEvent, void, unknown> {
-    yield* this.streamOpenAIResponse(openAIRequest);
+    yield* this.streamOpenAIResponse(openAIRequest, conversationId);
   }
 
   // Stream workflow execution using OpenAI format
@@ -506,7 +570,7 @@ class ApiClient {
       conversation: request.conversation_id, // Include conversation if present
     };
 
-    yield* this.streamOpenAIResponse(openAIRequest);
+    yield* this.streamOpenAIResponse(openAIRequest, request.conversation_id);
   }
 
   // REMOVED: Legacy streaming methods - use streamAgentExecutionOpenAI and streamWorkflowExecutionOpenAI instead
@@ -539,8 +603,16 @@ class ApiClient {
       body: JSON.stringify(request),
     });
   }
+
+  // Clear streaming state for a conversation (e.g., when starting a new message)
+  clearStreamingState(conversationId: string): void {
+    clearStreamingState(conversationId);
+  }
 }
 
 // Export singleton instance
 export const apiClient = new ApiClient();
 export { ApiClient };
+
+// Export streaming state init function
+export { initStreamingState } from "./streaming-state";

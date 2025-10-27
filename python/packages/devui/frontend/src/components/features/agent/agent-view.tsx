@@ -844,6 +844,11 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
           }
         }
 
+        // Clear any previous streaming state for this conversation before starting new message
+        if (conversationToUse?.id) {
+          apiClient.clearStreamingState(conversationToUse.id);
+        }
+
         const apiRequest = {
           input: request.input,
           conversation_id: conversationToUse?.id,
