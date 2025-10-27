@@ -11,12 +11,11 @@ var chatModel = builder.AddAIModel("chat-model").AsAzureOpenAI("gpt-4o", o => o.
 var storage = builder.AddAzureStorage("storage").RunAsEmulator(emulator => emulator.WithDataBindMount());
 var grainState = storage.AddBlobs("state");
 var reminders = storage.AddTables("reminders");
-var clustering = storage.AddTables("clustering");
 
 var orleans = builder.AddOrleans("orleans-silo")
     .WithGrainStorage("Default", grainState)
     .WithReminders(reminders)
-    .WithClustering(clustering);
+    .WithDevelopmentClustering();
 
 // Gateway sits in front of agent host.
 var gateway = builder.AddProject<Projects.AgentGateway>("gateway")
