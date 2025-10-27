@@ -154,6 +154,13 @@ internal sealed class ResponseGrain(
             throw new InvalidOperationException($"Response with ID '{this.ResponseId}' already exists.");
         }
 
+        // Validate mutual exclusivity of conversation.id and previous_response_id
+        if (request.Conversation is not null && !string.IsNullOrEmpty(request.Conversation.Id) &&
+            !string.IsNullOrEmpty(request.PreviousResponseId))
+        {
+            throw new InvalidOperationException("Mutually exclusive parameters: 'conversation' and 'previous_response_id'. Ensure you are only providing one of: 'previous_response_id' or 'conversation'.");
+        }
+
         // Per OpenAI documentation: "To start response generation in the background, make an API request with background set to true"
         // and "You can create a background Response and start streaming events from it right away... create a Response with both background and stream set to true."
         // See: https://platform.openai.com/docs/guides/background
@@ -200,6 +207,13 @@ internal sealed class ResponseGrain(
         if (responseState.State.Response is not null)
         {
             throw new InvalidOperationException($"Response with ID '{this.ResponseId}' already exists.");
+        }
+
+        // Validate mutual exclusivity of conversation.id and previous_response_id
+        if (request.Conversation is not null && !string.IsNullOrEmpty(request.Conversation.Id) &&
+            !string.IsNullOrEmpty(request.PreviousResponseId))
+        {
+            throw new InvalidOperationException("Mutually exclusive parameters: 'conversation' and 'previous_response_id'. Ensure you are only providing one of: 'previous_response_id' or 'conversation'.");
         }
 
         // Per OpenAI documentation: "You can create a background Response and start streaming events from it right away...
@@ -350,6 +364,8 @@ internal sealed class ResponseGrain(
 
     /// <summary>
     /// Gets the last message ID from the conversation or previous response for idempotent message appending.
+    /// Per OpenAI API behavior: conversation.id and previous_response_id are mutually exclusive.
+    /// The previous_response_id determines the conversation thread context, even if the previous response was created with a conversation.id.
     /// </summary>
     private async Task<string?> GetLastMessageIdAsync(CreateResponse request, CancellationToken cancellationToken)
     {

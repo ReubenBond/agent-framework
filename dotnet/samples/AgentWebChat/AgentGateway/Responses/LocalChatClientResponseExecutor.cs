@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using AgentGateway.Conversations;
 using Microsoft.Agents.AI;
@@ -57,6 +57,10 @@ public sealed class LocalChatClientResponseExecutor : IResponseExecutor
         var messages = new List<ChatMessage>();
         string? lastMessageId = null;
 
+        // Per OpenAI API behavior: conversation.id and previous_response_id are mutually exclusive.
+        // The previous_response_id determines the conversation thread context - it follows the response chain,
+        // not any "active" conversation. Using a response ID from conversation A will continue A's context,
+        // even if you just created conversation B.
         if (request.Conversation is not null && !string.IsNullOrEmpty(request.Conversation.Id))
         {
             conversationId = request.Conversation.Id;
@@ -71,7 +75,9 @@ public sealed class LocalChatClientResponseExecutor : IResponseExecutor
             {
                 var (previousResponse, previousItems) = previousResult.Value;
 
-                // Check if we have a conversation ID to load messages from
+                // The conversation context follows the response chain.
+                // If the previous response was created with a conversation.id, we load that conversation.
+                // If the previous response was created with previous_response_id (no conversation), we use its thread directly.
                 conversationId = previousResponse.Conversation?.Id;
                 if (conversationId is not null)
                 {
@@ -79,7 +85,7 @@ public sealed class LocalChatClientResponseExecutor : IResponseExecutor
                 }
                 else
                 {
-                    // Use the thread from the previous response directly
+                    // Use the thread from the previous response directly (orphaned response chain)
                     foreach (var item in previousItems)
                     {
                         messages.Add(item.ToChatMessage());

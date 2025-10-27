@@ -77,6 +77,31 @@ public static class ResponsesHttpApi
 
             return Results.Ok(response);
         }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Mutually exclusive"))
+        {
+            // Return OpenAI-style error for mutual exclusivity violations
+            return Results.BadRequest(new
+            {
+                error = new
+                {
+                    message = ex.Message,
+                    type = "invalid_request_error",
+                    code = "mutually_exclusive_parameters"
+                }
+            });
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("not found") || ex.Message.Contains("does not exist"))
+        {
+            // Return OpenAI-style error for not found errors
+            return Results.NotFound(new
+            {
+                error = new
+                {
+                    message = ex.Message,
+                    type = "invalid_request_error"
+                }
+            });
+        }
         catch (Exception ex)
         {
             return Results.Problem(

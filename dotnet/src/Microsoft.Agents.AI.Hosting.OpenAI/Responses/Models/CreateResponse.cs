@@ -65,7 +65,10 @@ public sealed record CreateResponse
 
     /// <summary>
     /// The unique ID of the previous response to the model. Use this to create multi-turn conversations.
-    /// Cannot be used in conjunction with conversation.
+    /// Cannot be used in conjunction with conversation (mutually exclusive).
+    /// The previous_response_id determines the conversation thread context - it follows the response chain,
+    /// not any explicit conversation. Context is maintained through the chain even if the previous response
+    /// was created with a conversation.id.
     /// </summary>
     [JsonPropertyName("previous_response_id")]
     public string? PreviousResponseId { get; init; }
@@ -105,6 +108,9 @@ public sealed record CreateResponse
     /// to input_items for this response request.
     /// Can be either a conversation ID (string) or a conversation object with ID and optional metadata.
     /// Input items and output items from this response are automatically added to this conversation after this response completes.
+    /// Cannot be used in conjunction with previous_response_id (mutually exclusive).
+    /// Use conversation.id for explicit conversation boundaries and starting new threads.
+    /// Use previous_response_id for simple linear conversation chaining.
     /// </summary>
     [JsonPropertyName("conversation")]
     public ConversationReference? Conversation { get; init; }
