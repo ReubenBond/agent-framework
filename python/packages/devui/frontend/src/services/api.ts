@@ -322,17 +322,30 @@ class ApiClient {
     let lastSequenceNumber = -1;
     let retryCount = 0;
     let hasYieldedAnyEvent = false;
+    let currentResponseId: string | undefined = undefined;
 
     while (retryCount <= MAX_RETRY_ATTEMPTS) {
       try {
-        const response = await fetch(`${this.baseUrl}/v1/responses`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "text/event-stream",
-          },
-          body: JSON.stringify(openAIRequest),
-        });
+        // If we have a response_id from a previous attempt, use GET endpoint to resume
+        // Otherwise, use POST to create a new response
+        let response: Response;
+        if (currentResponseId) {
+          response = await fetch(`${this.baseUrl}/v1/responses/${currentResponseId}`, {
+            method: "GET",
+            headers: {
+              Accept: "text/event-stream",
+            },
+          });
+        } else {
+          response = await fetch(`${this.baseUrl}/v1/responses`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "text/event-stream",
+            },
+            body: JSON.stringify(openAIRequest),
+          });
+        }
 
         if (!response.ok) {
           // Try to extract detailed error message from response body
@@ -386,6 +399,13 @@ class ApiClient {
                   const openAIEvent: ExtendedResponseStreamEvent =
                     JSON.parse(dataStr);
 
+                  // Capture response_id if present in the event for use in retries
+                  if ("response" in openAIEvent && openAIEvent.response && typeof openAIEvent.response === "object" && "id" in openAIEvent.response) {
+                    currentResponseId = openAIEvent.response.id as string;
+                  } else if ("id" in openAIEvent && typeof openAIEvent.id === "string" && openAIEvent.id.startsWith("resp_")) {
+                    currentResponseId = openAIEvent.id;
+                  }
+
                   // Check for sequence number restart (server restarted response)
                   const eventSeq = "sequence_number" in openAIEvent ? openAIEvent.sequence_number : undefined;
                   if (eventSeq !== undefined) {
@@ -434,12 +454,13 @@ class ApiClient {
         }
 
         // Wait before retrying
+        const method = currentResponseId ? `GET /v1/responses/${currentResponseId}` : "POST /v1/responses";
         console.warn(
-          `Stream connection lost (attempt ${retryCount}/${MAX_RETRY_ATTEMPTS}). Retrying in ${RETRY_INTERVAL_MS}ms...`,
+          `Stream connection lost (attempt ${retryCount}/${MAX_RETRY_ATTEMPTS}). Retrying with ${method} in ${RETRY_INTERVAL_MS}ms...`,
           error
         );
         await sleep(RETRY_INTERVAL_MS);
-        // Loop will retry with same request
+        // Loop will retry with GET if we have response_id, otherwise POST
       }
     }
   }
