@@ -326,21 +326,23 @@ class ApiClient {
   // Private helper method that handles the actual streaming with retry logic
   private async *streamOpenAIResponse(
     openAIRequest: AgentFrameworkRequest,
-    conversationId?: string
+    conversationId?: string,
+    resumeResponseId?: string
   ): AsyncGenerator<ExtendedResponseStreamEvent, void, unknown> {
     let lastSequenceNumber = -1;
     let retryCount = 0;
     let hasYieldedAnyEvent = false;
-    let currentResponseId: string | undefined = undefined;
+    let currentResponseId: string | undefined = resumeResponseId;
     let lastMessageId: string | undefined = undefined;
 
-    // Try to resume from stored state if conversation ID is provided
-    if (conversationId) {
+    // Try to resume from stored state if conversation ID is provided and no explicit response ID given
+    if (conversationId && !resumeResponseId) {
       const storedState = loadStreamingState(conversationId);
       if (storedState) {
         console.log(
-          `Resuming stream from stored state: responseId=${storedState.responseId}, ` +
-          `lastSeq=${storedState.lastSequenceNumber}, events=${storedState.events.length}`
+          `[Stream Resume] Found stored state: responseId=${storedState.responseId}, ` +
+          `lastSeq=${storedState.lastSequenceNumber}, events=${storedState.events.length}, ` +
+          `completed=${storedState.completed}`
         );
         
         currentResponseId = storedState.responseId;
@@ -352,7 +354,11 @@ class ApiClient {
           hasYieldedAnyEvent = true;
           yield event;
         }
+      } else {
+        console.log(`[Stream Resume] No stored state found for conversation ${conversationId}`);
       }
+    } else if (resumeResponseId) {
+      console.log(`[Stream Resume] Resuming with explicit response ID: ${resumeResponseId}`);
     }
 
     while (retryCount <= MAX_RETRY_ATTEMPTS) {
@@ -366,14 +372,18 @@ class ApiClient {
           if (lastSequenceNumber >= 0) {
             params.set("starting_after", lastSequenceNumber.toString());
           }
-          response = await fetch(`${this.baseUrl}/v1/responses/${currentResponseId}?${params.toString()}`, {
+          const url = `${this.baseUrl}/v1/responses/${currentResponseId}?${params.toString()}`;
+          console.log(`[Stream Resume] Using GET to resume: ${url}`);
+          response = await fetch(url, {
             method: "GET",
             headers: {
               Accept: "text/event-stream",
             },
           });
         } else {
-          response = await fetch(`${this.baseUrl}/v1/responses`, {
+          const url = `${this.baseUrl}/v1/responses`;
+          console.log(`[Stream Start] Using POST to create new response: ${url}`);
+          response = await fetch(url, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -443,9 +453,17 @@ class ApiClient {
 
                   // Capture response_id if present in the event for use in retries
                   if ("response" in openAIEvent && openAIEvent.response && typeof openAIEvent.response === "object" && "id" in openAIEvent.response) {
-                    currentResponseId = openAIEvent.response.id as string;
+                    const newResponseId = openAIEvent.response.id as string;
+                    if (!currentResponseId || currentResponseId !== newResponseId) {
+                      console.log(`[Stream] Captured response ID from event.response.id: ${newResponseId}`);
+                      currentResponseId = newResponseId;
+                    }
                   } else if ("id" in openAIEvent && typeof openAIEvent.id === "string" && openAIEvent.id.startsWith("resp_")) {
-                    currentResponseId = openAIEvent.id;
+                    const newResponseId = openAIEvent.id;
+                    if (!currentResponseId || currentResponseId !== newResponseId) {
+                      console.log(`[Stream] Captured response ID from event.id: ${newResponseId}`);
+                      currentResponseId = newResponseId;
+                    }
                   }
 
                   // Track last message ID if present (for user/assistant messages)
@@ -472,6 +490,8 @@ class ApiClient {
                       // Save new event to storage
                       if (conversationId && currentResponseId) {
                         updateStreamingState(conversationId, openAIEvent, currentResponseId, lastMessageId);
+                      } else if (conversationId && !currentResponseId) {
+                        console.warn(`[Stream] Cannot save state - missing response ID for event type: ${openAIEvent.type}`);
                       }
                       
                       yield openAIEvent;
@@ -486,6 +506,8 @@ class ApiClient {
                       // Save event to storage before yielding
                       if (conversationId && currentResponseId) {
                         updateStreamingState(conversationId, openAIEvent, currentResponseId, lastMessageId);
+                      } else if (conversationId && !currentResponseId) {
+                        console.warn(`[Stream] Cannot save state - missing response ID for event type: ${openAIEvent.type}`);
                       }
                       
                       yield openAIEvent;
@@ -497,6 +519,8 @@ class ApiClient {
                     // Still save to storage if we have conversation context
                     if (conversationId && currentResponseId) {
                       updateStreamingState(conversationId, openAIEvent, currentResponseId, lastMessageId);
+                    } else if (conversationId && !currentResponseId) {
+                      console.warn(`[Stream] Cannot save state - missing response ID for event type: ${openAIEvent.type}`);
                     }
                     
                     yield openAIEvent;
@@ -536,7 +560,8 @@ class ApiClient {
   // Stream agent execution using OpenAI format with simplified routing
   async *streamAgentExecutionOpenAI(
     agentId: string,
-    request: RunAgentRequest
+    request: RunAgentRequest,
+    resumeResponseId?: string
   ): AsyncGenerator<ExtendedResponseStreamEvent, void, unknown> {
     const openAIRequest: AgentFrameworkRequest = {
       model: agentId, // Model IS the entity_id (simplified routing!)
@@ -545,16 +570,17 @@ class ApiClient {
       conversation: request.conversation_id, // OpenAI standard conversation param
     };
 
-    return yield* this.streamAgentExecutionOpenAIDirect(agentId, openAIRequest, request.conversation_id);
+    return yield* this.streamAgentExecutionOpenAIDirect(agentId, openAIRequest, request.conversation_id, resumeResponseId);
   }
 
   // Stream agent execution using direct OpenAI format
   async *streamAgentExecutionOpenAIDirect(
     _agentId: string,
     openAIRequest: AgentFrameworkRequest,
-    conversationId?: string
+    conversationId?: string,
+    resumeResponseId?: string
   ): AsyncGenerator<ExtendedResponseStreamEvent, void, unknown> {
-    yield* this.streamOpenAIResponse(openAIRequest, conversationId);
+    yield* this.streamOpenAIResponse(openAIRequest, conversationId, resumeResponseId);
   }
 
   // Stream workflow execution using OpenAI format

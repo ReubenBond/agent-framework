@@ -601,8 +601,16 @@ internal sealed class ResponseGrain(
             var appendedCount = await conversationGrain.AppendItemsAsync(messagesToAppend, lastMessageIdBeforeExecution);
             if (appendedCount != messagesToAppend.Count)
             {
-                logger.LogWarning("Appended {AppendedCount} out of {TotalCount} messages to conversation {ConversationId} for response {ResponseId}",
-                    appendedCount, messagesToAppend.Count, request.Conversation.Id, this.ResponseId);
+                if (appendedCount < 0)
+                {
+                    logger.LogWarning("No messages appended to conversation {ConversationId} for response {ResponseId} due to concurrency conflict",
+                        request.Conversation.Id, this.ResponseId);
+                }
+                else
+                {
+                    logger.LogWarning("Appended {AppendedCount} out of {TotalCount} messages to conversation {ConversationId} for response {ResponseId}",
+                        appendedCount, messagesToAppend.Count, request.Conversation.Id, this.ResponseId);
+                }
             }
         }
 

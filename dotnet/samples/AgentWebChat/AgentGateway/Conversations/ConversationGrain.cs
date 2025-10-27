@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
@@ -270,9 +270,9 @@ internal sealed class ConversationGrain([PersistentState("state")] IPersistentSt
                 return 0;
             }
 
-            throw new InvalidOperationException(
-                $"Cannot append items: expected last item to be '{afterItemId}' but found '{lastItemId}'. " +
-                "This may indicate concurrent modification or a retry after partial success.");
+            // Cannot append items: expected last item to be 'afterItemId' but found 'lastItemId'.
+            // This may indicate concurrent modification or a retry after partial success.
+            return -1;
         }
 
         // Append the items
