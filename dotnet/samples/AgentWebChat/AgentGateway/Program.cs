@@ -18,7 +18,6 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.AddKeyedAzureBlobServiceClient("state");
 builder.AddKeyedAzureTableServiceClient("reminders");
-builder.AddKeyedAzureTableServiceClient("clustering");
 
 builder.AddServiceDefaults();
 
