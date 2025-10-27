@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
@@ -53,6 +53,26 @@ public sealed class ResponsesService
     {
         var grain = this._grainFactory.GetGrain<IResponseGrain>(responseId);
         return await grain.GetAsync();
+    }
+
+    /// <summary>
+    /// Retrieves a response by ID in streaming mode, yielding events as they become available.
+    /// </summary>
+    /// <param name="responseId">The ID of the response to retrieve.</param>
+    /// <param name="startingAfter">The sequence number after which to start streaming. If null, starts from the beginning.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>An async enumerable of streaming updates.</returns>
+    public async IAsyncEnumerable<StreamingResponseEvent> GetResponseStreamingAsync(
+        string responseId,
+        int? startingAfter = null,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var grain = this._grainFactory.GetGrain<IResponseGrain>(responseId);
+
+        await foreach (var update in grain.GetStreamingAsync(startingAfter, cancellationToken))
+        {
+            yield return update;
+        }
     }
 
     /// <summary>

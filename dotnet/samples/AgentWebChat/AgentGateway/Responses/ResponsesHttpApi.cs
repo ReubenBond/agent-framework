@@ -90,10 +90,34 @@ public static class ResponsesHttpApi
         string responseId,
         [FromServices] ResponsesService responsesService,
         [FromQuery] string[]? include = null,
+        [FromQuery] bool? stream = null,
+        [FromQuery] int? starting_after = null,
         CancellationToken cancellationToken = default)
     {
         try
         {
+            // If streaming is requested, return SSE stream
+            if (stream == true)
+            {
+                var streamingResponse = responsesService.GetResponseStreamingAsync(
+                    responseId,
+                    startingAfter: starting_after,
+                    cancellationToken: cancellationToken);
+
+                return Results.Stream(async outputStream =>
+                {
+                    await foreach (var update in streamingResponse.ConfigureAwait(false))
+                    {
+                        // Write SSE format: data: {json}\n\n
+                        var json = System.Text.Json.JsonSerializer.Serialize(update);
+                        await outputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes($"data: {json}\n\n"));
+                        await outputStream.FlushAsync();
+                    }
+                    await outputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("data: [DONE]\n\n"));
+                }, "text/event-stream");
+            }
+
+            // Non-streaming: return the response object
             var response = await responsesService.GetResponseAsync(responseId, cancellationToken);
             return response != null
                 ? Results.Ok(response)

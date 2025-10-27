@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Diagnostics;
-using System.Text.Json;
 using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
@@ -70,6 +69,14 @@ public interface IResponseGrain : IGrainWithStringKey
     /// </summary>
     /// <returns>The response if it exists, null otherwise.</returns>
     Task<Response?> GetAsync();
+
+    /// <summary>
+    /// Gets the response in streaming mode, yielding events as they become available.
+    /// </summary>
+    /// <param name="startingAfter">The sequence number after which to start streaming. If null, starts from the beginning.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>An async enumerable of streaming updates.</returns>
+    IAsyncEnumerable<StreamingResponseEvent> GetStreamingAsync(int? startingAfter = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Lists the input items for this response.
@@ -244,6 +251,39 @@ internal sealed class ResponseGrain(
     public Task<Response?> GetAsync()
     {
         return Task.FromResult(responseState.State.Response);
+    }
+
+    public async IAsyncEnumerable<StreamingResponseEvent> GetStreamingAsync(
+        int? startingAfter = null,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (responseState.State.Response is null)
+        {
+            yield break;
+        }
+
+        // Stream existing updates starting from the specified position
+        var streamedCount = startingAfter ?? 0;
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Yield any available updates from the current position
+            while (streamedCount < responseState.State.StreamingUpdates.Count)
+            {
+                yield return responseState.State.StreamingUpdates[streamedCount];
+                streamedCount++;
+            }
+
+            // Check if we're done
+            if (responseState.State.Response.IsTerminal)
+            {
+                break;
+            }
+
+            // Wait for more updates
+            await this._streamingUpdatedEvent.WaitAsync(cancellationToken);
+        }
     }
 
     public Task<ListResponse<ItemResource>> ListInputItemsAsync(int limit, string order, string? after, string? before)
