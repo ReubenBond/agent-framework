@@ -311,6 +311,11 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
               // Use OpenAI ConversationItems directly (no conversion!)
               setChatItems(items as import("@/types/openai").ConversationItem[]);
               setIsStreaming(false);
+
+              // Scroll to bottom after loading conversation
+              setTimeout(() => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+              }, 100);
             } catch {
               // 404 means conversation exists but has no items yet (newly created)
               // This is normal - just start with empty chat
@@ -710,6 +715,11 @@ export function AgentView({ selectedAgent, onDebugEvent }: AgentViewProps) {
             message_count: items.length,
           }
         });
+
+        // Scroll to bottom after loading conversation
+        setTimeout(() => {
+          messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 100);
       } catch {
         // 404 means conversation doesn't exist or has no items yet
         // This can happen if server restarted (in-memory store cleared)
