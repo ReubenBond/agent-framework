@@ -83,15 +83,34 @@ public sealed class WorkerResponseExecutor : IResponseExecutor
         }
 
         // Read the SSE stream and deserialize events
-        var jsonTypeInfo = (JsonTypeInfo<StreamingResponseEvent>)AgentGatewayJsonUtilities.DefaultOptions.GetTypeInfo(typeof(StreamingResponseEvent));
-        await foreach (var streamingEvent in httpResponse.Content.ReadFromJsonAsAsyncEnumerable(jsonTypeInfo, cancellationToken).ConfigureAwait(false))
-        {
-            if (streamingEvent is null)
-            {
-                continue;
-            }
+        await using var stream = await httpResponse.Content.ReadAsStreamAsync(cancellationToken);
+        using var reader = new StreamReader(stream);
 
-            yield return streamingEvent;
+        string? line;
+        while ((line = await reader.ReadLineAsync(cancellationToken)) is not null)
+        {
+            // SSE format: "data: {json}\n\n" or "data: [DONE]\n\n"
+            if (line.StartsWith("data: ", StringComparison.Ordinal))
+            {
+                var data = line.Substring(6); // Skip "data: "
+
+                // Deserialize the streaming event
+                StreamingResponseEvent? streamingEvent;
+                try
+                {
+                    streamingEvent = JsonSerializer.Deserialize<StreamingResponseEvent>(data, AgentGatewayJsonUtilities.DefaultOptions);
+                }
+                catch (Exception ex)
+                {
+                    this._logger.LogWarning(ex, "Failed to deserialize streaming event from worker: {Data}", data);
+                    continue;
+                }
+
+                if (streamingEvent is not null)
+                {
+                    yield return streamingEvent;
+                }
+            }
         }
     }
 
