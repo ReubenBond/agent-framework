@@ -6,7 +6,6 @@ using System.Text.Json.Serialization;
 using AgentGateway.Conversations;
 using AgentGateway.Entities;
 using AgentGateway.Responses;
-using AgentGateway.Threads;
 using Microsoft.Agents.AI.Hosting.OpenAI;
 
 namespace AgentGateway;
@@ -48,12 +47,6 @@ public static class AgentGatewayJsonUtilities
     PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     WriteIndented = false)]
-[JsonSerializable(typeof(ThreadInfo))]
-[JsonSerializable(typeof(CreateThreadRequest))]
-[JsonSerializable(typeof(ThreadListResponse))]
-[JsonSerializable(typeof(ThreadData))]
-[JsonSerializable(typeof(ThreadDeletionResponse))]
-[JsonSerializable(typeof(ThreadMessagesResponse))]
 [JsonSerializable(typeof(EntityInfo))]
 [JsonSerializable(typeof(DiscoveryResponse))]
 [JsonSerializable(typeof(AddEntityRequest))]
@@ -61,7 +54,6 @@ public static class AgentGatewayJsonUtilities
 [JsonSerializable(typeof(RemoveEntityResponse))]
 [JsonSerializable(typeof(EnvVarRequirement))]
 [JsonSerializable(typeof(List<EntityInfo>))]
-[JsonSerializable(typeof(List<ThreadData>))]
 [JsonSerializable(typeof(List<JsonElement>))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(Dictionary<string, JsonElement>))]

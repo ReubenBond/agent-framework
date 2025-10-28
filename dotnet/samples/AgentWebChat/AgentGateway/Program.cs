@@ -6,7 +6,6 @@ using AgentGateway.Conversations;
 using AgentGateway.Entities;
 using AgentGateway.Health;
 using AgentGateway.Responses;
-using AgentGateway.Threads;
 using AgentGateway.Utilities;
 using Microsoft.Agents.AI.DevUI;
 using Microsoft.Extensions.AI;
@@ -107,9 +106,6 @@ app.UseStaticFiles();
 
 // Map Entities API endpoints (DevUI-compatible)
 app.MapEntitiesApi();
-
-// Map Threads API endpoints (DevUI-compatible)
-app.MapThreadsApi();
 
 app.MapWorkerManagement();
 app.MapDiscovery();
