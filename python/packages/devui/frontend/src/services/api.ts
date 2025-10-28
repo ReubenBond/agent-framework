@@ -335,8 +335,8 @@ class ApiClient {
     let currentResponseId: string | undefined = resumeResponseId;
     let lastMessageId: string | undefined = undefined;
 
-    // Try to resume from stored state if conversation ID is provided and no explicit response ID given
-    if (conversationId && !resumeResponseId) {
+    // Try to resume from stored state if conversation ID is provided
+    if (conversationId) {
       const storedState = loadStreamingState(conversationId);
       if (storedState) {
         console.log(
@@ -345,20 +345,33 @@ class ApiClient {
           `completed=${storedState.completed}`
         );
         
-        currentResponseId = storedState.responseId;
+        // Use stored response ID if no explicit one provided
+        if (!resumeResponseId) {
+          currentResponseId = storedState.responseId;
+        }
+        
         lastSequenceNumber = storedState.lastSequenceNumber;
         lastMessageId = storedState.lastMessageId;
         
-        // Replay stored events
-        for (const event of storedState.events) {
-          hasYieldedAnyEvent = true;
-          yield event;
+        // Replay stored events only if we're not explicitly resuming
+        // (explicit resume means the caller already has the events)
+        if (!resumeResponseId) {
+          for (const event of storedState.events) {
+            hasYieldedAnyEvent = true;
+            yield event;
+          }
+        } else {
+          // Mark that we've already seen events up to this sequence number
+          hasYieldedAnyEvent = storedState.events.length > 0;
         }
       } else {
         console.log(`[Stream Resume] No stored state found for conversation ${conversationId}`);
+        if (resumeResponseId) {
+          console.log(`[Stream Resume] Resuming with explicit response ID but no stored state: ${resumeResponseId}`);
+        }
       }
     } else if (resumeResponseId) {
-      console.log(`[Stream Resume] Resuming with explicit response ID: ${resumeResponseId}`);
+      console.log(`[Stream Resume] Resuming with explicit response ID (no conversation ID): ${resumeResponseId}`);
     }
 
     while (retryCount <= MAX_RETRY_ATTEMPTS) {
