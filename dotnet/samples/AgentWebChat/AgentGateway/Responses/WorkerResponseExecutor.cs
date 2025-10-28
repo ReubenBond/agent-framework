@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Net.Http.Headers;
+using System.Net.ServerSentEvents;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
@@ -89,7 +90,7 @@ public sealed class WorkerResponseExecutor : IResponseExecutor
         string? line;
         while ((line = await reader.ReadLineAsync(cancellationToken)) is not null)
         {
-            // SSE format: "data: {json}\n\n" or "data: [DONE]\n\n"
+            // SSE format: "data: {json}\n\n"
             if (line.StartsWith("data: ", StringComparison.Ordinal))
             {
                 var data = line.Substring(6); // Skip "data: "
