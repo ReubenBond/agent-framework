@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 #pragma warning disable OPENAI001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
@@ -67,7 +67,6 @@ public static class ResponsesHttpApi
                         await outputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes($"data: {json}\n\n"));
                         await outputStream.FlushAsync();
                     }
-                    await outputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("data: [DONE]\n\n"));
                 }, "text/event-stream");
             }
 
@@ -138,7 +137,6 @@ public static class ResponsesHttpApi
                         await outputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes($"data: {json}\n\n"));
                         await outputStream.FlushAsync();
                     }
-                    await outputStream.WriteAsync(System.Text.Encoding.UTF8.GetBytes("data: [DONE]\n\n"));
                 }, "text/event-stream");
             }
 
