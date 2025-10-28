@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System.Runtime.CompilerServices;
 using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 
@@ -35,7 +36,7 @@ public sealed class ResponsesService
     /// </summary>
     public async IAsyncEnumerable<StreamingResponseEvent> CreateResponseStreamingAsync(
         CreateResponse request,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var responseId = $"resp_{Guid.NewGuid():N}";
         var grain = this._grainFactory.GetGrain<IResponseGrain>(responseId);
@@ -65,7 +66,7 @@ public sealed class ResponsesService
     public async IAsyncEnumerable<StreamingResponseEvent> GetResponseStreamingAsync(
         string responseId,
         int? startingAfter = null,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var grain = this._grainFactory.GetGrain<IResponseGrain>(responseId);
 

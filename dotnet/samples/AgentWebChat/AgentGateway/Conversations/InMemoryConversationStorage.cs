@@ -22,7 +22,7 @@ public sealed class InMemoryConversationStorage : IConversationStorage
         {
             lock (this._itemsLock)
             {
-                this._items[conversation.Id] = new OrderedDictionary<string, ItemResource>();
+                this._items[conversation.Id] = [];
             }
             return Task.FromResult(conversation);
         }

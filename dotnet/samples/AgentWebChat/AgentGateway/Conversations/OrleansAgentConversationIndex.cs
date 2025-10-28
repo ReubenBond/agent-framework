@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 namespace AgentGateway.Conversations;
 
@@ -13,7 +13,7 @@ internal sealed class AgentConversationIndexState
     /// Set of conversation IDs associated with this agent.
     /// </summary>
     [Id(0)]
-    public HashSet<string> ConversationIds { get; set; } = new();
+    public HashSet<string> ConversationIds { get; set; } = [];
 }
 
 /// <summary>

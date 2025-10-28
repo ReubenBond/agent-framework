@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Text.Json;
 using AgentContracts;
@@ -80,7 +80,7 @@ public static class EntitiesHttpApi
                     Description = agentCard.Description,
                     Framework = "agent-framework",
                     Tools = tools,
-                    Metadata = new Dictionary<string, JsonElement>(),
+                    Metadata = [],
                     Source = "directory"
                 });
             }
@@ -123,7 +123,7 @@ public static class EntitiesHttpApi
                         Description = agentCard.Description,
                         Framework = "agent-framework",
                         Tools = tools,
-                        Metadata = new Dictionary<string, JsonElement>(),
+                        Metadata = [],
                         Source = "directory"
                     };
 
