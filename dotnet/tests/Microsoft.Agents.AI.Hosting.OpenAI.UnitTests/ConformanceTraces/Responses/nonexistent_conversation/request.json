@@ -1,0 +1,8 @@
+{
+  "model": "gpt-4o-mini",
+  "input": "Hello, test message",
+  "conversation": {
+    "id": "conv_nonexistent123456789abcdef"
+  },
+  "max_output_tokens": 30
+}
