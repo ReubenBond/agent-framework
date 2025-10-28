@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -49,7 +49,7 @@ public record EntityInfo
     public List<JsonElement>? Tools { get; init; }
 
     [JsonPropertyName("metadata")]
-    public Dictionary<string, JsonElement> Metadata { get; init; } = new();
+    public Dictionary<string, JsonElement> Metadata { get; init; } = [];
 
     // Source information
     [JsonPropertyName("source")]
@@ -85,7 +85,7 @@ public record EntityInfo
 public record DiscoveryResponse
 {
     [JsonPropertyName("entities")]
-    public List<EntityInfo> Entities { get; init; } = new();
+    public List<EntityInfo> Entities { get; init; } = [];
 }
 
 /// <summary>

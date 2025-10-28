@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Collections.Concurrent;
 
@@ -20,7 +20,7 @@ public sealed class InMemoryAgentConversationIndex : IAgentConversationIndex
 
         this._agentConversations.AddOrUpdate(
             agentId,
-            _ => new ConcurrentBag<string> { conversationId },
+            _ => [conversationId],
             (_, existing) =>
             {
                 existing.Add(conversationId);
