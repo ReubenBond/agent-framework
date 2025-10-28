@@ -22,7 +22,7 @@ internal sealed class ConversationState
     /// Items (messages) in the conversation, keyed by item ID, maintaining insertion order.
     /// </summary>
     [Id(1)]
-    public OrderedDictionary<string, ItemResource> Items { get; set; } = new();
+    public OrderedDictionary<string, ItemResource> Items { get; set; } = [];
 }
 
 /// <summary>
