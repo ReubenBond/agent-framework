@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Net.Http.Headers;
 using System.Text;
@@ -44,6 +44,7 @@ public sealed class WorkerResponseExecutor : IResponseExecutor
         }
 
         // Select a worker that supports this agent
+        // TODO: store worker assignment in grain state.
         var worker = await this.SelectWorkerAsync(agentName, cancellationToken);
         if (worker is null)
         {
@@ -56,7 +57,7 @@ public sealed class WorkerResponseExecutor : IResponseExecutor
         // Create HTTP request with the CreateResponse body
         // Force streaming to true since we want to stream events back
         var streamingRequest = request with { Stream = true };
-        var json = JsonSerializer.Serialize(streamingRequest, AgentGatewayJsonUtilities.DefaultOptions);
+        var json = JsonSerializer.Serialize(streamingRequest, AgentGatewayJsonUtilities.DefaultOptions.GetTypeInfo(typeof(CreateResponse)));
         var httpRequest = new HttpRequestMessage(HttpMethod.Post, workerEndpoint)
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
