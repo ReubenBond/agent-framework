@@ -1,13 +1,10 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
-using A2A.AspNetCore;
 using AgentContracts;
 using AgentWebChat.AgentHost;
 using AgentWebChat.AgentHost.Options;
 using AgentWebChat.AgentHost.Utilities;
-using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Hosting;
-using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 
