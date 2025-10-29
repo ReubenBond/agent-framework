@@ -11,9 +11,7 @@ namespace AgentContracts;
 public sealed class WorkerRegistrationRequest
 {
     [JsonPropertyName("hostId")]
-    [Required(ErrorMessage = "HostId is required.")]
-    [MinLength(1, ErrorMessage = "HostId cannot be empty.")]
-    public required string HostId { get; init; }
+    public string HostId { get; init; } = Environment.MachineName;
 
     // Base endpoint (scheme://host[:port])
     [JsonPropertyName("endpoint")]
@@ -23,12 +21,8 @@ public sealed class WorkerRegistrationRequest
 
     // Relative paths
     [JsonPropertyName("healthPath")]
-    [Required(ErrorMessage = "HealthPath is required.")]
-    [MinLength(1, ErrorMessage = "HealthPath cannot be empty.")]
-    public required string HealthPath { get; init; }
+    public string HealthPath { get; init; } = "/health";
 
     [JsonPropertyName("discoveryPath")]
-    [Required(ErrorMessage = "DiscoveryPath is required.")]
-    [MinLength(1, ErrorMessage = "DiscoveryPath cannot be empty.")]
-    public required string DiscoveryPath { get; init; }
+    public string DiscoveryPath { get; init; } = "/discovery";
 }

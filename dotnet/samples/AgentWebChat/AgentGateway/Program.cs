@@ -9,11 +9,43 @@ using AgentGateway.Responses;
 using AgentGateway.Utilities;
 using Microsoft.Agents.AI.DevUI;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Options;
 using Orleans.Configuration;
 using Orleans.Serialization;
 using Orleans.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Agent Gateway options from configuration
+builder.Services.Configure<AgentGatewayOptions>(options =>
+{
+    var section = builder.Configuration.GetSection(AgentGatewayOptions.SectionName);
+    section.Bind(options);
+
+    // Handle Workers as either string array or object array
+    var workersSection = section.GetSection("Workers");
+    if (workersSection.Exists())
+    {
+        options.Workers.Clear();
+        foreach (var child in workersSection.GetChildren())
+        {
+            // Try to bind as object first
+            var worker = new WorkerOptions();
+            child.Bind(worker);
+
+            // If Endpoint is not set, treat the whole value as an endpoint string
+            if (string.IsNullOrEmpty(worker.Endpoint) && !string.IsNullOrEmpty(child.Value))
+            {
+                worker.Endpoint = child.Value;
+            }
+
+            if (!string.IsNullOrEmpty(worker.Endpoint))
+            {
+                options.Workers.Add(worker);
+            }
+        }
+    }
+});
 
 builder.AddKeyedAzureBlobServiceClient("state");
 builder.AddKeyedAzureTableServiceClient("reminders");
@@ -92,7 +124,7 @@ builder.Services.AddSingleton(sp =>
     var logger = sp.GetRequiredService<ILogger<WorkerDiscoveryCache>>();
     return new WorkerDiscoveryCache(clientProvider.HttpClient, logger);
 });
-builder.Services.AddSingleton(sp => new WorkerRegistry(sp.GetRequiredService<WorkerDiscoveryCache>()));
+builder.Services.AddSingleton<WorkerRegistry>();
 builder.Services.AddHostedService<WorkerHealthCheckService>();
 builder.Services.AddSingleton<WorkerHttpForwarder>();
 
@@ -107,7 +139,13 @@ app.UseStaticFiles();
 // Map Entities API endpoints (DevUI-compatible)
 app.MapEntitiesApi();
 
-app.MapWorkerManagement();
+// Conditionally map worker management endpoints based on configuration
+var gatewayOptions = app.Services.GetRequiredService<IOptions<AgentGatewayOptions>>().Value;
+if (gatewayOptions.EnableRuntimeRegistration)
+{
+    app.MapWorkerManagement();
+}
+
 app.MapDiscovery();
 
 // Map forwarding endpoints to workers (eg, A2A) via IHttpForwarder
@@ -131,5 +169,16 @@ app.UseHttpsRedirection();
 
 // Redirect root to DevUI
 app.MapGet("/", () => Results.Redirect("/devui"));
+
+// Log default worker if configured
+var workerRegistry = app.Services.GetRequiredService<WorkerRegistry>();
+if (workerRegistry.DefaultWorker is not null)
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogInformation(
+        "Default worker configured. Endpoint={Endpoint} HostId={HostId}",
+        workerRegistry.DefaultWorker.Endpoint,
+        workerRegistry.DefaultWorker.HostId);
+}
 
 app.Run();

@@ -704,6 +704,77 @@ curl -N "https://localhost:5001/v1/responses/resp_abc123?stream=true&starting_af
 
 ## Configuration
 
+### Agent Gateway Options
+
+The gateway can be configured via `appsettings.json` or environment variables.
+
+#### Default Worker
+
+Configure a default worker that is always assumed to be available and supports any workload:
+
+```json
+{
+  "AgentGateway": {
+    "DefaultWorker": {
+      "Endpoint": "https://localhost:5001",
+      "HostId": "default",
+      "HealthPath": "/health",
+      "DiscoveryPath": "/discovery"
+    }
+  }
+}
+```
+
+Or via environment variables:
+```bash
+export AgentGateway__DefaultWorker__Endpoint="https://localhost:5001"
+export AgentGateway__DefaultWorker__HostId="default"
+export AgentGateway__DefaultWorker__HealthPath="/health"
+export AgentGateway__DefaultWorker__DiscoveryPath="/discovery"
+```
+
+When a default worker is configured:
+- It is assumed to always be available
+- It is assumed to support any agent/workload
+- The gateway will prefer non-default workers when selecting a worker to handle a request
+- If no non-default worker supports the requested agent, the default worker will be used as a fallback
+
+#### Runtime Worker Registration
+
+Control whether workers can register/deregister at runtime via the worker management API:
+
+```json
+{
+  "AgentGateway": {
+    "EnableRuntimeRegistration": false
+  }
+}
+```
+
+Or via environment variable:
+```bash
+export AgentGateway__EnableRuntimeRegistration=false
+```
+
+When set to `false`:
+- The `/workers/registrations` endpoints will not be mapped
+- Workers cannot register or deregister at runtime
+- Useful for scenarios where only the default worker should be used
+
+**Combined Example:**
+```json
+{
+  "AgentGateway": {
+    "DefaultWorker": {
+      "Endpoint": "https://my-worker:8080"
+    },
+    "EnableRuntimeRegistration": false
+  }
+}
+```
+
+This configuration creates a static deployment with only the default worker and no runtime registration capability.
+
 ### Execution Mode
 Choose between local and worker execution in `Program.cs`:
 
