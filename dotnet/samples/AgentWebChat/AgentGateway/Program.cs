@@ -61,6 +61,12 @@ builder.Services.AddSingleton<ForwardingHttpClientProvider>();
 // Configure Orleans
 builder.Host.UseOrleans(siloBuilder =>
 {
+    siloBuilder.Configure<ClusterOptions>(options =>
+    {
+        options.ClusterId = "agent-webchat-cluster1";
+        options.ServiceId = "AgentWebChatService1";
+    });
+
     // Configure System.Text.Json serialization for all Microsoft.Agents.* and AgentGateway types
     // This uses AgentGatewayJsonUtilities which chains together all the necessary type resolvers
     // including OpenAIJsonUtilities (OpenAI Hosting types), AIJsonUtilities (Microsoft.Extensions.AI), and grain states
