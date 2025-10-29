@@ -126,32 +126,8 @@ public class ConfigRolloutAgent : AIAgent
 
         async Task UpdateComponent(string componentResourceId, string newVersion)
         {
-            var context = DurableFunctionInvokingChatClient.CurrentContext;
-            if (context?.MemoStorage is null)
-            {
-                throw new InvalidOperationException("Memo storage not available.");
-            }
-
-            var callId = context.CallContent.CallId;
-
-            // Get memo to track first call time
-            Memo memo = await context.MemoStorage.GetMemoAsync(cancellationToken);
-
-            if (memo.TryAdd("firstCallTime", DateTimeOffset.UtcNow.ToString("O")))
-            {
-                await context.MemoStorage.SetMemoAsync(memo, cancellationToken);
-
-                this._logger.LogInformation("{CallId}: Updating component {ComponentResourceId} to version {NewVersion} (1 minute wait period satisfied)", callId, componentResourceId, newVersion);
-            }
-
-            var waitUntil = DateTimeOffset.Parse(memo["firstCallTime"]).AddMinutes(1);
-            var remainingWait = waitUntil - DateTimeOffset.UtcNow;
-            if (remainingWait > TimeSpan.Zero)
-            {
-                this._logger.LogInformation("{CallId}: Waiting {RemainingSeconds} seconds before proceeding with update for component {ComponentResourceId}.", callId, (int)remainingWait.TotalSeconds, componentResourceId);
-                await Task.Delay(remainingWait, cancellationToken);
-            }
-
+            this._logger.LogInformation("{CallId}: Updating component {ComponentResourceId} to version {NewVersion} (1 minute wait period satisfied)", callId, componentResourceId, newVersion);
+            await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
             this._logger.LogInformation("Component {ComponentResourceId} updated to version {NewVersion}", componentResourceId, newVersion);
         }
 

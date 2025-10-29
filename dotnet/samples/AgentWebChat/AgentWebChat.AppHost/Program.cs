@@ -29,7 +29,6 @@ var gateway = builder.AddProject<Projects.AgentGateway>("gateway")
     .WithReference(chatModel);
 
 var agentHost = builder.AddProject<Projects.AgentWebChat_AgentHost>("agenthost")
-        .WithEnvironment("Worker:GatewayBaseAddress", gateway.GetEndpoint("http")!)
         .WithReference(chatModel)
         .WithReference(redis);
 

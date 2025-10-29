@@ -12,32 +12,9 @@ using Microsoft.Extensions.AI;
 
 var builder = WebApplication.CreateBuilder(args);
 
-/*
-builder.Services.AddOptions<WorkerOptions>()
-    .Bind(builder.Configuration.GetSection(WorkerOptions.SectionName))
-    .ValidateDataAnnotations()
-    .ValidateOnStart();
-
-// Add a singleton capturing this worker process metadata (instance id + host id)
-builder.Services.AddSingleton(sp =>
-{
-    var options = sp.GetRequiredService<IOptions<WorkerOptions>>().Value;
-    string hostId = options.HostId ?? Environment.MachineName;
-    return new WorkerProcessMetadata { InstanceId = Guid.NewGuid(), HostId = hostId };
-});
-*/
-
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
 builder.Services.AddOpenApi();
-
-// Configure Redis client for memo storage and chat message persistence
-builder.AddRedisClient("redis");
-builder.Services.AddRedisMemoStorage();
-builder.Services.AddRedisChatMessagePersistence();
-
-// Register worker registration background service
-//builder.Services.AddHostedService<WorkerRegistrationService>();
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
@@ -65,9 +42,6 @@ app.MapOpenAIResponses();
 
 // Map the agents HTTP endpoints
 app.MapAgentDiscovery("/agents");
-
-// Worker meta endpoint used by gateway to uniquely identify this process
-//app.MapGet("/worker/meta", (WorkerProcessMetadata meta) => Results.Ok(meta));
 
 app.MapDefaultEndpoints();
 app.Run();
