@@ -1,10 +1,10 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using StackExchange.Redis;
 
-namespace Accede.Service.Utilities;
+namespace AgentWebChat.AgentHost.DurableAgents.Utilities;
 
 /// <summary>
 /// A Redis-backed implementation of <see cref="IChatMessagePersistence"/> for production use.

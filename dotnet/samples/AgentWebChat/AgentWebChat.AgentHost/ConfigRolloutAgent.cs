@@ -2,6 +2,8 @@
 
 using System.Runtime.CompilerServices;
 using System.Text.Json;
+using AgentWebChat.AgentHost.DurableAgents;
+using AgentWebChat.AgentHost.DurableAgents.Utilities;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
@@ -38,7 +40,46 @@ public class ConfigRolloutAgent : AIAgent
 
         async Task UpdateComponent(string componentResourceId, string newVersion)
         {
-            this._logger.LogInformation("Updating component {ComponentResourceId} to version {NewVersion}", componentResourceId, newVersion);
+            var context = DurableFunctionInvokingChatClient.CurrentContext;
+            if (context?.MemoStorage is null)
+            {
+                this._logger.LogWarning("Memo storage not available. Updating component immediately.");
+                this._logger.LogInformation("Updating component {ComponentResourceId} to version {NewVersion}", componentResourceId, newVersion);
+                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+                this._logger.LogInformation("Component {ComponentResourceId} updated to version {NewVersion}", componentResourceId, newVersion);
+                return;
+            }
+
+            // Get memo to track first call time
+            Memo memo = await context.MemoStorage.GetMemoAsync(cancellationToken);
+
+            if (!memo.TryGetValue("firstCallTime", out string? firstCallTimeStr))
+            {
+                // First time this function is called - record the time
+                DateTimeOffset firstCallTime = DateTimeOffset.UtcNow;
+                memo["firstCallTime"] = firstCallTime.ToString("O");
+                memo["componentResourceId"] = componentResourceId;
+                memo["newVersion"] = newVersion;
+
+                await context.MemoStorage.SetMemoAsync(memo, cancellationToken);
+
+                this._logger.LogInformation("First call to update component {ComponentResourceId} to version {NewVersion}. Waiting 1 minute before proceeding.", componentResourceId, newVersion);
+                throw new InvalidOperationException($"Update for {componentResourceId} scheduled. Please wait 1 minute and call this function again.");
+            }
+
+            // Parse the first call time
+            DateTimeOffset recordedFirstCallTime = DateTimeOffset.Parse(firstCallTimeStr);
+            TimeSpan elapsed = DateTimeOffset.UtcNow - recordedFirstCallTime;
+
+            if (elapsed < TimeSpan.FromMinutes(1))
+            {
+                TimeSpan remaining = TimeSpan.FromMinutes(1) - elapsed;
+                this._logger.LogInformation("Update for component {ComponentResourceId} not ready yet. {RemainingSeconds} seconds remaining.", componentResourceId, (int)remaining.TotalSeconds);
+                throw new InvalidOperationException($"Update for {componentResourceId} not ready yet. Please wait {(int)remaining.TotalSeconds} more seconds.");
+            }
+
+            // Enough time has passed - perform the update
+            this._logger.LogInformation("Updating component {ComponentResourceId} to version {NewVersion} (1 minute wait period satisfied)", componentResourceId, newVersion);
             await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
             this._logger.LogInformation("Component {ComponentResourceId} updated to version {NewVersion}", componentResourceId, newVersion);
         }
@@ -81,7 +122,48 @@ public class ConfigRolloutAgent : AIAgent
 
         async Task UpdateComponent(string componentResourceId, string newVersion)
         {
-            this._logger.LogInformation("Updating component {ComponentResourceId} to version {NewVersion}", componentResourceId, newVersion);
+            var context = DurableFunctionInvokingChatClient.CurrentContext;
+            if (context?.MemoStorage is null)
+            {
+                this._logger.LogWarning("Memo storage not available. Updating component immediately.");
+                this._logger.LogInformation("Updating component {ComponentResourceId} to version {NewVersion}", componentResourceId, newVersion);
+                await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+                this._logger.LogInformation("Component {ComponentResourceId} updated to version {NewVersion}", componentResourceId, newVersion);
+                return;
+            }
+
+            var callId = context.CallContent.CallId;
+
+            // Get memo to track first call time
+            Memo memo = await context.MemoStorage.GetMemoAsync(cancellationToken);
+
+            if (!memo.TryGetValue("firstCallTime", out string? firstCallTimeStr))
+            {
+                // First time this function is called - record the time
+                DateTimeOffset firstCallTime = DateTimeOffset.UtcNow;
+                memo["firstCallTime"] = firstCallTime.ToString("O");
+                memo["componentResourceId"] = componentResourceId;
+                memo["newVersion"] = newVersion;
+
+                await context.MemoStorage.SetMemoAsync(memo, cancellationToken);
+
+                this._logger.LogInformation("{CallId}: First call to update component {ComponentResourceId} to version {NewVersion}. Waiting 1 minute before proceeding.", callId, componentResourceId, newVersion);
+                throw new InvalidOperationException($"Update for {componentResourceId} scheduled. Please wait 1 minute and call this function again.");
+            }
+
+            // Parse the first call time
+            DateTimeOffset recordedFirstCallTime = DateTimeOffset.Parse(firstCallTimeStr);
+            TimeSpan elapsed = DateTimeOffset.UtcNow - recordedFirstCallTime;
+
+            if (elapsed < TimeSpan.FromMinutes(1))
+            {
+                TimeSpan remaining = TimeSpan.FromMinutes(1) - elapsed;
+                this._logger.LogInformation("{CallId}: Update for component {ComponentResourceId} not ready yet. {RemainingSeconds} seconds remaining.", callId, componentResourceId, (int)remaining.TotalSeconds);
+                throw new InvalidOperationException($"Update for {componentResourceId} not ready yet. Please wait {(int)remaining.TotalSeconds} more seconds.");
+            }
+
+            // Enough time has passed - perform the update
+            this._logger.LogInformation("{CallId}: Updating component {ComponentResourceId} to version {NewVersion} (1 minute wait period satisfied)", callId, componentResourceId, newVersion);
             await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
             this._logger.LogInformation("Component {ComponentResourceId} updated to version {NewVersion}", componentResourceId, newVersion);
         }

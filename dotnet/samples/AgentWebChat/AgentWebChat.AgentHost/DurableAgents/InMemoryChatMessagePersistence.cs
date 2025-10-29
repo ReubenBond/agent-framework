@@ -1,9 +1,9 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Collections.Concurrent;
 using Microsoft.Extensions.AI;
 
-namespace Accede.Service.Utilities;
+namespace AgentWebChat.AgentHost.DurableAgents.Utilities;
 
 /// <summary>
 /// An in-memory implementation of <see cref="IChatMessagePersistence"/> for development and testing purposes.

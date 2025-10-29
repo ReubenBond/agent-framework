@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using AgentWebChat.AgentHost.DurableAgents.Utilities;
 using AgentContracts;
 using AgentWebChat.AgentHost;
 using AgentWebChat.AgentHost.Options;
@@ -35,7 +36,7 @@ builder.Services.AddHostedService<WorkerRegistrationService>();
 builder.Services.AddProblemDetails();
 
 // Configure the chat model and our agent.
-builder.AddKeyedChatClient("chat-model").UseFunctionInvocation();
+builder.AddKeyedChatClient("chat-model").UseDurableFunctionInvocation();
 
 builder.AddAIAgent("config-rollout", (sp, key) =>
 {

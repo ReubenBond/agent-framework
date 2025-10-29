@@ -1,8 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using Microsoft.Extensions.AI;
 
-namespace Accede.Service.Utilities;
+namespace AgentWebChat.AgentHost.DurableAgents.Utilities;
 
 /// <summary>
 /// Interface for persisting and fetching chat messages for durable agents.

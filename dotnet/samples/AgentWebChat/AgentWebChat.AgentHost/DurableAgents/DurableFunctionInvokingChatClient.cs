@@ -2,13 +2,11 @@
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Distributed.AI.Agents.Tools;
 using System.Runtime.CompilerServices;
-using AgentWebChat.AgentHost.DurableAgents;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging.Abstractions;
 
-namespace Accede.Service.Utilities;
+namespace AgentWebChat.AgentHost.DurableAgents.Utilities;
 
 /// <summary>
 /// A delegating chat client that invokes functions defined on <see cref="ChatOptions"/>.
@@ -49,6 +47,9 @@ public partial class DurableFunctionInvokingChatClient : DelegatingChatClient
     /// <summary>The message persistence service for storing and retrieving chat messages.</summary>
     private readonly IChatMessagePersistence? _messagePersistence;
 
+    /// <summary>The memo storage service for durable key-value storage with ETag-based concurrency control.</summary>
+    private readonly IMemoStorage? _memoStorage;
+
     /// <summary>Maximum number of roundtrips allowed to the inner client.</summary>
     private int? _maximumIterationsPerRequest;
 
@@ -58,12 +59,14 @@ public partial class DurableFunctionInvokingChatClient : DelegatingChatClient
     /// <param name="innerClient">The underlying <see cref="IChatClient"/>, or the next instance in a chain of clients.</param>
     /// <param name="logger">An <see cref="ILogger"/> to use for logging information about function invocation.</param>
     /// <param name="messagePersistence">An optional <see cref="IChatMessagePersistence"/> for persisting chat messages.</param>
-    public DurableFunctionInvokingChatClient(IChatClient innerClient, ILogger? logger = null, IChatMessagePersistence? messagePersistence = null)
+    /// <param name="memoStorage">An optional <see cref="IMemoStorage"/> for durable key-value storage with ETag-based concurrency control.</param>
+    public DurableFunctionInvokingChatClient(IChatClient innerClient, ILogger? logger = null, IChatMessagePersistence? messagePersistence = null, IMemoStorage? memoStorage = null)
         : base(innerClient)
     {
         this._logger = logger ?? NullLogger.Instance;
         this._activitySource = innerClient.GetService<ActivitySource>();
         this._messagePersistence = messagePersistence;
+        this._memoStorage = memoStorage;
     }
 
     /// <summary>
@@ -658,6 +661,7 @@ public partial class DurableFunctionInvokingChatClient : DelegatingChatClient
             Iteration = iteration,
             FunctionCallIndex = functionCallIndex,
             FunctionCount = callContents.Count,
+            MemoStorage = this._memoStorage is not null ? new ToolCallMemoStorage(this._memoStorage, callContent.CallId) : null,
         };
 
         object? result;

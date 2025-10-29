@@ -2,7 +2,7 @@
 
 using Microsoft.Extensions.AI;
 
-namespace Accede.Service.Utilities;
+namespace AgentWebChat.AgentHost.DurableAgents.Utilities;
 
 /// <summary>
 /// Extension methods for <see cref="ChatOptions"/> to support chat message persistence.

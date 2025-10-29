@@ -3,9 +3,6 @@
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 
-#pragma warning disable CA2213 // Disposable fields should be disposed
-#pragma warning disable EA0002 // Use 'System.TimeProvider' to make the code easier to test
-
 namespace AgentWebChat.AgentHost.DurableAgents;
 
 /// <summary>Provides internal helpers for implementing logging.</summary>

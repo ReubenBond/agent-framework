@@ -1,10 +1,10 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Collections.ObjectModel;
-using Accede.Service.Utilities;
+using AgentWebChat.AgentHost.DurableAgents.Utilities;
 using Microsoft.Extensions.AI;
 
-namespace System.Distributed.AI.Agents.Tools;
+namespace AgentWebChat.AgentHost.DurableAgents;
 
 /// <summary>Provides context for an in-flight function invocation.</summary>
 public sealed class ToolCallContext
@@ -94,4 +94,11 @@ public sealed class ToolCallContext
     /// more function call requests in responses.
     /// </remarks>
     public bool Terminate { get; set; }
+
+    /// <summary>Gets or sets the memo storage scoped to this tool call.</summary>
+    /// <remarks>
+    /// This provides access to durable key-value storage with ETag-based concurrency control,
+    /// scoped to the current tool call's CallId.
+    /// </remarks>
+    public IToolCallMemoStorage? MemoStorage { get; set; }
 }
