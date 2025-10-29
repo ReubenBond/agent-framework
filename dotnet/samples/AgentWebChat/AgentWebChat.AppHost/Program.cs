@@ -12,6 +12,8 @@ var storage = builder.AddAzureStorage("storage").RunAsEmulator(emulator => emula
 var grainState = storage.AddBlobs("state");
 var reminders = storage.AddTables("reminders");
 
+var redis = builder.AddRedis("redis");
+
 var orleans = builder.AddOrleans("orleans-silo")
     .WithGrainStorage("Default", grainState)
     .WithReminders(reminders)
@@ -25,7 +27,8 @@ var gateway = builder.AddProject<Projects.AgentGateway>("gateway")
 
 var agentHost = builder.AddProject<Projects.AgentWebChat_AgentHost>("agenthost")
         .WithEnvironment("Worker:GatewayBaseAddress", gateway.GetEndpoint("http")!)
-        .WithReference(chatModel);
+        .WithReference(chatModel)
+        .WithReference(redis);
 
 // Web front-end depends on gateway (not agent host directly anymore)
 builder.AddProject<Projects.AgentWebChat_Web>("webfrontend")

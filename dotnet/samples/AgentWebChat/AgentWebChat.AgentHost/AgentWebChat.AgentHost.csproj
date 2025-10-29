@@ -28,6 +28,7 @@
     <PackageReference Include="Microsoft.Extensions.AI.AzureAIInference" />
     <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
     <PackageReference Include="Microsoft.AspNetCore.OpenAPI" />
+    <PackageReference Include="Aspire.StackExchange.Redis" />
     <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" />
   </ItemGroup>
 
