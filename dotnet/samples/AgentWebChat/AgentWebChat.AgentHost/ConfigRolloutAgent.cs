@@ -3,7 +3,6 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.Agents.AI;
-using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.AI;
 
 namespace AgentWebChat.AgentHost;
@@ -104,20 +103,16 @@ public class ConfigRolloutAgent : AIAgent
 
         while (!done)
         {
-            var response = await this._chatClient.GetResponseAsync(messages, new ChatOptions { Tools = tools }, cancellationToken);
-            await NotifyThreadOfNewMessagesAsync(thread, response.Messages, cancellationToken);
-
-            foreach (var message in response.Messages)
+            var updates = new List<AgentRunResponseUpdate>();
+            await foreach (var update in this._chatClient.GetStreamingResponseAsync(messages, new ChatOptions { Tools = tools }, cancellationToken))
             {
-                yield return new AgentRunResponseUpdate
-                {
-                    AgentId = this.Id,
-                    Role = message.Role,
-                    Contents = message.Contents,
-                    ResponseId = Guid.NewGuid().ToString("N"),
-                    MessageId = Guid.NewGuid().ToString("N")
-                };
+                var agentUpdate = new AgentRunResponseUpdate(update);
+                updates.Add(agentUpdate);
+                yield return agentUpdate;
             }
+
+            var response = updates.ToAgentRunResponse();
+            await NotifyThreadOfNewMessagesAsync(thread, response.Messages, cancellationToken);
         }
     }
 
