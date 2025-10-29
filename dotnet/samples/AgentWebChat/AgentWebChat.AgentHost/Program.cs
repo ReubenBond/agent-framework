@@ -1,17 +1,18 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using AgentWebChat.AgentHost.DurableAgents;
 using AgentWebChat.AgentHost.DurableAgents.Utilities;
-using AgentContracts;
+//using AgentContracts;
 using AgentWebChat.AgentHost;
-using AgentWebChat.AgentHost.Options;
+//using AgentWebChat.AgentHost.Options;
 using AgentWebChat.AgentHost.Utilities;
 using Microsoft.Agents.AI.Hosting;
 using Microsoft.Extensions.AI;
-using Microsoft.Extensions.Options;
+//using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Bind configuration to strongly typed options.
+/*
 builder.Services.AddOptions<WorkerOptions>()
     .Bind(builder.Configuration.GetSection(WorkerOptions.SectionName))
     .ValidateDataAnnotations()
@@ -24,13 +25,19 @@ builder.Services.AddSingleton(sp =>
     string hostId = options.HostId ?? Environment.MachineName;
     return new WorkerProcessMetadata { InstanceId = Guid.NewGuid(), HostId = hostId };
 });
+*/
 
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
 builder.Services.AddOpenApi();
 
+// Configure Redis client for memo storage and chat message persistence
+builder.AddRedisClient("redis");
+builder.Services.AddRedisMemoStorage();
+builder.Services.AddRedisChatMessagePersistence();
+
 // Register worker registration background service
-builder.Services.AddHostedService<WorkerRegistrationService>();
+//builder.Services.AddHostedService<WorkerRegistrationService>();
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
@@ -60,7 +67,7 @@ app.MapOpenAIResponses();
 app.MapAgentDiscovery("/agents");
 
 // Worker meta endpoint used by gateway to uniquely identify this process
-app.MapGet("/worker/meta", (WorkerProcessMetadata meta) => Results.Ok(meta));
+//app.MapGet("/worker/meta", (WorkerProcessMetadata meta) => Results.Ok(meta));
 
 app.MapDefaultEndpoints();
 app.Run();

@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 namespace AgentGateway;
 
@@ -52,7 +52,7 @@ public sealed class WorkerOptions
 
     /// <summary>
     /// Gets or sets the relative path to the discovery endpoint.
-    /// Default is "/discovery".
+    /// Default is "/agents".
     /// </summary>
-    public string DiscoveryPath { get; set; } = "/discovery";
+    public string DiscoveryPath { get; set; } = "/agents";
 }

@@ -1,6 +1,7 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Collections.Concurrent;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using AgentContracts;
 
@@ -14,11 +15,11 @@ public sealed partial class WorkerDiscoveryCache
 {
     private readonly ConcurrentDictionary<string, CachedDiscoveryResult> _cache = new();
     private readonly TimeSpan _cacheDuration;
-    private readonly HttpMessageInvoker _httpClient;
+    private readonly HttpClient _httpClient;
     private readonly ILogger<WorkerDiscoveryCache> _logger;
 
     public WorkerDiscoveryCache(
-        HttpMessageInvoker httpClient,
+        HttpClient httpClient,
         ILogger<WorkerDiscoveryCache> logger,
         TimeSpan? cacheDuration = null)
     {
@@ -110,32 +111,19 @@ public sealed partial class WorkerDiscoveryCache
         try
         {
             var discoveryUri = worker.DiscoveryUri;
-            var response = await this._httpClient.SendAsync(
-                new HttpRequestMessage(HttpMethod.Get, discoveryUri),
+            var agents = await this._httpClient.GetFromJsonAsync(
+                discoveryUri,
+                AgentContractsJsonContext.Default.ListAgentDiscoveryCard,
                 cancellationToken);
 
-            if (response.IsSuccessStatusCode)
+            if (agents is not null)
             {
-                var json = await response.Content.ReadAsStringAsync(cancellationToken);
-                var agents = JsonSerializer.Deserialize(json, AgentContractsJsonContext.Default.ListAgentDiscoveryCard);
-
-                if (agents is not null)
-                {
-                    // Cache the successful discovery result as a dictionary
-                    var agentDict = agents
-                        .Where(a => !string.IsNullOrEmpty(a.Name))
-                        .ToDictionary(a => a.Name, a => a, StringComparer.OrdinalIgnoreCase);
-                    this.Set(worker.Id, agentDict);
-                    return agentDict;
-                }
-            }
-            else
-            {
-                this._logger.LogWarning(
-                    "Worker discovery failed for worker {WorkerId} at {DiscoveryUri} with status {StatusCode}",
-                    worker.Id,
-                    discoveryUri,
-                    response.StatusCode);
+                // Cache the successful discovery result as a dictionary
+                var agentDict = agents
+                    .Where(a => !string.IsNullOrEmpty(a.Name))
+                    .ToDictionary(a => a.Name, a => a, StringComparer.OrdinalIgnoreCase);
+                this.Set(worker.Id, agentDict);
+                return agentDict;
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

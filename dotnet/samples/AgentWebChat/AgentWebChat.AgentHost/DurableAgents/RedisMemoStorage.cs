@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using StackExchange.Redis;
 
@@ -44,11 +44,11 @@ public sealed class RedisMemoStorage : IMemoStorage
 
         if (entries.Length == 0)
         {
-            return new Memo();
+            return [];
         }
 
         string? eTag = null;
-        Dictionary<string, string> data = new();
+        Dictionary<string, string> data = [];
 
         foreach (HashEntry entry in entries)
         {

@@ -65,7 +65,7 @@ public sealed class RedisChatMessagePersistence : IChatMessagePersistence
             List<ChatMessage>? messages = JsonSerializer.Deserialize<List<ChatMessage>>(messagesJson.ToString(), this._jsonOptions);
             string? eTag = eTagValue.HasValue ? eTagValue.ToString() : null;
 
-            return (messages ?? new List<ChatMessage>(), eTag);
+            return (messages ?? [], eTag);
         }
         catch (JsonException ex)
         {

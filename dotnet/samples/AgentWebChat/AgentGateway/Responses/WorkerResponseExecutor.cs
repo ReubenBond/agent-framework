@@ -64,6 +64,9 @@ public sealed class WorkerResponseExecutor : IResponseExecutor
         };
         httpRequest.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
 
+        // Set the Response ID header so the worker can use it for persistence
+        httpRequest.Headers.Add("X-Response-ID", context.ResponseId);
+
         this._logger.LogInformation(
             "Forwarding response {ResponseId} for agent {AgentName} to worker {WorkerId} at {WorkerEndpoint}",
             context.ResponseId, agentName, worker.Id, workerEndpoint);

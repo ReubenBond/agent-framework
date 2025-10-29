@@ -45,8 +45,8 @@ public static partial class MicrosoftAgentAIHostingOpenAIEndpointRouteBuilderExt
         responsesPath ??= $"/{agent.Name}/v1/responses";
         var group = endpoints.MapGroup(responsesPath);
         var endpointAgentName = agent.DisplayName;
-        group.MapPost("/", async ([FromBody] CreateResponse createResponse, CancellationToken cancellationToken)
-            => await AIAgentResponsesProcessor.CreateModelResponseAsync(agent, createResponse, cancellationToken).ConfigureAwait(false))
+        group.MapPost("/", async (HttpContext httpContext, [FromBody] CreateResponse createResponse, CancellationToken cancellationToken)
+            => await AIAgentResponsesProcessor.CreateModelResponseAsync(agent, createResponse, httpContext, cancellationToken).ConfigureAwait(false))
             .WithName(endpointAgentName + "/CreateResponse");
         return group;
     }
@@ -71,7 +71,7 @@ public static partial class MicrosoftAgentAIHostingOpenAIEndpointRouteBuilderExt
 
         responsesPath ??= "/v1/responses";
         var group = endpoints.MapGroup(responsesPath);
-        group.MapPost("/", async ([FromBody] CreateResponse createResponse, IServiceProvider serviceProvider, CancellationToken cancellationToken) =>
+        group.MapPost("/", async (HttpContext httpContext, [FromBody] CreateResponse createResponse, IServiceProvider serviceProvider, CancellationToken cancellationToken) =>
         {
             // DevUI uses the 'model' field to specify the agent name.
             var agentName = createResponse.Agent?.Name ?? createResponse.Model;
@@ -86,7 +86,7 @@ public static partial class MicrosoftAgentAIHostingOpenAIEndpointRouteBuilderExt
                 return Results.NotFound($"Agent named '{agentName}' was not found.");
             }
 
-            return await AIAgentResponsesProcessor.CreateModelResponseAsync(agent, createResponse, cancellationToken).ConfigureAwait(false);
+            return await AIAgentResponsesProcessor.CreateModelResponseAsync(agent, createResponse, httpContext, cancellationToken).ConfigureAwait(false);
         }).WithName("CreateResponse");
         return group;
     }

@@ -126,9 +126,8 @@ builder.Services.AddOpenApi();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton(sp =>
 {
-    var clientProvider = sp.GetRequiredService<ForwardingHttpClientProvider>();
     var logger = sp.GetRequiredService<ILogger<WorkerDiscoveryCache>>();
-    return new WorkerDiscoveryCache(clientProvider.HttpClient, logger);
+    return new WorkerDiscoveryCache(sp.GetRequiredService<HttpClient>(), logger);
 });
 builder.Services.AddSingleton<WorkerRegistry>();
 builder.Services.AddHostedService<WorkerHealthCheckService>();

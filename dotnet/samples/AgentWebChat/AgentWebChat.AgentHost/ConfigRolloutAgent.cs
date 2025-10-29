@@ -101,7 +101,9 @@ public class ConfigRolloutAgent : AIAgent
 
         while (!done)
         {
-            var response = await this._chatClient.GetResponseAsync(messages, new ChatOptions { Tools = tools }, cancellationToken);
+            var chatClientOptions = (options as ChatClientAgentRunOptions)?.ChatOptions?.Clone() ?? new();
+            chatClientOptions.Tools = tools;
+            var response = await this._chatClient.GetResponseAsync(messages, chatClientOptions, cancellationToken);
             await NotifyThreadOfNewMessagesAsync(thread, response.Messages, cancellationToken);
             newMessages.AddRange(response.Messages);
         }
@@ -171,7 +173,9 @@ public class ConfigRolloutAgent : AIAgent
         while (!done)
         {
             var updates = new List<AgentRunResponseUpdate>();
-            await foreach (var update in this._chatClient.GetStreamingResponseAsync(messages, new ChatOptions { Tools = tools }, cancellationToken))
+            var chatClientOptions = (options as ChatClientAgentRunOptions)?.ChatOptions?.Clone() ?? new();
+            chatClientOptions.Tools = tools;
+            await foreach (var update in this._chatClient.GetStreamingResponseAsync(messages, chatClientOptions, cancellationToken))
             {
                 var agentUpdate = new AgentRunResponseUpdate(update);
                 updates.Add(agentUpdate);

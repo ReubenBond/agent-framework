@@ -12,7 +12,10 @@ var storage = builder.AddAzureStorage("storage").RunAsEmulator(emulator => emula
 var grainState = storage.AddBlobs("state");
 var reminders = storage.AddTables("reminders");
 
-var redis = builder.AddRedis("redis");
+var redis = builder.AddRedis("redis")
+    .WithDataBindMount(".redis")
+    .WithRedisCommander()
+    .WithRedisInsight();
 
 var orleans = builder.AddOrleans("orleans-silo")
     .WithGrainStorage("Default", grainState)
