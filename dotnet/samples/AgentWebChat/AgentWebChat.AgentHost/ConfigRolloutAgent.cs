@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Runtime.CompilerServices;
+using AgentWebChat.AgentHost.DurableAgents.Utilities;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
@@ -53,7 +54,7 @@ public class ConfigRolloutAgent : DurableAgent
             """);
         messages = messages.Prepend(systemMessage);
 
-        thread ??= this.GetNewThread();
+        thread = this.GetOrCreateThread(options, thread);
         await NotifyThreadOfNewMessagesAsync(thread, messages, cancellationToken);
 
         while (!done)

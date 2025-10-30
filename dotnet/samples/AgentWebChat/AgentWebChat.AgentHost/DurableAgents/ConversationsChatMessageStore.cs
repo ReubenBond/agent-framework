@@ -1,9 +1,8 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Converters;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 using Microsoft.Extensions.AI;
 
@@ -91,14 +90,10 @@ public sealed class ConversationsChatMessageStore : ChatMessageStore
         // Ensure the conversation exists - create it if it doesn't
         await this.EnsureConversationExistsAsync(cancellationToken).ConfigureAwait(false);
 
-        // Convert ChatMessages to ItemParams for the CreateItemsRequest
-        List<ItemParam> itemParams = new(messageList.Count);
-
-        foreach (ChatMessage message in messageList)
-        {
-            ItemParam itemParam = ConvertChatMessageToItemParam(message);
-            itemParams.Add(itemParam);
-        }
+        // Convert ChatMessages to ItemParams for the CreateItemsRequest using the centralized extension method
+        List<ItemParam> itemParams = messageList
+            .SelectMany(m => m.ToItemParams())
+            .ToList();
 
         // Add the items to the conversation via the API client
         await this._apiClient
@@ -132,53 +127,6 @@ public sealed class ConversationsChatMessageStore : ChatMessageStore
                 .CreateConversationAsync(this._conversationId, cancellationToken)
                 .ConfigureAwait(false);
         }
-    }
-
-    /// <summary>
-    /// Converts a ChatMessage to an ItemParam for the Conversations API.
-    /// </summary>
-    private static ItemParam ConvertChatMessageToItemParam(ChatMessage message)
-    {
-        // Use the existing ItemContentConverter to convert AIContent to ItemContent
-        List<ItemContent> contentList = new();
-
-        foreach (AIContent aiContent in message.Contents)
-        {
-            if (ItemContentConverter.ToItemContent(aiContent) is { } itemContent)
-            {
-                contentList.Add(itemContent);
-            }
-        }
-
-        // Create InputMessageContent from the converted items
-        InputMessageContent content = contentList.Count > 0
-            ? InputMessageContent.FromContents(contentList)
-            : InputMessageContent.FromText(message.Text ?? string.Empty);
-
-        // Create the appropriate message item based on role
-        return message.Role.Value switch
-        {
-            "user" => new ResponsesUserMessageItemParam
-            {
-                Content = content
-            },
-            "assistant" => new ResponsesAssistantMessageItemParam
-            {
-                Content = content
-            },
-            "system" => new ResponsesSystemMessageItemParam
-            {
-                Content = content
-            },
-            "developer" => new ResponsesDeveloperMessageItemParam
-            {
-                Content = content
-            },
-            _ => new ResponsesUserMessageItemParam
-            {
-                Content = content
-            }
-        };
     }
 
     internal sealed class StoreState

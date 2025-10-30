@@ -42,7 +42,8 @@ builder.Services.AddRedisChatMessagePersistence();
 var gatewayBaseAddress = builder.Configuration["Worker:GatewayBaseAddress"];
 if (!string.IsNullOrWhiteSpace(gatewayBaseAddress))
 {
-    builder.Services.AddConversationsChatMessageStore(new Uri(gatewayBaseAddress));
+    builder.Services.AddHttpClient<ConversationsApiClient>(client => client.BaseAddress = new Uri(gatewayBaseAddress));
+    builder.Services.AddConversationsChatMessageStore();
 }
 else
 {

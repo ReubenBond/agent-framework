@@ -242,4 +242,111 @@ public static class ItemResourceExtensions
     {
         return new FunctionResultContent(functionOutput.CallId, functionOutput.Output);
     }
+
+    /// <summary>
+    /// Converts a ChatMessage to ItemParam objects (input models without IDs).
+    /// This is useful for creating items in the Conversations API.
+    /// Filters out events that don't map well to ItemParams (e.g., messages with no convertible content).
+    /// </summary>
+    /// <param name="message">The chat message to convert.</param>
+    /// <returns>An enumerable of ItemParam objects.</returns>
+    public static IEnumerable<ItemParam> ToItemParams(this ChatMessage message)
+    {
+        // Separate function call/result contents from regular message contents
+        foreach (AIContent content in message.Contents)
+        {
+            switch (content)
+            {
+                case FunctionCallContent functionCallContent:
+                    yield return new FunctionToolCallItemParam
+                    {
+                        CallId = functionCallContent.CallId,
+                        Name = functionCallContent.Name,
+                        Arguments = JsonSerializer.Serialize(
+                            functionCallContent.Arguments,
+                            OpenAIJsonContext.Default.IDictionaryStringObject)
+                    };
+                    break;
+
+                case FunctionResultContent functionResultContent:
+                    string output = functionResultContent.Exception is not null
+                        ? $"{functionResultContent.Exception.GetType().Name}(\"{functionResultContent.Exception.Message}\")"
+                        : $"{functionResultContent.Result?.ToString() ?? "(null)"}";
+                    yield return new FunctionToolCallOutputItemParam
+                    {
+                        CallId = functionResultContent.CallId,
+                        Output = output
+                    };
+                    break;
+            }
+        }
+
+        // Convert regular message contents
+        List<ItemContent> regularContents = [];
+        foreach (AIContent content in message.Contents)
+        {
+            if (content is not FunctionCallContent and not FunctionResultContent &&
+                ItemContentConverter.ToItemContent(content) is { } itemContent)
+            {
+                regularContents.Add(itemContent);
+            }
+        }
+
+        // Only create a message item if we have convertible contents
+        // This filters out messages that contain only non-convertible content (e.g., UsageContent)
+        if (regularContents.Count > 0)
+        {
+            InputMessageContent messageContent = InputMessageContent.FromContents(regularContents);
+
+            yield return message.Role.Value.ToUpperInvariant() switch
+            {
+                "USER" => new ResponsesUserMessageItemParam { Content = messageContent },
+                "ASSISTANT" => new ResponsesAssistantMessageItemParam { Content = messageContent },
+                "SYSTEM" => new ResponsesSystemMessageItemParam { Content = messageContent },
+                "DEVELOPER" => new ResponsesDeveloperMessageItemParam { Content = messageContent },
+                _ => new ResponsesUserMessageItemParam { Content = messageContent }
+            };
+        }
+    }
+
+    /// <summary>
+    /// Converts a ChatMessage to a single ItemParam (message type) when it contains only message content.
+    /// For messages with function calls, use ToItemParams instead.
+    /// </summary>
+    /// <param name="message">The chat message to convert.</param>
+    /// <returns>A ResponsesMessageItemParam.</returns>
+    /// <exception cref="InvalidOperationException">Thrown when the message contains function calls or function results.</exception>
+    public static ResponsesMessageItemParam ToMessageItemParam(this ChatMessage message)
+    {
+        // Check if the message contains function calls or function results
+        if (message.Contents.Any(c => c is FunctionCallContent or FunctionResultContent))
+        {
+            throw new InvalidOperationException("Cannot convert a ChatMessage with function calls or function results to a single MessageItemParam. Use ToItemParams instead.");
+        }
+
+        // Convert all contents to ItemContent
+        List<ItemContent> contents = [];
+        foreach (AIContent content in message.Contents)
+        {
+            if (ItemContentConverter.ToItemContent(content) is { } itemContent)
+            {
+                contents.Add(itemContent);
+            }
+        }
+
+        // Create InputMessageContent
+        InputMessageContent messageContent = contents.Count > 0
+            ? InputMessageContent.FromContents(contents)
+            : InputMessageContent.FromText(message.Text ?? string.Empty);
+
+        // Create the appropriate message item param based on role
+        return message.Role.Value.ToUpperInvariant() switch
+        {
+            "USER" => new ResponsesUserMessageItemParam { Content = messageContent },
+            "ASSISTANT" => new ResponsesAssistantMessageItemParam { Content = messageContent },
+            "SYSTEM" => new ResponsesSystemMessageItemParam { Content = messageContent },
+            "DEVELOPER" => new ResponsesDeveloperMessageItemParam { Content = messageContent },
+            _ => new ResponsesUserMessageItemParam { Content = messageContent }
+        };
+    }
 }

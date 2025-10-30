@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 using System.Text.Json;
+using AgentWebChat.AgentHost.DurableAgents.Utilities;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
@@ -29,6 +30,24 @@ public abstract class DurableAgent : AIAgent
     /// <inheritdoc/>
     public override AgentThread GetNewThread()
     {
+        return this.GetNewThread(chatOptions: null);
+    }
+
+    /// <summary>
+    /// Gets a new thread instance, optionally using a conversation ID from the provided chat options.
+    /// If a conversation ID is present in the chat options, it will be used for the new thread.
+    /// Otherwise, a new conversation ID will be generated.
+    /// </summary>
+    /// <param name="chatOptions">The chat options that may contain a conversation ID.</param>
+    /// <returns>A new agent thread configured with a conversation ID.</returns>
+    public AgentThread GetNewThread(ChatOptions? chatOptions)
+    {
+        var conversationId = chatOptions?.GetConversationId();
+        if (conversationId is not null)
+        {
+            return new DurableAgentThread(this._messageStoreFactory, conversationId);
+        }
+
         return new DurableAgentThread(this._messageStoreFactory);
     }
 
@@ -60,6 +79,29 @@ public abstract class DurableAgent : AIAgent
         }
 
         return durableThread.ConversationId;
+    }
+
+    /// <summary>
+    /// Gets or creates a thread based on the conversation ID in the options.
+    /// If a conversation ID is present in the options, returns a thread for that conversation.
+    /// Otherwise, returns the provided thread or creates a new one.
+    /// </summary>
+    /// <param name="options">The agent run options containing potential conversation ID.</param>
+    /// <param name="thread">The existing thread, if any.</param>
+    /// <returns>An agent thread for the conversation.</returns>
+    protected AgentThread GetOrCreateThread(AgentRunOptions? options, AgentThread? thread)
+    {
+        // If a thread is provided, use it
+        if (thread is not null)
+        {
+            return thread;
+        }
+
+        // Extract ChatOptions from the agent run options
+        var chatOptions = (options as ChatClientAgentRunOptions)?.ChatOptions;
+
+        // Create a new thread using the chat options (which may contain a conversation ID)
+        return this.GetNewThread(chatOptions);
     }
 
     /// <summary>

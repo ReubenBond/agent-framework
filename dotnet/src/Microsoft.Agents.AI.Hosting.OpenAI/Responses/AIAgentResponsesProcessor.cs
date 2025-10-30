@@ -24,37 +24,30 @@ internal static class AIAgentResponsesProcessor
 
         var context = new AgentInvocationContext(idGenerator: IdGenerator.From(request));
 
-        // Extract the Response ID from the X-Response-ID header if present
-        string? persistenceKey = null;
-        if (httpContext is not null && httpContext.Request.Headers.TryGetValue("X-Response-ID", out var responseIdHeader))
-        {
-            persistenceKey = responseIdHeader.ToString();
-        }
-
-        if (request.Stream == true)
-        {
-            return new StreamingResponse(agent, request, context, persistenceKey);
-        }
-
-        var messages = request.Input.GetInputMessages().Select(i => i.ToChatMessage());
-
-        // Create options with persistence key if available
+        // Create options with conversation ID if available
         ChatClientAgentRunOptions? options = null;
-        if (persistenceKey is not null)
+        if (request.Conversation?.Id is not null)
         {
             var chatOptions = new ChatOptions();
             chatOptions.AdditionalProperties = new AdditionalPropertiesDictionary
             {
-                ["PersistenceKey"] = persistenceKey
+                ["ConversationId"] = request.Conversation.Id
             };
             options = new ChatClientAgentRunOptions(chatOptions);
         }
+
+        if (request.Stream == true)
+        {
+            return new StreamingResponse(agent, request, context, options);
+        }
+
+        var messages = request.Input.GetInputMessages().Select(i => i.ToChatMessage());
 
         var response = await agent.RunAsync(messages, options: options, cancellationToken: cancellationToken).ConfigureAwait(false);
         return Results.Ok(response.ToResponse(request, context));
     }
 
-    private sealed class StreamingResponse(AIAgent agent, CreateResponse createResponse, AgentInvocationContext context, string? persistenceKey) : IResult
+    private sealed class StreamingResponse(AIAgent agent, CreateResponse createResponse, AgentInvocationContext context, ChatClientAgentRunOptions? options) : IResult
     {
         public Task ExecuteAsync(HttpContext httpContext)
         {
@@ -69,18 +62,6 @@ internal static class AIAgentResponsesProcessor
             httpContext.Features.GetRequiredFeature<IHttpResponseBodyFeature>().DisableBuffering();
 
             var chatMessages = createResponse.Input.GetInputMessages().Select(i => i.ToChatMessage()).ToList();
-
-            // Create options with persistence key if available
-            ChatClientAgentRunOptions? options = null;
-            if (persistenceKey is not null)
-            {
-                var chatOptions = new ChatOptions();
-                chatOptions.AdditionalProperties = new AdditionalPropertiesDictionary
-                {
-                    ["PersistenceKey"] = persistenceKey
-                };
-                options = new ChatClientAgentRunOptions(chatOptions);
-            }
 
             var events = agent.RunStreamingAsync(chatMessages, options: options, cancellationToken: cancellationToken)
                 .ToStreamingResponseAsync(createResponse, context, cancellationToken)
