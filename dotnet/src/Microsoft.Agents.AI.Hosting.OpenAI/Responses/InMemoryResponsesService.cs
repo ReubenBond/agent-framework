@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System;
 using System.Collections.Concurrent;
@@ -230,7 +230,7 @@ internal sealed class InMemoryResponsesService : IResponsesService
             throw new InvalidOperationException($"Response '{responseId}' not found.");
         }
 
-        var itemResources = this.GetInputItems(responseId, state);
+        var itemResources = GetInputItems(responseId, state);
 
         // Apply ordering
         if (order == "desc")
@@ -429,7 +429,7 @@ internal sealed class InMemoryResponsesService : IResponsesService
         }
     }
 
-    private List<ItemResource> GetInputItems(string responseId, ResponseState state)
+    private static List<ItemResource> GetInputItems(string responseId, ResponseState state)
     {
         var itemResources = new List<ItemResource>();
         if (state.Request is not null)

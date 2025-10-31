@@ -1,13 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
+using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 using AgentGateway.Responses;
 
 namespace AgentGateway.UnitTests.Responses;
 
 /// <summary>
-/// Tests for ResponsesService.
+/// Tests for OrleansResponsesService.
 /// </summary>
 /// <remarks>
 /// To configure the mock IChatClient for tests that require LLM responses:
@@ -21,12 +22,12 @@ namespace AgentGateway.UnitTests.Responses;
 public class ResponsesServiceTests
 {
     private readonly OrleansTestClusterFixture _fixture;
-    private readonly ResponsesService _service;
+    private readonly OrleansResponsesService _service;
 
     public ResponsesServiceTests(OrleansTestClusterFixture fixture)
     {
         this._fixture = fixture;
-        this._service = new ResponsesService(fixture.GrainFactory);
+        this._service = new OrleansResponsesService(fixture.GrainFactory);
 
         // Reset the mock before each test to ensure test isolation
         this._fixture.ResetChatClientMock();
@@ -46,7 +47,7 @@ public class ResponsesServiceTests
     public void Constructor_WithValidGrainFactory_Succeeds()
     {
         // Act
-        ResponsesService service = new(this._fixture.GrainFactory);
+        IResponsesService service = new OrleansResponsesService(this._fixture.GrainFactory);
 
         // Assert
         service.Should().NotBeNull();
@@ -56,7 +57,7 @@ public class ResponsesServiceTests
     public void Constructor_WithNullGrainFactory_ThrowsArgumentNullException()
     {
         // Act & Assert
-        FluentActions.Invoking(() => new ResponsesService(null!))
+        FluentActions.Invoking(() => new OrleansResponsesService(null!))
             .Should()
             .Throw<ArgumentNullException>()
             .WithParameterName("grainFactory");

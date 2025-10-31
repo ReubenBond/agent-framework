@@ -8,6 +8,7 @@ using AgentGateway.Health;
 using AgentGateway.Responses;
 using AgentGateway.Utilities;
 using Microsoft.Agents.AI.DevUI;
+using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 using Orleans.Configuration;
@@ -98,8 +99,8 @@ builder.Services.AddSingleton<IAgentConversationIndex, OrleansAgentConversationI
 // Configure via connection strings (supports OpenAI, Azure OpenAI, Ollama, Azure AI Inference)
 builder.AddChatClient("chat-model");
 
-// Register responses service
-builder.Services.AddSingleton<ResponsesService>();
+// Register responses service - use Orleans-backed implementation
+builder.Services.AddSingleton<IResponsesService, OrleansResponsesService>();
 
 // Option 1: Local execution using ChatClientAgent (default)
 //builder.Services.AddSingleton<IResponseExecutor, LocalChatClientResponseExecutor>();
@@ -159,8 +160,8 @@ app.MapA2AForwarder();
 // Map Conversations API endpoints
 app.MapConversations();
 
-// Map Responses API endpoints
-app.MapResponses();
+// Map Responses API endpoints using the shared implementation from Microsoft.Agents.AI.Hosting.OpenAI
+app.MapOpenAIResponses();
 
 // Map DevUI
 app.MapDevUI();

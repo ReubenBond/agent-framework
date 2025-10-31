@@ -101,6 +101,13 @@ public interface IResponseGrain : IGrainWithStringKey
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The updated response after cancellation.</returns>
     Task<Response> CancelAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Deletes the response and all its data.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if the response was deleted, false if it was not found.</returns>
+    Task<bool> DeleteAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -681,6 +688,22 @@ internal sealed class ResponseGrain(
         this._streamingUpdatedEvent.SignalAndReset();
 
         return responseState.State.Response;
+    }
+
+    public async Task<bool> DeleteAsync(CancellationToken cancellationToken = default)
+    {
+        if (responseState.State.Response is null)
+        {
+            return false;
+        }
+
+        // Cancel any ongoing execution
+        this._executionCts.Cancel();
+
+        // Clear the state
+        await responseState.ClearStateAsync(cancellationToken);
+
+        return true;
     }
 
     public async Task ReceiveReminder(string reminderName, TickStatus status)

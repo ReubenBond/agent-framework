@@ -2,18 +2,20 @@
 
 using System.Runtime.CompilerServices;
 using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
+using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 
 namespace AgentGateway.Responses;
 
 /// <summary>
-/// Service for handling OpenAI Responses API operations using Orleans grains.
+/// Orleans-backed implementation of IResponsesService for handling OpenAI Responses API operations.
+/// This implementation uses Orleans grains to provide distributed, scalable response management.
 /// </summary>
-public sealed class ResponsesService
+public sealed class OrleansResponsesService : IResponsesService
 {
     private readonly IGrainFactory _grainFactory;
 
-    public ResponsesService(IGrainFactory grainFactory)
+    public OrleansResponsesService(IGrainFactory grainFactory)
     {
         ArgumentNullException.ThrowIfNull(grainFactory);
         this._grainFactory = grainFactory;
@@ -74,6 +76,17 @@ public sealed class ResponsesService
         {
             yield return update;
         }
+    }
+
+    /// <summary>
+    /// Deletes a response by ID.
+    /// </summary>
+    public Task<bool> DeleteResponseAsync(
+        string responseId,
+        CancellationToken cancellationToken = default)
+    {
+        var grain = this._grainFactory.GetGrain<IResponseGrain>(responseId);
+        return grain.DeleteAsync(cancellationToken);
     }
 
     /// <summary>
