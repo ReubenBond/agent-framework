@@ -89,14 +89,18 @@ internal sealed class InMemoryResponsesService : IResponsesService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Yield any new updates
+            // Copy any new updates while holding the lock
+            List<StreamingResponseEvent> newUpdates;
             lock (state.StreamingUpdates)
             {
-                while (streamedCount < state.StreamingUpdates.Count)
-                {
-                    yield return state.StreamingUpdates[streamedCount];
-                    streamedCount++;
-                }
+                newUpdates = state.StreamingUpdates.Skip(streamedCount).ToList();
+                streamedCount += newUpdates.Count;
+            }
+
+            // Yield the updates outside the lock
+            foreach (var update in newUpdates)
+            {
+                yield return update;
             }
 
             // Check if we're done
@@ -132,14 +136,18 @@ internal sealed class InMemoryResponsesService : IResponsesService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Yield any available updates from the current position
+            // Copy any available updates from the current position while holding the lock
+            List<StreamingResponseEvent> newUpdates;
             lock (state.StreamingUpdates)
             {
-                while (streamedCount < state.StreamingUpdates.Count)
-                {
-                    yield return state.StreamingUpdates[streamedCount];
-                    streamedCount++;
-                }
+                newUpdates = state.StreamingUpdates.Skip(streamedCount).ToList();
+                streamedCount += newUpdates.Count;
+            }
+
+            // Yield the updates outside the lock
+            foreach (var update in newUpdates)
+            {
+                yield return update;
             }
 
             // Check if we're done

@@ -71,6 +71,25 @@ public static class MicrosoftAgentAIHostingOpenAIServiceCollectionExtensions
     }
 
     /// <summary>
+    /// Adds support for exposing hosted <see cref="AIAgent"/> instances via OpenAI Responses.
+    /// This method automatically registers an executor that routes requests to agents registered via AddAIAgent().
+    /// The agent is selected based on the 'model' or 'agent.name' parameter in the request.
+    /// </summary>
+    /// <param name="services">The <see cref="IServiceCollection"/> to configure.</param>
+    /// <returns>The <see cref="IServiceCollection"/> for method chaining.</returns>
+    public static IServiceCollection AddOpenAIResponsesWithHostedAgents(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+
+        services.AddOpenAIResponses();
+
+        // Register the hosted agent executor
+        services.AddSingleton<IResponseExecutor, HostedAgentResponseExecutor>();
+
+        return services;
+    }
+
+    /// <summary>
     /// Adds a custom <see cref="IResponseExecutor"/> implementation.
     /// </summary>
     /// <param name="services">The <see cref="IServiceCollection"/> to configure.</param>

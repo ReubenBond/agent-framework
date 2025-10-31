@@ -74,7 +74,7 @@ builder.AddAIAgent("pirate", (sp, key) =>
         name: "pirate");
 });
 
-builder.AddOpenAIResponses();
+builder.Services.AddOpenAIResponsesWithHostedAgents();
 
 var app = builder.Build();
 
