@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Text.Json;
 using AgentWebChat.AgentHost.DurableAgents.Utilities;
@@ -28,10 +28,7 @@ public abstract class DurableAgent : AIAgent
         => new DurableAgentThread(serializedThread, jsonSerializerOptions, this._messageStoreFactory);
 
     /// <inheritdoc/>
-    public override AgentThread GetNewThread()
-    {
-        return this.GetNewThread(chatOptions: null);
-    }
+    public override AgentThread GetNewThread() => this.GetThread(chatOptions: null);
 
     /// <summary>
     /// Gets a new thread instance, optionally using a conversation ID from the provided chat options.
@@ -40,12 +37,12 @@ public abstract class DurableAgent : AIAgent
     /// </summary>
     /// <param name="chatOptions">The chat options that may contain a conversation ID.</param>
     /// <returns>A new agent thread configured with a conversation ID.</returns>
-    public AgentThread GetNewThread(ChatOptions? chatOptions)
+    public DurableAgentThread GetThread(ChatOptions? chatOptions)
     {
         var conversationId = chatOptions?.GetConversationId();
         if (conversationId is not null)
         {
-            return new DurableAgentThread(this._messageStoreFactory, conversationId);
+            return this.GetThread(conversationId);
         }
 
         return new DurableAgentThread(this._messageStoreFactory);
@@ -56,29 +53,10 @@ public abstract class DurableAgent : AIAgent
     /// </summary>
     /// <param name="conversationId">The conversation ID identifying the conversation.</param>
     /// <returns>An agent thread configured with the message store for the given conversation ID.</returns>
-    public AgentThread GetThreadForConversationId(string conversationId)
+    public DurableAgentThread GetThread(string conversationId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(conversationId);
         return new DurableAgentThread(this._messageStoreFactory, conversationId);
-    }
-
-    /// <summary>
-    /// Gets the conversation ID for the specified thread.
-    /// </summary>
-    /// <param name="thread">The agent thread.</param>
-    /// <returns>The conversation ID, or null if not available.</returns>
-    /// <exception cref="ArgumentNullException"><paramref name="thread"/> is <see langword="null"/>.</exception>
-    /// <exception cref="ArgumentException"><paramref name="thread"/> is not a <see cref="DurableAgentThread"/> instance.</exception>
-    public static string? GetConversationId(AgentThread thread)
-    {
-        ArgumentNullException.ThrowIfNull(thread);
-
-        if (thread is not DurableAgentThread durableThread)
-        {
-            throw new ArgumentException($"Thread must be a {nameof(DurableAgentThread)} instance created by {nameof(DurableAgent)}.", nameof(thread));
-        }
-
-        return durableThread.ConversationId;
     }
 
     /// <summary>
@@ -89,19 +67,15 @@ public abstract class DurableAgent : AIAgent
     /// <param name="options">The agent run options containing potential conversation ID.</param>
     /// <param name="thread">The existing thread, if any.</param>
     /// <returns>An agent thread for the conversation.</returns>
-    protected AgentThread GetOrCreateThread(AgentRunOptions? options, AgentThread? thread)
+    protected DurableAgentThread GetOrCreateThread(AgentRunOptions? options, AgentThread? thread)
     {
         // If a thread is provided, use it
-        if (thread is not null)
+        if (thread is DurableAgentThread durableAgentThread)
         {
-            return thread;
+            return durableAgentThread;
         }
 
-        // Extract ChatOptions from the agent run options
-        var chatOptions = (options as ChatClientAgentRunOptions)?.ChatOptions;
-
-        // Create a new thread using the chat options (which may contain a conversation ID)
-        return this.GetNewThread(chatOptions);
+        return this.GetThread((options as ChatClientAgentRunOptions)?.ChatOptions);
     }
 
     /// <summary>
@@ -127,7 +101,7 @@ public abstract class DurableAgent : AIAgent
     /// <summary>
     /// A thread type for durable agents that supports persistent message storage.
     /// </summary>
-    internal sealed class DurableAgentThread : AgentThread
+    public sealed class DurableAgentThread : AgentThread
     {
         private readonly Func<string, ChatMessageStore>? _messageStoreFactory;
         private ChatMessageStore _messageStore;

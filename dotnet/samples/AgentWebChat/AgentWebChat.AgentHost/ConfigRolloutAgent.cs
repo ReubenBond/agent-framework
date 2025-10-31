@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Runtime.CompilerServices;
-using AgentWebChat.AgentHost.DurableAgents.Utilities;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
@@ -27,7 +26,11 @@ public class ConfigRolloutAgent : DurableAgent
     public override async Task<AgentRunResponse> RunAsync(IEnumerable<ChatMessage> messages, AgentThread? thread = null, AgentRunOptions? options = null, CancellationToken cancellationToken = default)
         => await this.RunStreamingAsync(messages, thread, options, cancellationToken).ToAgentRunResponseAsync(cancellationToken);
 
-    public async override IAsyncEnumerable<AgentRunResponseUpdate> RunStreamingAsync(IEnumerable<ChatMessage> messages, AgentThread? thread = null, AgentRunOptions? options = null, [EnumeratorCancellation]  CancellationToken cancellationToken = default)
+    public override async IAsyncEnumerable<AgentRunResponseUpdate> RunStreamingAsync(
+        IEnumerable<ChatMessage> messages,
+        AgentThread? thread = null,
+        AgentRunOptions? options = null,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         bool done = false;
 
@@ -47,6 +50,8 @@ public class ConfigRolloutAgent : DurableAgent
             AIFunctionFactory.Create(UpdateComponent, "update_component", "Updates a component to a new version.")
         ];
 
+        thread = this.GetOrCreateThread(options, thread);
+
         var systemMessage = new ChatMessage(ChatRole.System, """
             You are a configuration rollout agent. You can update components.
             Send the user text updates as you complete each action.
@@ -54,7 +59,6 @@ public class ConfigRolloutAgent : DurableAgent
             """);
         messages = messages.Prepend(systemMessage);
 
-        thread = this.GetOrCreateThread(options, thread);
         await NotifyThreadOfNewMessagesAsync(thread, messages, cancellationToken);
 
         while (!done)

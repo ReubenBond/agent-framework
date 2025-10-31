@@ -1,19 +1,17 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
-using AgentWebChat.AgentHost.DurableAgents;
 using AgentWebChat.AgentHost.DurableAgents.Utilities;
-//using AgentContracts;
+using AgentContracts;
 using AgentWebChat.AgentHost;
-//using AgentWebChat.AgentHost.Options;
+using AgentWebChat.AgentHost.Options;
 using AgentWebChat.AgentHost.Utilities;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Hosting;
 using Microsoft.Extensions.AI;
-//using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-/*
 builder.Services.AddOptions<WorkerOptions>()
     .Bind(builder.Configuration.GetSection(WorkerOptions.SectionName))
     .ValidateDataAnnotations()
@@ -26,16 +24,17 @@ builder.Services.AddSingleton(sp =>
     string hostId = options.HostId ?? Environment.MachineName;
     return new WorkerProcessMetadata { InstanceId = Guid.NewGuid(), HostId = hostId };
 });
-*/
+
+bool enableWorkerRegistration = builder.Configuration.GetValue<bool>("AgentRuntime:RegisterWorker");
+if (enableWorkerRegistration)
+{
+    // Register worker registration background service
+    builder.Services.AddHostedService<WorkerRegistrationService>();
+}
 
 // Add service defaults & Aspire client integrations.
 builder.AddServiceDefaults();
 builder.Services.AddOpenApi();
-
-// Configure Redis client for memo storage and chat message persistence
-builder.AddRedisClient("redis");
-builder.Services.AddRedisMemoStorage();
-builder.Services.AddRedisChatMessagePersistence();
 
 // Configure chat message store using Conversations API via AgentGateway
 // The gateway base address is provided by Aspire's service discovery
@@ -45,14 +44,6 @@ if (!string.IsNullOrWhiteSpace(gatewayBaseAddress))
     builder.Services.AddHttpClient<ConversationsApiClient>(client => client.BaseAddress = new Uri(gatewayBaseAddress));
     builder.Services.AddConversationsChatMessageStore();
 }
-else
-{
-    // Fallback to Redis-backed store if gateway address is not configured
-    builder.Services.AddRedisChatMessageStore();
-}
-
-// Register worker registration background service
-//builder.Services.AddHostedService<WorkerRegistrationService>();
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
@@ -68,6 +59,8 @@ builder.AddAIAgent("config-rollout", (sp, key) =>
         sp.GetRequiredService<ILogger<ConfigRolloutAgent>>(),
         messageStoreFactory);
 });
+
+builder.AddAIAgent("pirate", instructions: "Speak like a pirate in all responses.", chatClientServiceKey: "chat-model");
 
 builder.AddOpenAIResponses();
 
@@ -85,7 +78,7 @@ app.MapOpenAIResponses();
 app.MapAgentDiscovery("/agents");
 
 // Worker meta endpoint used by gateway to uniquely identify this process
-//app.MapGet("/worker/meta", (WorkerProcessMetadata meta) => Results.Ok(meta));
+app.MapGet("/worker/meta", (WorkerProcessMetadata meta) => Results.Ok(meta));
 
 app.MapDefaultEndpoints();
 app.Run();
