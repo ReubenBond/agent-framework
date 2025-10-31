@@ -16,6 +16,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 [JsonDerivedType(typeof(StreamingResponseCompleted), StreamingResponseCompleted.EventType)]
 [JsonDerivedType(typeof(StreamingResponseIncomplete), StreamingResponseIncomplete.EventType)]
 [JsonDerivedType(typeof(StreamingResponseFailed), StreamingResponseFailed.EventType)]
+[JsonDerivedType(typeof(StreamingResponseCancelled), StreamingResponseCancelled.EventType)]
 [JsonDerivedType(typeof(StreamingOutputItemAdded), StreamingOutputItemAdded.EventType)]
 [JsonDerivedType(typeof(StreamingOutputItemDone), StreamingOutputItemDone.EventType)]
 [JsonDerivedType(typeof(StreamingContentPartAdded), StreamingContentPartAdded.EventType)]
@@ -161,6 +162,28 @@ public sealed record StreamingResponseFailed : StreamingResponseEvent, IStreamin
 
     /// <summary>
     /// Gets or sets the failed response object.
+    /// </summary>
+    [JsonPropertyName("response")]
+    public required Response Response { get; init; }
+}
+
+/// <summary>
+/// Represents a streaming response event indicating that the response has been cancelled.
+/// Only responses created with background=true can be cancelled.
+/// </summary>
+public sealed record StreamingResponseCancelled : StreamingResponseEvent, IStreamingResponseEventWithResponse
+{
+    /// <summary>
+    /// The constant event type identifier for response cancelled events.
+    /// </summary>
+    public const string EventType = "response.cancelled";
+
+    /// <inheritdoc/>
+    [JsonIgnore]
+    public override string Type => EventType;
+
+    /// <summary>
+    /// Gets or sets the cancelled response object.
     /// </summary>
     [JsonPropertyName("response")]
     public required Response Response { get; init; }
