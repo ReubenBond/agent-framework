@@ -9,6 +9,8 @@ using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Hosting;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
+using Microsoft.Agents.AI.DevUI;
+using Microsoft.Agents.AI.Hosting.OpenAI.Conversations;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,10 +41,10 @@ builder.AddDevUI();
 
 // Configure chat message store using Conversations API via AgentGateway
 // The gateway base address is provided by Aspire's service discovery
-var gatewayBaseAddress = builder.Configuration["Worker:GatewayBaseAddress"];
-if (!string.IsNullOrWhiteSpace(gatewayBaseAddress))
+var conversationsBaseAddress = "http://localhost:5390"; //builder.Configuration["Worker:GatewayBaseAddress"];
+if (!string.IsNullOrWhiteSpace(conversationsBaseAddress))
 {
-    builder.Services.AddHttpClient<ConversationsApiClient>(client => client.BaseAddress = new Uri(gatewayBaseAddress));
+    builder.Services.AddHttpClient<ConversationsApiClient>(client => client.BaseAddress = new Uri(conversationsBaseAddress));
     builder.Services.AddConversationsChatMessageStore();
 }
 
@@ -61,7 +63,16 @@ builder.AddAIAgent("config-rollout", (sp, key) =>
         messageStoreFactory);
 });
 
-builder.AddAIAgent("pirate", instructions: "Speak like a pirate in all responses.", chatClientServiceKey: "chat-model");
+builder.AddAIAgent("pirate", (sp, key) =>
+{
+    var chatClient = sp.GetRequiredKeyedService<IChatClient>("chat-model");
+    var messageStoreFactory = sp.GetRequiredService<Func<string, ChatMessageStore>>();
+    return new DurableChatClientAgent(
+        chatClient,
+        messageStoreFactory,
+        instructions: "Speak like a pirate in all responses.",
+        name: "pirate");
+});
 
 builder.AddOpenAIResponses();
 
@@ -73,7 +84,11 @@ app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "Agents 
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 
+// DevUI
 app.MapOpenAIResponses();
+app.MapConversations();
+app.MapDevUI();
+app.MapEntities();
 
 // Map the agents HTTP endpoints
 app.MapAgentDiscovery("/agents");

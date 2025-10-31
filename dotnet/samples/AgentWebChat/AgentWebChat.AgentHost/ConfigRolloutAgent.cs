@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Runtime.CompilerServices;
+using Aspire.Hosting.ApplicationModel;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
@@ -50,17 +51,18 @@ public class ConfigRolloutAgent : DurableAgent
             AIFunctionFactory.Create(UpdateComponent, "update_component", "Updates a component to a new version.")
         ];
 
-        thread = this.GetOrCreateThread(options, thread);
+        var durableThread = this.GetOrCreateThread(options, thread);
 
-        var systemMessage = new ChatMessage(ChatRole.System, """
+        await NotifyThreadOfNewMessagesAsync(durableThread, messages, cancellationToken);
+
+        var systemPrompt = new ChatMessage(ChatRole.System, """
             You are a configuration rollout agent. You can update components.
             Send the user text updates as you complete each action.
             When you have fully completed the rollout specified by the user, mark it as complete.
             """);
-        messages = messages.Prepend(systemMessage);
 
-        await NotifyThreadOfNewMessagesAsync(thread, messages, cancellationToken);
-
+        var existingMessages = await durableThread.GetMessagesAsync(cancellationToken);
+        List<ChatMessage> mutableThread = [systemPrompt, .. existingMessages, .. messages];
         while (!done)
         {
             var updates = new List<AgentRunResponseUpdate>();
@@ -72,7 +74,8 @@ public class ConfigRolloutAgent : DurableAgent
             }
 
             var response = updates.ToAgentRunResponse();
-            await NotifyThreadOfNewMessagesAsync(thread, response.Messages, cancellationToken);
+            mutableThread.AddRange(response.Messages);
+            await NotifyThreadOfNewMessagesAsync(durableThread, response.Messages, cancellationToken);
         }
     }
 }
