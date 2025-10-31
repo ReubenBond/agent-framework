@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,13 +18,17 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Conversations;
 internal sealed class InMemoryConversationStorage : IConversationStorage
 {
     private readonly ConcurrentDictionary<string, Conversation> _conversations = new();
-    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, ItemResource>> _items = new();
+    private readonly ConcurrentDictionary<string, OrderedDictionary<string, ItemResource>> _items = new();
+    private readonly object _itemsLock = new();
 
     public Task<Conversation> CreateConversationAsync(Conversation conversation, CancellationToken cancellationToken = default)
     {
         if (this._conversations.TryAdd(conversation.Id, conversation))
         {
-            this._items[conversation.Id] = new ConcurrentDictionary<string, ItemResource>();
+            lock (this._itemsLock)
+            {
+                this._items[conversation.Id] = [];
+            }
             return Task.FromResult(conversation);
         }
 
@@ -52,7 +57,10 @@ internal sealed class InMemoryConversationStorage : IConversationStorage
         var removed = this._conversations.TryRemove(conversationId, out _);
         if (removed)
         {
-            this._items.TryRemove(conversationId, out _);
+            lock (this._itemsLock)
+            {
+                this._items.TryRemove(conversationId, out _);
+            }
         }
         return Task.FromResult(removed);
     }
@@ -60,16 +68,18 @@ internal sealed class InMemoryConversationStorage : IConversationStorage
     public Task<ItemResource> AddItemAsync(string conversationId, ItemResource item, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(conversationId, nameof(conversationId));
-        ArgumentException.ThrowIfNullOrEmpty(item.Id, nameof(item.Id));
 
-        if (!this._items.TryGetValue(conversationId, out ConcurrentDictionary<string, ItemResource>? conversationItems))
+        lock (this._itemsLock)
         {
-            throw new InvalidOperationException($"Conversation '{conversationId}' not found.");
-        }
+            if (!this._items.TryGetValue(conversationId, out var conversationItems))
+            {
+                throw new InvalidOperationException($"Conversation '{conversationId}' not found.");
+            }
 
-        if (!conversationItems.TryAdd(item.Id, item))
-        {
-            throw new InvalidOperationException($"Item with ID '{item.Id}' already exists in conversation '{conversationId}'.");
+            if (!conversationItems.TryAdd(item.Id, item))
+            {
+                throw new InvalidOperationException($"Item with ID '{item.Id}' already exists in conversation '{conversationId}'.");
+            }
         }
 
         return Task.FromResult(item);
@@ -77,10 +87,13 @@ internal sealed class InMemoryConversationStorage : IConversationStorage
 
     public Task<ItemResource?> GetItemAsync(string conversationId, string itemId, CancellationToken cancellationToken = default)
     {
-        if (this._items.TryGetValue(conversationId, out var conversationItems) &&
-            conversationItems.TryGetValue(itemId, out ItemResource? item))
+        lock (this._itemsLock)
         {
-            return Task.FromResult<ItemResource?>(item);
+            if (this._items.TryGetValue(conversationId, out var conversationItems) &&
+                conversationItems.TryGetValue(itemId, out var item))
+            {
+                return Task.FromResult<ItemResource?>(item);
+            }
         }
 
         return Task.FromResult<ItemResource?>(null);
@@ -95,15 +108,19 @@ internal sealed class InMemoryConversationStorage : IConversationStorage
     {
         limit = Math.Clamp(limit, 1, 100);
 
-        if (!this._items.TryGetValue(conversationId, out var conversationItems))
+        List<ItemResource> allItems;
+        lock (this._itemsLock)
         {
-            throw new InvalidOperationException($"Conversation '{conversationId}' not found.");
+            if (!this._items.TryGetValue(conversationId, out var conversationItems))
+            {
+                throw new InvalidOperationException($"Conversation '{conversationId}' not found.");
+            }
+
+            allItems = conversationItems.Values.ToList();
         }
 
-        var allItems = conversationItems.Values
-            .OrderBy(m => m.Id) // Items don't have CreatedAt, use ID for ordering
-            .ToList();
-
+        // OrderedDictionary maintains insertion order
+        // For descending order, reverse the list
         if (order == SortOrder.Descending)
         {
             allItems.Reverse();
@@ -113,7 +130,7 @@ internal sealed class InMemoryConversationStorage : IConversationStorage
 
         if (!string.IsNullOrEmpty(after))
         {
-            int afterIndex = allItems.FindIndex(m => m.Id == after);
+            var afterIndex = allItems.FindIndex(m => m.Id == after);
             if (afterIndex >= 0)
             {
                 filtered = allItems.Skip(afterIndex + 1);
@@ -138,9 +155,12 @@ internal sealed class InMemoryConversationStorage : IConversationStorage
 
     public Task<bool> DeleteItemAsync(string conversationId, string itemId, CancellationToken cancellationToken = default)
     {
-        if (this._items.TryGetValue(conversationId, out var conversationItems))
+        lock (this._itemsLock)
         {
-            return Task.FromResult(conversationItems.TryRemove(itemId, out _));
+            if (this._items.TryGetValue(conversationId, out var conversationItems))
+            {
+                return Task.FromResult(conversationItems.Remove(itemId));
+            }
         }
 
         return Task.FromResult(false);
