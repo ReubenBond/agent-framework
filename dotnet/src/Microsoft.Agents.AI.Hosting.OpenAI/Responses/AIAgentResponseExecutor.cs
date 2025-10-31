@@ -55,9 +55,10 @@ internal sealed class AIAgentResponseExecutor : IResponseExecutor
         }
 
         // Use the extension method to convert streaming updates to streaming response events
-        // Use the extension method to convert streaming updates to streaming response events
+#pragma warning disable CA2007 // ConfigureAwait is not supported on IAsyncEnumerable
         await foreach (var streamingEvent in this._agent.RunStreamingAsync(messages, options: options, cancellationToken: cancellationToken)
             .ToStreamingResponseAsync(request, context, cancellationToken))
+#pragma warning restore CA2007
         {
             yield return streamingEvent;
         }

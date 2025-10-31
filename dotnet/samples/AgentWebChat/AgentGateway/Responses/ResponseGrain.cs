@@ -93,6 +93,14 @@ public interface IResponseGrain : IGrainWithStringKey
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A tuple containing the response and the full list of items (input + output), or null if the response doesn't exist.</returns>
     Task<(Response Response, List<ItemResource> Items)?> GetWithThreadAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Cancels an in-progress response.
+    /// Only responses created with background=true can be cancelled.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The updated response after cancellation.</returns>
+    Task<Response> CancelAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -106,6 +114,7 @@ internal sealed class ResponseGrain(
 {
     private const string BackgroundExecutionReminderName = "BackgroundExecution";
     private readonly CancellationTokenSource _shutdownCts = new();
+    private readonly CancellationTokenSource _executionCts = new();
     private readonly AsyncManualResetEvent _streamingUpdatedEvent = new();
     private Task? _executionTask;
 
@@ -124,14 +133,13 @@ internal sealed class ResponseGrain(
                 BackgroundExecutionReminderName,
                 TimeSpan.FromMinutes(1),
                 TimeSpan.FromMinutes(1));
-
-            this._executionTask = this.RunAsync(this._shutdownCts.Token);
+            this._executionTask = this.RunAsync(this._executionCts.Token);
         }
     }
-
     public override async Task OnDeactivateAsync(DeactivationReason reason, CancellationToken cancellationToken)
     {
         await this._shutdownCts.CancelAsync();
+        this._executionCts.Cancel();
         this._streamingUpdatedEvent.Cancel();
 
         if (this._executionTask is not null)
@@ -172,11 +180,10 @@ internal sealed class ResponseGrain(
         // Store the request and create initial response
         await this.InitializeResponseAsync(request, cancellationToken);
         Debug.Assert(responseState.State.Response is not null);
-
         // Start execution task for both background and non-background requests
         // Background requests will return immediately with queued status
         Debug.Assert(this._executionTask is null);
-        this._executionTask = this.RunAsync(this._shutdownCts.Token);
+        this._executionTask = this.RunAsync(this._executionCts.Token);
 
         // If background execution is requested, return immediately with queued status
         // The execution task will continue running in the background
@@ -231,7 +238,8 @@ internal sealed class ResponseGrain(
         // Start execution task
         // For background streaming, the task runs in background and events are streamed as they happen
         // For non-background streaming, the task runs and we stream all events until completion
-        this._executionTask = this.RunAsync(this._shutdownCts.Token);
+        Debug.Assert(this._executionTask is null);
+        this._executionTask = this.RunAsync(this._executionCts.Token);
 
         // Stream updates as they become available
         var streamedCount = 0;
@@ -247,7 +255,7 @@ internal sealed class ResponseGrain(
             }
 
             // Check if we're done
-            if (responseState.State.Response.IsTerminal)
+            if (responseState.State.Response?.IsTerminal == true)
             {
                 break;
             }
@@ -469,9 +477,9 @@ internal sealed class ResponseGrain(
         await responseState.WriteStateAsync(cancellationToken);
 
         await this.RegisterOrUpdateReminder(
-            BackgroundExecutionReminderName,
-            TimeSpan.FromMinutes(1),
-            TimeSpan.FromMinutes(1));
+            reminderName: BackgroundExecutionReminderName,
+            dueTime: TimeSpan.Zero,
+            period: TimeSpan.FromSeconds(30));
     }
 
     /// <summary>
@@ -500,6 +508,25 @@ internal sealed class ResponseGrain(
 
             await this.FinalizeResponseAsync(cancellationToken);
         }
+        catch (OperationCanceledException)
+        {
+            // Update response status to cancelled
+            responseState.State.Response = responseState.State.Response! with
+            {
+                Status = ResponseStatus.Cancelled
+            };
+
+            var sequenceNumber = responseState.State.StreamingUpdates.Count + 1;
+            var cancelledEvent = new StreamingResponseCancelled
+            {
+                SequenceNumber = sequenceNumber,
+                Response = responseState.State.Response
+            };
+            responseState.State.StreamingUpdates.Add(cancelledEvent);
+
+            await responseState.WriteStateAsync(CancellationToken.None);
+            this._streamingUpdatedEvent.SignalAndReset();
+        }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error executing streaming response {ResponseId}", this.ResponseId);
@@ -524,7 +551,7 @@ internal sealed class ResponseGrain(
             };
             responseState.State.StreamingUpdates.Add(failedEvent);
 
-            await responseState.WriteStateAsync(cancellationToken);
+            await responseState.WriteStateAsync(CancellationToken.None);
             this._streamingUpdatedEvent.SignalAndReset();
         }
     }
@@ -615,16 +642,58 @@ internal sealed class ResponseGrain(
         }
     }
 
+    public async Task<Response> CancelAsync(CancellationToken cancellationToken = default)
+    {
+        if (responseState.State.Response is null)
+        {
+            throw new InvalidOperationException($"Response '{this.ResponseId}' not found.");
+        }
+
+        if (responseState.State.Response.Background != true)
+        {
+            throw new InvalidOperationException($"Only background responses can be cancelled. Response '{this.ResponseId}' was not created with background=true.");
+        }
+
+        if (responseState.State.Response.IsTerminal)
+        {
+            throw new InvalidOperationException($"Response '{this.ResponseId}' is already in a terminal state and cannot be cancelled.");
+        }
+
+        // Cancel the execution
+        this._executionCts.Cancel();
+
+        // Update response status
+        responseState.State.Response = responseState.State.Response with
+        {
+            Status = ResponseStatus.Cancelled
+        };
+
+        // Emit cancelled event
+        var sequenceNumber = responseState.State.StreamingUpdates.Count + 1;
+        var cancelledEvent = new StreamingResponseCancelled
+        {
+            SequenceNumber = sequenceNumber,
+            Response = responseState.State.Response
+        };
+        responseState.State.StreamingUpdates.Add(cancelledEvent);
+
+        await responseState.WriteStateAsync(cancellationToken);
+        this._streamingUpdatedEvent.SignalAndReset();
+
+        return responseState.State.Response;
+    }
+
     public async Task ReceiveReminder(string reminderName, TickStatus status)
     {
         if (reminderName == BackgroundExecutionReminderName && this._executionTask?.IsCompleted != false)
         {
-            this._executionTask = this.RunAsync(this._shutdownCts.Token);
+            this._executionTask = this.RunAsync(this._executionCts.Token);
         }
     }
 
     public void Dispose()
     {
-        ((IDisposable)this._shutdownCts).Dispose();
+        this._executionCts.Dispose();
+        this._shutdownCts.Dispose();
     }
 }

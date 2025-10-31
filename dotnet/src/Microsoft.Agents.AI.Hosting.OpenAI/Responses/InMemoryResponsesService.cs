@@ -82,6 +82,7 @@ internal sealed class InMemoryResponsesService : IResponsesService
 
         // Start execution
         _ = this.ExecuteResponseAsync(responseId, state, CancellationToken.None);
+
         // Stream updates as they become available
         var streamedCount = 0;
         while (true)
@@ -106,7 +107,6 @@ internal sealed class InMemoryResponsesService : IResponsesService
 
             // Wait for the next update to be signaled
             await state.UpdateSignal.WaitAsync(cancellationToken).ConfigureAwait(false);
-        }   await Task.Delay(10, cancellationToken).ConfigureAwait(false);
         }
     }
 
@@ -378,6 +378,12 @@ internal sealed class InMemoryResponsesService : IResponsesService
             };
 
             var sequenceNumber = state.StreamingUpdates.Count + 1;
+            var cancelledEvent = new StreamingResponseCancelled
+            {
+                SequenceNumber = sequenceNumber,
+                Response = state.Response
+            };
+
             lock (state.StreamingUpdates)
             {
                 state.StreamingUpdates.Add(cancelledEvent);
@@ -418,12 +424,6 @@ internal sealed class InMemoryResponsesService : IResponsesService
         {
             // Release the semaphore one final time to unblock any waiting consumers
             state.UpdateSignal.Release();
-            state.CompletionSource?.TrySetResult(true);
-            linkedCts.Dispose();
-        }   }
-        }
-        finally
-        {
             state.CompletionSource?.TrySetResult(true);
             linkedCts.Dispose();
         }

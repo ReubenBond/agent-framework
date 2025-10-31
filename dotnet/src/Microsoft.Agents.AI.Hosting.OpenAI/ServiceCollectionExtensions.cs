@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Hosting.OpenAI;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
@@ -56,7 +57,7 @@ public static class MicrosoftAgentAIHostingOpenAIServiceCollectionExtensions
     /// <param name="services">The <see cref="IServiceCollection"/> to configure.</param>
     /// <typeparam name="TService">The type of the <see cref="IResponsesService"/> implementation.</typeparam>
     /// <returns>The <see cref="IServiceCollection"/> for method chaining.</returns>
-    public static IServiceCollection AddOpenAIResponses<TService>(this IServiceCollection services)
+    public static IServiceCollection AddOpenAIResponses<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TService>(this IServiceCollection services)
         where TService : class, IResponsesService
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -75,7 +76,7 @@ public static class MicrosoftAgentAIHostingOpenAIServiceCollectionExtensions
     /// <param name="services">The <see cref="IServiceCollection"/> to configure.</param>
     /// <typeparam name="TExecutor">The type of the <see cref="IResponseExecutor"/> implementation.</typeparam>
     /// <returns>The <see cref="IServiceCollection"/> for method chaining.</returns>
-    public static IServiceCollection AddResponseExecutor<TExecutor>(this IServiceCollection services)
+    public static IServiceCollection AddResponseExecutor<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TExecutor>(this IServiceCollection services)
         where TExecutor : class, IResponseExecutor
     {
         ArgumentNullException.ThrowIfNull(services);

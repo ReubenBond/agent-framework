@@ -90,4 +90,16 @@ public sealed class ResponsesService
         var grain = this._grainFactory.GetGrain<IResponseGrain>(responseId);
         return await grain.ListInputItemsAsync(limit, order, after, before);
     }
+
+    /// <summary>
+    /// Cancels an in-progress response.
+    /// Only responses created with background=true can be cancelled.
+    /// </summary>
+    public async Task<Response> CancelResponseAsync(
+        string responseId,
+        CancellationToken cancellationToken = default)
+    {
+        var grain = this._grainFactory.GetGrain<IResponseGrain>(responseId);
+        return await grain.CancelAsync(cancellationToken);
+    }
 }
