@@ -17,18 +17,13 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Conversations;
 /// </summary>
 internal sealed class InMemoryConversationStorage : IConversationStorage
 {
-    private readonly ConcurrentDictionary<string, Conversation> _conversations = new();
-    private readonly ConcurrentDictionary<string, OrderedDictionary<string, ItemResource>> _items = new();
-    private readonly object _itemsLock = new();
+    private readonly ConcurrentDictionary<string, ConversationState> _conversations = new();
 
     public Task<Conversation> CreateConversationAsync(Conversation conversation, CancellationToken cancellationToken = default)
     {
-        if (this._conversations.TryAdd(conversation.Id, conversation))
+        var state = new ConversationState(conversation);
+        if (this._conversations.TryAdd(conversation.Id, state))
         {
-            lock (this._itemsLock)
-            {
-                this._items[conversation.Id] = [];
-            }
             return Task.FromResult(conversation);
         }
 
@@ -37,15 +32,18 @@ internal sealed class InMemoryConversationStorage : IConversationStorage
 
     public Task<Conversation?> GetConversationAsync(string conversationId, CancellationToken cancellationToken = default)
     {
-        this._conversations.TryGetValue(conversationId, out var conversation);
-        return Task.FromResult(conversation);
+        if (this._conversations.TryGetValue(conversationId, out var state))
+        {
+            return Task.FromResult<Conversation?>(state.Conversation);
+        }
+        return Task.FromResult<Conversation?>(null);
     }
 
     public Task<Conversation?> UpdateConversationAsync(Conversation conversation, CancellationToken cancellationToken = default)
     {
-        if (this._conversations.ContainsKey(conversation.Id))
+        if (this._conversations.TryGetValue(conversation.Id, out var state))
         {
-            this._conversations[conversation.Id] = conversation;
+            state.UpdateConversation(conversation);
             return Task.FromResult<Conversation?>(conversation);
         }
 
@@ -54,46 +52,27 @@ internal sealed class InMemoryConversationStorage : IConversationStorage
 
     public Task<bool> DeleteConversationAsync(string conversationId, CancellationToken cancellationToken = default)
     {
-        var removed = this._conversations.TryRemove(conversationId, out _);
-        if (removed)
-        {
-            lock (this._itemsLock)
-            {
-                this._items.TryRemove(conversationId, out _);
-            }
-        }
-        return Task.FromResult(removed);
+        return Task.FromResult(this._conversations.TryRemove(conversationId, out _));
     }
 
     public Task<ItemResource> AddItemAsync(string conversationId, ItemResource item, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(conversationId, nameof(conversationId));
 
-        lock (this._itemsLock)
+        if (!this._conversations.TryGetValue(conversationId, out ConversationState? state))
         {
-            if (!this._items.TryGetValue(conversationId, out var conversationItems))
-            {
-                throw new InvalidOperationException($"Conversation '{conversationId}' not found.");
-            }
-
-            if (!conversationItems.TryAdd(item.Id, item))
-            {
-                throw new InvalidOperationException($"Item with ID '{item.Id}' already exists in conversation '{conversationId}'.");
-            }
+            throw new InvalidOperationException($"Conversation '{conversationId}' not found.");
         }
 
+        state.AddItem(item);
         return Task.FromResult(item);
     }
 
     public Task<ItemResource?> GetItemAsync(string conversationId, string itemId, CancellationToken cancellationToken = default)
     {
-        lock (this._itemsLock)
+        if (this._conversations.TryGetValue(conversationId, out ConversationState? state))
         {
-            if (this._items.TryGetValue(conversationId, out var conversationItems) &&
-                conversationItems.TryGetValue(itemId, out var item))
-            {
-                return Task.FromResult<ItemResource?>(item);
-            }
+            return Task.FromResult(state.GetItem(itemId));
         }
 
         return Task.FromResult<ItemResource?>(null);
@@ -108,18 +87,13 @@ internal sealed class InMemoryConversationStorage : IConversationStorage
     {
         limit = Math.Clamp(limit, 1, 100);
 
-        List<ItemResource> allItems;
-        lock (this._itemsLock)
+        if (!this._conversations.TryGetValue(conversationId, out ConversationState? state))
         {
-            if (!this._items.TryGetValue(conversationId, out var conversationItems))
-            {
-                throw new InvalidOperationException($"Conversation '{conversationId}' not found.");
-            }
-
-            allItems = conversationItems.Values.ToList();
+            throw new InvalidOperationException($"Conversation '{conversationId}' not found.");
         }
 
-        // OrderedDictionary maintains insertion order
+        var allItems = state.GetAllItems();
+
         // For descending order, reverse the list
         if (order == SortOrder.Descending)
         {
@@ -155,14 +129,153 @@ internal sealed class InMemoryConversationStorage : IConversationStorage
 
     public Task<bool> DeleteItemAsync(string conversationId, string itemId, CancellationToken cancellationToken = default)
     {
-        lock (this._itemsLock)
+        if (this._conversations.TryGetValue(conversationId, out ConversationState? state))
         {
-            if (this._items.TryGetValue(conversationId, out var conversationItems))
-            {
-                return Task.FromResult(conversationItems.Remove(itemId));
-            }
+            return Task.FromResult(state.RemoveItem(itemId));
         }
 
         return Task.FromResult(false);
+    }
+
+    /// <summary>
+    /// Encapsulates per-conversation state including items storage and synchronization.
+    /// </summary>
+    private sealed class ConversationState
+    {
+#if NET9_0_OR_GREATER
+        private readonly OrderedDictionary<string, ItemResource> _items = [];
+        private readonly object _lock = new();
+        private Conversation _conversation;
+
+        public ConversationState(Conversation conversation)
+        {
+            this._conversation = conversation;
+        }
+
+        public Conversation Conversation
+        {
+            get
+            {
+                lock (this._lock)
+                {
+                    return this._conversation;
+                }
+            }
+        }
+
+        public void UpdateConversation(Conversation conversation)
+        {
+            lock (this._lock)
+            {
+                this._conversation = conversation;
+            }
+        }
+
+        public void AddItem(ItemResource item)
+        {
+            lock (this._lock)
+            {
+                if (!this._items.TryAdd(item.Id, item))
+                {
+                    throw new InvalidOperationException($"Item with ID '{item.Id}' already exists.");
+                }
+            }
+        }
+
+        public ItemResource? GetItem(string itemId)
+        {
+            lock (this._lock)
+            {
+                this._items.TryGetValue(itemId, out var item);
+                return item;
+            }
+        }
+
+        public List<ItemResource> GetAllItems()
+        {
+            lock (this._lock)
+            {
+                return this._items.Values.ToList();
+            }
+        }
+
+        public bool RemoveItem(string itemId)
+        {
+            lock (this._lock)
+            {
+                return this._items.Remove(itemId);
+            }
+        }
+#else
+        private readonly List<ItemResource> _items = [];
+        private readonly object _lock = new();
+        private Conversation _conversation;
+
+        public ConversationState(Conversation conversation)
+        {
+            this._conversation = conversation;
+        }
+
+        public Conversation Conversation
+        {
+            get
+            {
+                lock (this._lock)
+                {
+                    return this._conversation;
+                }
+            }
+        }
+
+        public void UpdateConversation(Conversation conversation)
+        {
+            lock (this._lock)
+            {
+                this._conversation = conversation;
+            }
+        }
+
+        public void AddItem(ItemResource item)
+        {
+            lock (this._lock)
+            {
+                if (this._items.Any(i => i.Id == item.Id))
+                {
+                    throw new InvalidOperationException($"Item with ID '{item.Id}' already exists.");
+                }
+                this._items.Add(item);
+            }
+        }
+
+        public ItemResource? GetItem(string itemId)
+        {
+            lock (this._lock)
+            {
+                return this._items.FirstOrDefault(i => i.Id == itemId);
+            }
+        }
+
+        public List<ItemResource> GetAllItems()
+        {
+            lock (this._lock)
+            {
+                return this._items.ToList();
+            }
+        }
+
+        public bool RemoveItem(string itemId)
+        {
+            lock (this._lock)
+            {
+                var item = this._items.FirstOrDefault(i => i.Id == itemId);
+                if (item != null)
+                {
+                    this._items.Remove(item);
+                    return true;
+                }
+                return false;
+            }
+        }
+#endif
     }
 }
