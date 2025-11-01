@@ -1,5 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using Microsoft.Agents.AI.Hosting.OpenAI.Conversations;
+
 namespace AgentGateway.Conversations;
 
 /// <summary>

@@ -2,12 +2,12 @@
 
 using AgentContracts;
 using AgentGateway;
+using Microsoft.Agents.AI.Hosting.OpenAI.Conversations;
 using AgentGateway.Conversations;
 using AgentGateway.Entities;
 using AgentGateway.Health;
 using AgentGateway.Responses;
 using AgentGateway.Utilities;
-using Microsoft.Agents.AI.DevUI;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;

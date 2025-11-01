@@ -12,7 +12,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Conversations;
 /// In-memory implementation of IAgentConversationIndex for development and testing.
 /// This is a non-standard extension to the OpenAI Conversations API.
 /// </summary>
-internal sealed class InMemoryAgentConversationIndex : IAgentConversationIndex
+public sealed class InMemoryAgentConversationIndex : IAgentConversationIndex
 {
     private readonly ConcurrentDictionary<string, ConcurrentBag<string>> _agentConversations = new();
 

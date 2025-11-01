@@ -2,7 +2,7 @@
 
 using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
-using AgentGateway.Conversations;
+using Microsoft.Agents.AI.Hosting.OpenAI.Conversations;
 using Microsoft.Extensions.AI;
 
 namespace AgentGateway.UnitTests.Conversations;

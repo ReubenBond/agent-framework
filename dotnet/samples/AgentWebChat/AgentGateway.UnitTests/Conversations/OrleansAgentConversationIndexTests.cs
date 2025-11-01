@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 using AgentGateway.Conversations;
+using Microsoft.Agents.AI.Hosting.OpenAI.Conversations;
 
 namespace AgentGateway.UnitTests.Conversations;
 

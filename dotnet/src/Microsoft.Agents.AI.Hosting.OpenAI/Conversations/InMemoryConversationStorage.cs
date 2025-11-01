@@ -15,10 +15,11 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Conversations;
 /// In-memory implementation of conversation storage for testing and development.
 /// This implementation is thread-safe but data is not persisted across application restarts.
 /// </summary>
-internal sealed class InMemoryConversationStorage : IConversationStorage
+public sealed class InMemoryConversationStorage : IConversationStorage
 {
     private readonly ConcurrentDictionary<string, ConversationState> _conversations = new();
 
+    /// <inheritdoc />
     public Task<Conversation> CreateConversationAsync(Conversation conversation, CancellationToken cancellationToken = default)
     {
         var state = new ConversationState(conversation);
@@ -30,6 +31,7 @@ internal sealed class InMemoryConversationStorage : IConversationStorage
         throw new InvalidOperationException($"Conversation with ID '{conversation.Id}' already exists.");
     }
 
+    /// <inheritdoc />
     public Task<Conversation?> GetConversationAsync(string conversationId, CancellationToken cancellationToken = default)
     {
         if (this._conversations.TryGetValue(conversationId, out var state))
@@ -39,6 +41,7 @@ internal sealed class InMemoryConversationStorage : IConversationStorage
         return Task.FromResult<Conversation?>(null);
     }
 
+    /// <inheritdoc />
     public Task<Conversation?> UpdateConversationAsync(Conversation conversation, CancellationToken cancellationToken = default)
     {
         if (this._conversations.TryGetValue(conversation.Id, out var state))
@@ -50,11 +53,13 @@ internal sealed class InMemoryConversationStorage : IConversationStorage
         return Task.FromResult<Conversation?>(null);
     }
 
+    /// <inheritdoc />
     public Task<bool> DeleteConversationAsync(string conversationId, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(this._conversations.TryRemove(conversationId, out _));
     }
 
+    /// <inheritdoc />
     public Task<ItemResource> AddItemAsync(string conversationId, ItemResource item, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(conversationId, nameof(conversationId));
@@ -68,6 +73,7 @@ internal sealed class InMemoryConversationStorage : IConversationStorage
         return Task.FromResult(item);
     }
 
+    /// <inheritdoc />
     public Task<ItemResource?> GetItemAsync(string conversationId, string itemId, CancellationToken cancellationToken = default)
     {
         if (this._conversations.TryGetValue(conversationId, out ConversationState? state))
@@ -78,6 +84,7 @@ internal sealed class InMemoryConversationStorage : IConversationStorage
         return Task.FromResult<ItemResource?>(null);
     }
 
+    /// <inheritdoc />
     public Task<ListResponse<ItemResource>> ListItemsAsync(
         string conversationId,
         int limit = 20,
@@ -127,6 +134,7 @@ internal sealed class InMemoryConversationStorage : IConversationStorage
         });
     }
 
+    /// <inheritdoc />
     public Task<bool> DeleteItemAsync(string conversationId, string itemId, CancellationToken cancellationToken = default)
     {
         if (this._conversations.TryGetValue(conversationId, out ConversationState? state))
