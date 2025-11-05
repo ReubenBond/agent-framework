@@ -1,8 +1,8 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
-using Microsoft.Agents.AI.Hosting.OpenAI.Conversations;
-using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
+using AgentGateway.Conversations.Models;
+using AgentGateway.Models;
+using AgentGateway.Responses.Models;
 
 namespace AgentGateway.Conversations;
 
@@ -29,7 +29,7 @@ internal sealed class ConversationState
 /// <summary>
 /// Grain interface for managing a single conversation and its messages.
 /// </summary>
-public interface IConversationGrain : IGrainWithStringKey
+internal interface IConversationGrain : IGrainWithStringKey
 {
     /// <summary>
     /// Creates a new conversation.

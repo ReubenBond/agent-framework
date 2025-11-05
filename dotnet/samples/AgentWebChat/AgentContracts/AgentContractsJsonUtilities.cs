@@ -3,7 +3,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Microsoft.Agents.AI.Hosting.OpenAI;
 
 namespace AgentContracts;
 
@@ -41,7 +40,6 @@ public static partial class AgentContractsJsonUtilities
     private static JsonSerializerOptions CreateDefaultOptions()
     {
         JsonSerializerOptions options = new(AgentContractsJsonContext.Default.Options);
-        options.TypeInfoResolverChain.Add(OpenAIJsonUtilities.DefaultOptions.TypeInfoResolver!);
         options.TypeInfoResolverChain.Add(Microsoft.Extensions.AI.AIJsonUtilities.DefaultOptions.TypeInfoResolver!);
         options.MakeReadOnly();
         return options;

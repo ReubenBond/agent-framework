@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <InternalsVisibleTo>AgentGateway.UnitTests</InternalsVisibleTo>
     <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
+    <DefineConstants>$(DefineConstants);AGENTGATEWAY</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -34,6 +35,10 @@
     <ProjectReference Include="..\..\..\src\Microsoft.Agents.AI.Hosting.OpenAI\Microsoft.Agents.AI.Hosting.OpenAI.csproj" />
     <ProjectReference Include="..\AgentContracts\AgentContracts.csproj" />
     <ProjectReference Include="..\AgentWebChat.ServiceDefaults\AgentWebChat.ServiceDefaults.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\..\src\Microsoft.Agents.AI.Hosting.OpenAI\Shared\**\*.cs" LinkBase="Shared" />
   </ItemGroup>
 
   <ItemGroup>
