@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using AgentContracts;
 using AgentWebChat.AgentHost.Options;
+using AgentWebChat.AgentHost.Utilities;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.Extensions.Options;
@@ -105,7 +106,9 @@ internal sealed class WorkerRegistrationService : IHostedService, IDisposable
             }
             else
             {
-                advertisedBaseAddress = this.GetAspNetServerAddress();
+                var hostIpAddress = HostAddressResolver.ResolveIPAddressOrDefault();
+                var serverUri = this.GetAspNetServerAddress(host: hostIpAddress?.ToString());
+                advertisedBaseAddress = serverUri.ToString().TrimEnd('/');
             }
 
             return this._registration = new WorkerRegistrationRequest
@@ -118,7 +121,7 @@ internal sealed class WorkerRegistrationService : IHostedService, IDisposable
         }
     }
 
-    private string GetAspNetServerAddress()
+    private Uri GetAspNetServerAddress(string? host)
     {
         Exception? error = null;
         try
@@ -131,11 +134,11 @@ internal sealed class WorkerRegistrationService : IHostedService, IDisposable
                 string chosen = https ?? addresses.First();
                 if (Uri.TryCreate(chosen, UriKind.Absolute, out var uri))
                 {
-                    string host = uri.Host;
+                    host ??= uri.Host;
                     bool isLocalhost = (IPAddress.TryParse(host, out var ip) && (IPAddress.Any.Equals(ip) || IPAddress.IPv6Any.Equals(ip))) || string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase);
 
-                    // Only replace localhost with hostname if the gateway is not also localhost
-                    if (isLocalhost)
+                    // Only replace localhost with hostname if the gateway is not also localhost and the 'host' parameter is not explicitly provided.
+                    if (isLocalhost && host is null)
                     {
                         bool gatewayIsLocalhost = false;
                         if (Uri.TryCreate(this._options.GatewayBaseAddress, UriKind.Absolute, out var gatewayUri))
@@ -154,7 +157,7 @@ internal sealed class WorkerRegistrationService : IHostedService, IDisposable
                     }
 
                     var builder = new UriBuilder(uri) { Host = host };
-                    return builder.Uri.ToString().TrimEnd('/');
+                    return builder.Uri;
                 }
             }
         }
