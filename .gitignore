@@ -212,3 +212,5 @@ WARP.md
 
 # Database files
 *.db
+.azurite/
+.redis/
