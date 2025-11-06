@@ -15,9 +15,6 @@ public static class DevUIExtensions
     public static IHostApplicationBuilder AddDevUI(this IHostApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
-        builder.Services.AddOpenAIConversations();
-        builder.Services.AddOpenAIResponses();
-
         return builder;
     }
 
@@ -33,8 +30,6 @@ public static class DevUIExtensions
         var group = endpoints.MapGroup("");
         group.MapDevUI(pattern: "/devui");
         group.MapEntities();
-        group.MapOpenAIConversations();
-        group.MapOpenAIResponses();
         return group;
     }
 

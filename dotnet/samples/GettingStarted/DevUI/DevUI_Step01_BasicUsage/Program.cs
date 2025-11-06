@@ -61,6 +61,8 @@ internal static class Program
             [assistantBuilder, reviewerBuilder])
             .AddAsAIAgent();
 
+        builder.AddOpenAIConversations();
+        builder.AddOpenAIResponses();
         if (builder.Environment.IsDevelopment())
         {
             builder.AddDevUI();
@@ -68,6 +70,8 @@ internal static class Program
 
         var app = builder.Build();
 
+        app.MapOpenAIResponses();
+        app.MapOpenAIConversations();
         if (builder.Environment.IsDevelopment())
         {
             app.MapDevUI();
