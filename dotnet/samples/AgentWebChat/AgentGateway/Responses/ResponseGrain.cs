@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using AgentGateway.Conversations;
@@ -60,7 +61,7 @@ internal interface IResponseGrain : IGrainWithStringKey
     /// <param name="request">The request to create the response.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The created response.</returns>
-    Task<Response> CreateAsync(CreateResponse request, CancellationToken cancellationToken = default);
+    Task<Response> CreateAsync(CreateResponse request, CancellationToken cancellationToken);
 
     /// <summary>
     /// Creates a streaming response using the ChatClientAgent.
@@ -68,13 +69,14 @@ internal interface IResponseGrain : IGrainWithStringKey
     /// <param name="request">The request to create the response.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>An async enumerable of streaming updates.</returns>
-    IAsyncEnumerable<StreamingResponseEvent> CreateStreamingAsync(CreateResponse request, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<StreamingResponseEvent> CreateStreamingAsync(CreateResponse request, CancellationToken cancellationToken);
 
     /// <summary>
     /// Gets the response.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The response if it exists, null otherwise.</returns>
-    Task<Response?> GetAsync();
+    Task<Response?> GetAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// Gets the response in streaming mode, yielding events as they become available.
@@ -82,7 +84,7 @@ internal interface IResponseGrain : IGrainWithStringKey
     /// <param name="startingAfter">The sequence number after which to start streaming. If null, starts from the beginning.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>An async enumerable of streaming updates.</returns>
-    IAsyncEnumerable<StreamingResponseEvent> GetStreamingAsync(int? startingAfter = null, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<StreamingResponseEvent> GetStreamingAsync(int? startingAfter, CancellationToken cancellationToken);
 
     /// <summary>
     /// Lists the input items for this response.
@@ -91,8 +93,9 @@ internal interface IResponseGrain : IGrainWithStringKey
     /// <param name="order">Sort order.</param>
     /// <param name="after">Return items after this ID.</param>
     /// <param name="before">Return items before this ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list response with items and pagination info.</returns>
-    Task<ListResponse<ItemResource>> ListInputItemsAsync(int limit, string order, string? after, string? before);
+    Task<ListResponse<ItemResource>> ListInputItemsAsync(int? limit, SortOrder? order, string? after, string? before, CancellationToken cancellationToken);
 
     /// <summary>
     /// Gets the response and its full thread (input + output messages), waiting for completion if necessary.
@@ -100,7 +103,7 @@ internal interface IResponseGrain : IGrainWithStringKey
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A tuple containing the response and the full list of items (input + output), or null if the response doesn't exist.</returns>
-    Task<(Response Response, List<ItemResource> Items)?> GetWithThreadAsync(CancellationToken cancellationToken = default);
+    Task<(Response Response, List<ItemResource> Items)?> GetWithThreadAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// Cancels an in-progress response.
@@ -108,14 +111,14 @@ internal interface IResponseGrain : IGrainWithStringKey
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The updated response after cancellation.</returns>
-    Task<Response> CancelAsync(CancellationToken cancellationToken = default);
+    Task<Response> CancelAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// Deletes the response and all its data.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if the response was deleted, false if it was not found.</returns>
-    Task<bool> DeleteAsync(CancellationToken cancellationToken = default);
+    Task<bool> DeleteAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -127,6 +130,7 @@ internal sealed class ResponseGrain(
     IResponseExecutor responseExecutor,
     ILogger<ResponseGrain> logger) : Grain, IResponseGrain, IRemindable, IDisposable
 {
+    private const int DefaultListInputItemLimit = 20;
     private const string BackgroundExecutionReminderName = "BackgroundExecution";
     private readonly CancellationTokenSource _shutdownCts = new();
     private readonly CancellationTokenSource _executionCts = new();
@@ -224,7 +228,7 @@ internal sealed class ResponseGrain(
 
     public async IAsyncEnumerable<StreamingResponseEvent> CreateStreamingAsync(
         CreateResponse request,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         if (responseState.State.Response is not null)
         {
@@ -283,14 +287,14 @@ internal sealed class ResponseGrain(
         await this._executionTask.WaitAsync(cancellationToken);
     }
 
-    public Task<Response?> GetAsync()
+    public Task<Response?> GetAsync(CancellationToken cancellationToken)
     {
         return Task.FromResult(responseState.State.Response);
     }
 
     public async IAsyncEnumerable<StreamingResponseEvent> GetStreamingAsync(
-        int? startingAfter = null,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        int? startingAfter,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         if (responseState.State.Response is null)
         {
@@ -321,7 +325,7 @@ internal sealed class ResponseGrain(
         }
     }
 
-    public Task<ListResponse<ItemResource>> ListInputItemsAsync(int limit, string order, string? after, string? before)
+    public Task<ListResponse<ItemResource>> ListInputItemsAsync(int? limit, SortOrder? order, string? after, string? before, CancellationToken cancellationToken)
     {
         if (responseState.State.Response is null)
         {
@@ -335,10 +339,10 @@ internal sealed class ResponseGrain(
             });
         }
 
-        limit = Math.Clamp(limit, 1, 100);
+        var effectiveLimit = Math.Clamp(limit ?? DefaultListInputItemLimit, 1, 100);
 
         List<ItemResource> itemResources = this.GetInputItems();
-        var limitedItems = itemResources.Take(limit).ToList();
+        var limitedItems = itemResources.Take(effectiveLimit).ToList();
 
         return Task.FromResult(new ListResponse<ItemResource>
         {
@@ -367,7 +371,7 @@ internal sealed class ResponseGrain(
         return itemResources;
     }
 
-    public async Task<(Response Response, List<ItemResource> Items)?> GetWithThreadAsync(CancellationToken cancellationToken = default)
+    public async Task<(Response Response, List<ItemResource> Items)?> GetWithThreadAsync(CancellationToken cancellationToken)
     {
         if (responseState.State.Response is null)
         {
@@ -634,7 +638,7 @@ internal sealed class ResponseGrain(
             // Add output items - they're already ItemResource
             messagesToAppend.AddRange(response.Output);
 
-            var appendedCount = await conversationGrain.AppendItemsAsync(messagesToAppend, lastMessageIdBeforeExecution);
+            var appendedCount = await conversationGrain.AppendItemsAsync(messagesToAppend, lastMessageIdBeforeExecution, cancellationToken);
             if (appendedCount != messagesToAppend.Count)
             {
                 if (appendedCount < 0)
@@ -657,7 +661,7 @@ internal sealed class ResponseGrain(
         }
     }
 
-    public async Task<Response> CancelAsync(CancellationToken cancellationToken = default)
+    public async Task<Response> CancelAsync(CancellationToken cancellationToken)
     {
         if (responseState.State.Response is null)
         {
@@ -698,7 +702,7 @@ internal sealed class ResponseGrain(
         return responseState.State.Response;
     }
 
-    public async Task<bool> DeleteAsync(CancellationToken cancellationToken = default)
+    public async Task<bool> DeleteAsync(CancellationToken cancellationToken)
     {
         if (responseState.State.Response is null)
         {

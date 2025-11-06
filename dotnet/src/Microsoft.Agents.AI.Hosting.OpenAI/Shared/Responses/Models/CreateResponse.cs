@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -14,8 +14,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 /// <summary>
 /// Request to create a model response.
 /// </summary>
-internal sealed class
-CreateResponse
+internal sealed record CreateResponse
 {
     /// <summary>
     /// Text, image, or file inputs to the model, used to generate a response.

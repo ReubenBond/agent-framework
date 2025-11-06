@@ -19,43 +19,43 @@ internal sealed class OrleansConversationStorage(IGrainFactory grainFactory) : I
     public async Task<Conversation> CreateConversationAsync(Conversation conversation, CancellationToken cancellationToken = default)
     {
         var grain = grainFactory.GetGrain<IConversationGrain>(conversation.Id);
-        return await grain.CreateAsync(conversation);
+        return await grain.CreateAsync(conversation, cancellationToken);
     }
 
     public async Task<Conversation?> GetConversationAsync(string conversationId, CancellationToken cancellationToken = default)
     {
         var grain = grainFactory.GetGrain<IConversationGrain>(conversationId);
-        return await grain.GetAsync();
+        return await grain.GetAsync(cancellationToken);
     }
 
     public async Task<Conversation?> UpdateConversationAsync(Conversation conversation, CancellationToken cancellationToken = default)
     {
         var grain = grainFactory.GetGrain<IConversationGrain>(conversation.Id);
-        return await grain.UpdateAsync(conversation);
+        return await grain.UpdateAsync(conversation, cancellationToken);
     }
 
     public async Task<bool> DeleteConversationAsync(string conversationId, CancellationToken cancellationToken = default)
     {
         var grain = grainFactory.GetGrain<IConversationGrain>(conversationId);
-        return await grain.DeleteAsync();
+        return await grain.DeleteAsync(cancellationToken);
     }
 
     public async Task<ItemResource> AddItemAsync(string conversationId, ItemResource item, CancellationToken cancellationToken = default)
     {
         var grain = grainFactory.GetGrain<IConversationGrain>(conversationId);
-        return await grain.AddItemAsync(item);
+        return await grain.AddItemAsync(item, cancellationToken);
     }
 
     public async Task AddItemsAsync(string conversationId, IEnumerable<ItemResource> items, CancellationToken cancellationToken = default)
     {
         var grain = grainFactory.GetGrain<IConversationGrain>(conversationId);
-        return await grain.AddItemsAsync(items);
+        await grain.AppendItemsAsync([.. items], afterItemId: null, cancellationToken);
     }
 
     public async Task<ItemResource?> GetItemAsync(string conversationId, string itemId, CancellationToken cancellationToken = default)
     {
         var grain = grainFactory.GetGrain<IConversationGrain>(conversationId);
-        return await grain.GetItemAsync(itemId);
+        return await grain.GetItemAsync(itemId, cancellationToken);
     }
 
     public async Task<ListResponse<ItemResource>> ListItemsAsync(
@@ -66,12 +66,12 @@ internal sealed class OrleansConversationStorage(IGrainFactory grainFactory) : I
         CancellationToken cancellationToken = default)
     {
         var grain = grainFactory.GetGrain<IConversationGrain>(conversationId);
-        return await grain.ListItemsAsync(limit, order, after);
+        return await grain.ListItemsAsync(limit, order, after, cancellationToken);
     }
 
     public async Task<bool> DeleteItemAsync(string conversationId, string itemId, CancellationToken cancellationToken = default)
     {
         var grain = grainFactory.GetGrain<IConversationGrain>(conversationId);
-        return await grain.DeleteItemAsync(itemId);
+        return await grain.DeleteItemAsync(itemId, cancellationToken);
     }
 }

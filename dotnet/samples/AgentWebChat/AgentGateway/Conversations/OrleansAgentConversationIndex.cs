@@ -34,21 +34,24 @@ public interface IAgentConversationIndexGrain : IGrainWithStringKey
     /// Adds a conversation ID to the agent's index.
     /// </summary>
     /// <param name="conversationId">The conversation identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    Task AddConversationAsync(string conversationId);
+    Task AddConversationAsync(string conversationId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Removes a conversation ID from the agent's index.
     /// </summary>
     /// <param name="conversationId">The conversation identifier.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task that represents the asynchronous operation.</returns>
-    Task RemoveConversationAsync(string conversationId);
+    Task RemoveConversationAsync(string conversationId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Gets all conversation IDs for this agent.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list of conversation IDs.</returns>
-    Task<IReadOnlyList<string>> GetConversationIdsAsync();
+    Task<IReadOnlyList<string>> GetConversationIdsAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -58,27 +61,27 @@ public interface IAgentConversationIndexGrain : IGrainWithStringKey
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes", Justification = "Instantiated by Orleans framework")]
 internal sealed class AgentConversationIndexGrain([PersistentState("state")] IPersistentState<AgentConversationIndexState> indexState) : Grain, IAgentConversationIndexGrain
 {
-    public async Task AddConversationAsync(string conversationId)
+    public async Task AddConversationAsync(string conversationId, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrEmpty(conversationId);
 
         if (indexState.State.ConversationIds.Add(conversationId))
         {
-            await indexState.WriteStateAsync();
+            await indexState.WriteStateAsync(cancellationToken);
         }
     }
 
-    public async Task RemoveConversationAsync(string conversationId)
+    public async Task RemoveConversationAsync(string conversationId, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrEmpty(conversationId);
 
         if (indexState.State.ConversationIds.Remove(conversationId))
         {
-            await indexState.WriteStateAsync();
+            await indexState.WriteStateAsync(cancellationToken);
         }
     }
 
-    public Task<IReadOnlyList<string>> GetConversationIdsAsync()
+    public Task<IReadOnlyList<string>> GetConversationIdsAsync(CancellationToken cancellationToken)
     {
         IReadOnlyList<string> conversationIds = indexState.State.ConversationIds.ToArray();
         return Task.FromResult(conversationIds);
@@ -109,32 +112,32 @@ internal sealed class AgentConversationIndexGrain([PersistentState("state")] IPe
 internal sealed class OrleansAgentConversationIndex(IGrainFactory grainFactory) : IAgentConversationIndex
 {
     /// <inheritdoc />
-    public async Task AddConversationAsync(string agentId, string conversationId, CancellationToken cancellationToken = default)
+    public async Task AddConversationAsync(string agentId, string conversationId, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrEmpty(agentId);
         ArgumentException.ThrowIfNullOrEmpty(conversationId);
 
         var grain = grainFactory.GetGrain<IAgentConversationIndexGrain>(agentId);
-        await grain.AddConversationAsync(conversationId);
+        await grain.AddConversationAsync(conversationId, cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task RemoveConversationAsync(string agentId, string conversationId, CancellationToken cancellationToken = default)
+    public async Task RemoveConversationAsync(string agentId, string conversationId, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrEmpty(agentId);
         ArgumentException.ThrowIfNullOrEmpty(conversationId);
 
         var grain = grainFactory.GetGrain<IAgentConversationIndexGrain>(agentId);
-        await grain.RemoveConversationAsync(conversationId);
+        await grain.RemoveConversationAsync(conversationId, cancellationToken);
     }
 
     /// <inheritdoc />
-    public async Task<ListResponse<string>> GetConversationIdsAsync(string agentId, CancellationToken cancellationToken = default)
+    public async Task<ListResponse<string>> GetConversationIdsAsync(string agentId, CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrEmpty(agentId);
 
         var grain = grainFactory.GetGrain<IAgentConversationIndexGrain>(agentId);
-        var results = await grain.GetConversationIdsAsync();
+        var results = await grain.GetConversationIdsAsync(cancellationToken);
         return new ListResponse<string> { Data = [.. results], HasMore = false };
     }
 }

@@ -8,7 +8,6 @@ using AgentWebChat.AgentHost.Utilities;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.DevUI;
 using Microsoft.Agents.AI.Hosting;
-using Microsoft.Agents.AI.Hosting.OpenAI.Conversations;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
 

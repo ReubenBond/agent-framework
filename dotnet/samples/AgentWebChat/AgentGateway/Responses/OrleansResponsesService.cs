@@ -60,7 +60,7 @@ internal sealed class OrleansResponsesService : IResponsesService
     public async Task<Response?> GetResponseAsync(string responseId, CancellationToken cancellationToken = default)
     {
         var grain = this._grainFactory.GetGrain<IResponseGrain>(responseId);
-        return await grain.GetAsync();
+        return await grain.GetAsync(cancellationToken);
     }
 
     /// <summary>
@@ -99,14 +99,14 @@ internal sealed class OrleansResponsesService : IResponsesService
     /// </summary>
     public async Task<ListResponse<ItemResource>> ListResponseInputItemsAsync(
         string responseId,
-        int limit,
-        string order,
+        int? limit,
+        SortOrder? order,
         string? after,
         string? before,
         CancellationToken cancellationToken = default)
     {
         var grain = this._grainFactory.GetGrain<IResponseGrain>(responseId);
-        return await grain.ListInputItemsAsync(limit, order, after, before);
+        return await grain.ListInputItemsAsync(limit, order, after, before, cancellationToken);
     }
 
     /// <summary>

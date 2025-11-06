@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using AgentGateway.Conversations.Models;
 using AgentGateway.Models;
@@ -41,41 +42,47 @@ internal interface IConversationGrain : IGrainWithStringKey
     /// Creates a new conversation.
     /// </summary>
     /// <param name="conversation">The conversation to create.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The created conversation.</returns>
-    Task<Conversation> CreateAsync(Conversation conversation);
+    Task<Conversation> CreateAsync(Conversation conversation, CancellationToken cancellationToken);
 
     /// <summary>
     /// Gets the conversation.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The conversation if it exists, null otherwise.</returns>
-    Task<Conversation?> GetAsync();
+    Task<Conversation?> GetAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// Updates the conversation.
     /// </summary>
     /// <param name="conversation">The conversation with updated values.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The updated conversation if found, null otherwise.</returns>
-    Task<Conversation?> UpdateAsync(Conversation conversation);
+    Task<Conversation?> UpdateAsync(Conversation conversation, CancellationToken cancellationToken);
 
     /// <summary>
     /// Deletes the conversation and all its messages.
     /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if deleted, false if not found.</returns>
-    Task<bool> DeleteAsync();
+    Task<bool> DeleteAsync(CancellationToken cancellationToken);
 
     /// <summary>
     /// Adds an item to the conversation.
     /// </summary>
     /// <param name="item">The item to add.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The created item.</returns>
-    Task<ItemResource> AddItemAsync(ItemResource item);
+    Task<ItemResource> AddItemAsync(ItemResource item, CancellationToken cancellationToken);
 
     /// <summary>
     /// Gets an item by ID.
     /// </summary>
     /// <param name="itemId">The item ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The item if found, null otherwise.</returns>
-    Task<ItemResource?> GetItemAsync(string itemId);
+    Task<ItemResource?> GetItemAsync(string itemId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Lists items in the conversation with pagination.
@@ -83,24 +90,27 @@ internal interface IConversationGrain : IGrainWithStringKey
     /// <param name="limit">Maximum number of items to return.</param>
     /// <param name="order">Sort order.</param>
     /// <param name="after">Return items after this ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list response with items and pagination info.</returns>
-    Task<ListResponse<ItemResource>> ListItemsAsync(int? limit, SortOrder? order, string? after);
+    Task<ListResponse<ItemResource>> ListItemsAsync(int? limit, SortOrder? order, string? after, CancellationToken cancellationToken);
 
     /// <summary>
     /// Deletes a specific item from the conversation.
     /// </summary>
     /// <param name="itemId">The item ID.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if deleted, false if not found.</returns>
-    Task<bool> DeleteItemAsync(string itemId);
+    Task<bool> DeleteItemAsync(string itemId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Appends multiple items to the conversation in an idempotent manner.
     /// </summary>
     /// <param name="items">The items to append.</param>
     /// <param name="afterItemId">The ID of the last item that must exist before appending. If null, items are appended if the conversation is empty.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The number of items actually appended (0 if the operation was a duplicate/retry).</returns>
     /// <exception cref="InvalidOperationException">Thrown if the afterItemId doesn't match the last item in the conversation.</exception>
-    Task<int> AppendItemsAsync(IReadOnlyList<ItemResource> items, string? afterItemId);
+    Task<int> AppendItemsAsync(IReadOnlyList<ItemResource> items, string? afterItemId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Gets all items in the conversation as an async stream.
@@ -118,7 +128,7 @@ internal sealed class ConversationGrain([PersistentState("state")] IPersistentSt
 {
     private const int DefaultListItemsLimit = 20;
 
-    public async Task<Conversation> CreateAsync(Conversation conversation)
+    public async Task<Conversation> CreateAsync(Conversation conversation, CancellationToken cancellationToken)
     {
         if (conversationState.State.Conversation is not null)
         {
@@ -126,16 +136,16 @@ internal sealed class ConversationGrain([PersistentState("state")] IPersistentSt
         }
 
         conversationState.State.Conversation = conversation;
-        await conversationState.WriteStateAsync();
+        await conversationState.WriteStateAsync(cancellationToken);
         return conversation;
     }
 
-    public Task<Conversation?> GetAsync()
+    public Task<Conversation?> GetAsync(CancellationToken cancellationToken)
     {
         return Task.FromResult(conversationState.State.Conversation);
     }
 
-    public async Task<Conversation?> UpdateAsync(Conversation conversation)
+    public async Task<Conversation?> UpdateAsync(Conversation conversation, CancellationToken cancellationToken)
     {
         if (conversationState.State.Conversation is null)
         {
@@ -143,22 +153,22 @@ internal sealed class ConversationGrain([PersistentState("state")] IPersistentSt
         }
 
         conversationState.State.Conversation = conversation;
-        await conversationState.WriteStateAsync();
+        await conversationState.WriteStateAsync(cancellationToken);
         return conversation;
     }
 
-    public async Task<bool> DeleteAsync()
+    public async Task<bool> DeleteAsync(CancellationToken cancellationToken)
     {
         if (conversationState.State.Conversation is null)
         {
             return false;
         }
 
-        await conversationState.ClearStateAsync();
+        await conversationState.ClearStateAsync(cancellationToken);
         return true;
     }
 
-    public async Task<ItemResource> AddItemAsync(ItemResource item)
+    public async Task<ItemResource> AddItemAsync(ItemResource item, CancellationToken cancellationToken)
     {
         if (conversationState.State.Conversation is null)
         {
@@ -171,17 +181,17 @@ internal sealed class ConversationGrain([PersistentState("state")] IPersistentSt
         }
 
         conversationState.State.Items[item.Id] = item;
-        await conversationState.WriteStateAsync();
+        await conversationState.WriteStateAsync(cancellationToken);
         return item;
     }
 
-    public Task<ItemResource?> GetItemAsync(string itemId)
+    public Task<ItemResource?> GetItemAsync(string itemId, CancellationToken cancellationToken)
     {
         conversationState.State.Items.TryGetValue(itemId, out var item);
         return Task.FromResult(item);
     }
 
-    public Task<ListResponse<ItemResource>> ListItemsAsync(int? limit, SortOrder? order, string? after)
+    public Task<ListResponse<ItemResource>> ListItemsAsync(int? limit, SortOrder? order, string? after, CancellationToken cancellationToken)
     {
         if (conversationState.State.Conversation is null)
         {
@@ -244,18 +254,18 @@ internal sealed class ConversationGrain([PersistentState("state")] IPersistentSt
         });
     }
 
-    public async Task<bool> DeleteItemAsync(string itemId)
+    public async Task<bool> DeleteItemAsync(string itemId, CancellationToken cancellationToken)
     {
         if (conversationState.State.Items.Remove(itemId))
         {
-            await conversationState.WriteStateAsync();
+            await conversationState.WriteStateAsync(cancellationToken);
             return true;
         }
 
         return false;
     }
 
-    public async Task<int> AppendItemsAsync(IReadOnlyList<ItemResource> items, string? afterItemId)
+    public async Task<int> AppendItemsAsync(IReadOnlyList<ItemResource> items, string? afterItemId, CancellationToken cancellationToken)
     {
         if (conversationState.State.Conversation is null)
         {
@@ -298,7 +308,7 @@ internal sealed class ConversationGrain([PersistentState("state")] IPersistentSt
 
         if (appendedCount > 0)
         {
-            await conversationState.WriteStateAsync();
+            await conversationState.WriteStateAsync(cancellationToken);
         }
 
         return appendedCount;

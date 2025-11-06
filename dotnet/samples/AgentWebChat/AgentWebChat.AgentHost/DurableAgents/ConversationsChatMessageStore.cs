@@ -1,10 +1,9 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Text.Json;
+using AgentGateway.Models;
+using AgentGateway.Responses.Models;
 using Microsoft.Agents.AI;
-using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 using Microsoft.Extensions.AI;
 
 namespace AgentWebChat.AgentHost.DurableAgents.Utilities;
@@ -18,7 +17,7 @@ namespace AgentWebChat.AgentHost.DurableAgents.Utilities;
 /// Messages are stored as ItemResources in the conversation.
 /// This class handles the conversion between ChatMessage and Conversations API types.
 /// </remarks>
-public sealed class ConversationsChatMessageStore : ChatMessageStore
+internal sealed class ConversationsChatMessageStore : ChatMessageStore
 {
     private readonly ConversationsApiClient _apiClient;
     private readonly string _conversationId;
@@ -98,7 +97,7 @@ public sealed class ConversationsChatMessageStore : ChatMessageStore
 
         // Convert ChatMessages to ItemParams for the CreateItemsRequest using the centralized extension method
         List<ItemParam> itemParams = messageList
-            .SelectMany(m => m.ToItemParams())
+            .SelectMany(m => m.Item())
             .ToList();
 
         // Add the items to the conversation via the API client

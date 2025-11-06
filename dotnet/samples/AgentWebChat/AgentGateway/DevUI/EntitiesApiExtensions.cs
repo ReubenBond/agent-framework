@@ -1,16 +1,14 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Text.Json;
 using System.Threading.Tasks;
-using Microsoft.Agents.AI.DevUI.Entities;
 using Microsoft.Agents.AI.Hosting;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using AgentGateway.DevUI.Entities;
 using System.Threading;
+using System.Linq;
 
 namespace AgentGateway.DevUI;
 
@@ -55,86 +53,12 @@ internal static class EntitiesApiExtensions
     }
 
     private static async Task<IResult> ListEntitiesAsync(
-        AgentCatalog? agentCatalog,
-        WorkflowCatalog? workflowCatalog,
+        WorkerRegistryEntityProvider entityProvider,
         CancellationToken cancellationToken)
     {
         try
         {
-            var entities = new List<EntityInfo>();
-
-            // Discover agents from the agent catalog
-            if (agentCatalog is not null)
-            {
-                await foreach (var agent in agentCatalog.GetAgentsAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    if (agent.GetType().Name == "WorkflowHostAgent")
-                    {
-                        // HACK: ignore WorkflowHostAgent instances as they are just wrappers around workflows,
-                        // and workflows are handled below.
-                        continue;
-                    }
-
-                    entities.Add(new EntityInfo(
-                        Id: agent.Name ?? agent.Id,
-                        Type: "agent",
-                        Name: agent.Name ?? agent.Id,
-                        Description: agent.Description,
-                        Framework: "agent-framework",
-                        Tools: null,
-                        Metadata: []
-                    )
-                    {
-                        Source = "in_memory"
-                    });
-                }
-            }
-
-            // Discover workflows from the workflow catalog
-            if (workflowCatalog is not null)
-            {
-                await foreach (var workflow in workflowCatalog.GetWorkflowsAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    // Extract executor IDs from the workflow structure
-                    var executorIds = new HashSet<string> { workflow.StartExecutorId };
-                    var reflectedEdges = workflow.ReflectEdges();
-                    foreach (var (sourceId, edgeSet) in reflectedEdges)
-                    {
-                        executorIds.Add(sourceId);
-                        foreach (var edge in edgeSet)
-                        {
-                            foreach (var sinkId in edge.Connection.SinkIds)
-                            {
-                                executorIds.Add(sinkId);
-                            }
-                        }
-                    }
-
-                    // Create a default input schema (string type)
-                    var defaultInputSchema = new Dictionary<string, object>
-                    {
-                        ["type"] = "string"
-                    };
-
-                    entities.Add(new EntityInfo(
-                        Id: workflow.Name ?? workflow.StartExecutorId,
-                        Type: "workflow",
-                        Name: workflow.Name ?? workflow.StartExecutorId,
-                        Description: workflow.Description,
-                        Framework: "agent-framework",
-                        Tools: [.. executorIds],
-                        Metadata: []
-                    )
-                    {
-                        Source = "in_memory",
-                        WorkflowDump = JsonSerializer.SerializeToElement(workflow.ToDevUIDict()),
-                        InputSchema = JsonSerializer.SerializeToElement(defaultInputSchema),
-                        InputTypeName = "string",
-                        StartExecutorId = workflow.StartExecutorId
-                    });
-                }
-            }
-
+            var entities = await entityProvider.GetEntitiesAsync(cancellationToken).ToListAsync(cancellationToken).ConfigureAwait(false);
             return Results.Json(new DiscoveryResponse(entities), EntitiesJsonContext.Default.DiscoveryResponse);
         }
         catch (Exception ex)
@@ -148,94 +72,15 @@ internal static class EntitiesApiExtensions
 
     private static async Task<IResult> GetEntityInfoAsync(
         string entityId,
-        AgentCatalog? agentCatalog,
-        WorkflowCatalog? workflowCatalog,
+        WorkerRegistryEntityProvider entityProvider,
         CancellationToken cancellationToken)
     {
         try
         {
-            // Try to find the entity among discovered agents
-            if (agentCatalog is not null)
+            var entity = await entityProvider.GetEntityAsync(entityId, cancellationToken).ConfigureAwait(false);
+            if (entity is not null)
             {
-                await foreach (var agent in agentCatalog.GetAgentsAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    if (agent.GetType().Name == "WorkflowHostAgent")
-                    {
-                        // HACK: ignore WorkflowHostAgent instances as they are just wrappers around workflows,
-                        // and workflows are handled below.
-                        continue;
-                    }
-
-                    if (string.Equals(agent.Name, entityId, StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(agent.Id, entityId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        var entityInfo = new EntityInfo(
-                            Id: agent.Name ?? agent.Id,
-                            Type: "agent",
-                            Name: agent.Name ?? agent.Id,
-                            Description: agent.Description,
-                            Framework: "agent-framework",
-                            Tools: null,
-                            Metadata: []
-                        )
-                        {
-                            Source = "in_memory"
-                        };
-
-                        return Results.Json(entityInfo, EntitiesJsonContext.Default.EntityInfo);
-                    }
-                }
-            }
-
-            // Try to find the entity among discovered workflows
-            if (workflowCatalog is not null)
-            {
-                await foreach (var workflow in workflowCatalog.GetWorkflowsAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    var workflowId = workflow.Name ?? workflow.StartExecutorId;
-                    if (string.Equals(workflowId, entityId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        // Extract executor IDs from the workflow structure
-                        var executorIds = new HashSet<string> { workflow.StartExecutorId };
-                        var reflectedEdges = workflow.ReflectEdges();
-                        foreach (var (sourceId, edgeSet) in reflectedEdges)
-                        {
-                            executorIds.Add(sourceId);
-                            foreach (var edge in edgeSet)
-                            {
-                                foreach (var sinkId in edge.Connection.SinkIds)
-                                {
-                                    executorIds.Add(sinkId);
-                                }
-                            }
-                        }
-
-                        // Create a default input schema (string type)
-                        var defaultInputSchema = new Dictionary<string, object>
-                        {
-                            ["type"] = "string"
-                        };
-
-                        var entityInfo = new EntityInfo(
-                            Id: workflowId,
-                            Type: "workflow",
-                            Name: workflow.Name ?? workflow.StartExecutorId,
-                            Description: workflow.Description,
-                            Framework: "agent-framework",
-                            Tools: [.. executorIds],
-                            Metadata: []
-                        )
-                        {
-                            Source = "in_memory",
-                            WorkflowDump = JsonSerializer.SerializeToElement(workflow.ToDevUIDict()),
-                            InputSchema = JsonSerializer.SerializeToElement(defaultInputSchema),
-                            InputTypeName = "Input",
-                            StartExecutorId = workflow.StartExecutorId
-                        };
-
-                        return Results.Json(entityInfo, EntitiesJsonContext.Default.EntityInfo);
-                    }
-                }
+                Results.Json(entity, EntitiesJsonContext.Default.EntityInfo);
             }
 
             return Results.NotFound(new { error = new { message = $"Entity '{entityId}' not found.", type = "invalid_request_error" } });

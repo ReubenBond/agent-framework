@@ -14,7 +14,7 @@ namespace AgentWebChat.AgentHost.DurableAgents.Utilities;
 /// This client handles HTTP communication with the Conversations API exposed by the AgentGateway.
 /// It provides methods for creating conversations, listing items, and adding items to conversations.
 /// </remarks>
-public sealed class ConversationsApiClient
+internal sealed class ConversationsApiClient
 {
     private readonly HttpClient _httpClient;
     private readonly JsonSerializerOptions _jsonOptions;
@@ -185,9 +185,9 @@ public sealed class ConversationsApiClient
         ArgumentException.ThrowIfNullOrWhiteSpace(conversationId);
         ArgumentNullException.ThrowIfNull(items);
 
-        ItemParam[] itemArray = items.ToArray();
+        var itemList = items.ToList();
 
-        if (itemArray.Length == 0)
+        if (itemList.Count == 0)
         {
             return;
         }
@@ -196,7 +196,7 @@ public sealed class ConversationsApiClient
         {
             CreateItemsRequest createRequest = new()
             {
-                Items = itemArray
+                Items = itemList
             };
 
             Uri requestUri = new($"/v1/conversations/{conversationId}/items", UriKind.Relative);

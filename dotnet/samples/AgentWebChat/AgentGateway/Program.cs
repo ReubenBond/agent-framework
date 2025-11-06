@@ -8,6 +8,7 @@ using AgentGateway.Conversations;
 using AgentGateway.Health;
 using AgentGateway.Responses;
 using AgentGateway.Utilities;
+using AgentGateway.DevUI;
 using Microsoft.Agents.AI.DevUI;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
