@@ -60,8 +60,8 @@ internal sealed class OrleansConversationStorage(IGrainFactory grainFactory) : I
 
     public async Task<ListResponse<ItemResource>> ListItemsAsync(
         string conversationId,
-        int? limit,
-        SortOrder? order,
+        int? limit = null,
+        SortOrder? order = null,
         string? after = null,
         CancellationToken cancellationToken = default)
     {

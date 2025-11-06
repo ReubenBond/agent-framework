@@ -5,6 +5,7 @@ using AgentGateway.Models;
 using AgentGateway.Responses.Models;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
+using AgentContracts;
 
 namespace AgentWebChat.AgentHost.DurableAgents.Utilities;
 
@@ -97,7 +98,7 @@ internal sealed class ConversationsChatMessageStore : ChatMessageStore
 
         // Convert ChatMessages to ItemParams for the CreateItemsRequest using the centralized extension method
         List<ItemParam> itemParams = messageList
-            .SelectMany(m => m.Item())
+            .SelectMany(m => m.ToItemParams())
             .ToList();
 
         // Add the items to the conversation via the API client

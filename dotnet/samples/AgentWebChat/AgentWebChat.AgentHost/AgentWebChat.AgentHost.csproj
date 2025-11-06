@@ -38,5 +38,9 @@
     <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" VersionOverride="10.0.0-rc.2.25502.107" />
   </ItemGroup>
   <!-- A2A dependency -->
+  
+  <ItemGroup>
+    <InternalsVisibleTo Include="AgentGateway.UnitTests" />
+  </ItemGroup>
 
 </Project>

@@ -1,7 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
+using AgentGateway.Responses;
+using AgentGateway.Responses.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Orleans.Serialization;
@@ -30,7 +30,7 @@ public sealed class OrleansTestClusterFixture : IAsyncLifetime
     /// Gets the mock IResponseExecutor instance shared across all tests.
     /// Reset this mock between tests using ResetResponseExecutorMock().
     /// </summary>
-    public Mock<IResponseExecutor> ResponseExecutorMock { get; private set; } = null!;
+    internal Mock<IResponseExecutor> ResponseExecutorMock { get; private set; } = null!;
 
     /// <summary>
     /// Resets the mock IResponseExecutor to clear any previous setups or verifications.

@@ -1,8 +1,8 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using AgentGateway.Models;
 using AgentGateway.Responses;
-using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
+using AgentGateway.Responses.Models;
 
 namespace AgentGateway.UnitTests.Responses;
 
@@ -76,7 +76,7 @@ public class ResponseGrainTests
         await grain.CreateAsync(request, CancellationToken.None);
 
         // Act
-        Response? result = await grain.GetAsync();
+        Response? result = await grain.GetAsync(CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -91,7 +91,7 @@ public class ResponseGrainTests
         IResponseGrain grain = this.GrainFactory.GetGrain<IResponseGrain>(responseId);
 
         // Act
-        Response? result = await grain.GetAsync();
+        Response? result = await grain.GetAsync(CancellationToken.None);
 
         // Assert
         result.Should().BeNull();
@@ -107,7 +107,7 @@ public class ResponseGrainTests
         await grain.CreateAsync(request, CancellationToken.None);
 
         // Act
-        ListResponse<ItemResource> result = await grain.ListInputItemsAsync(5, "asc", null, null);
+        ListResponse<ItemResource> result = await grain.ListInputItemsAsync(5, SortOrder.Ascending, null, null, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -122,7 +122,7 @@ public class ResponseGrainTests
         IResponseGrain grain = this.GrainFactory.GetGrain<IResponseGrain>(responseId);
 
         // Act
-        ListResponse<ItemResource> result = await grain.ListInputItemsAsync(10, "asc", null, null);
+        ListResponse<ItemResource> result = await grain.ListInputItemsAsync(10, SortOrder.Ascending, null, null, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
@@ -139,7 +139,7 @@ public class ResponseGrainTests
         await grain.CreateAsync(request, CancellationToken.None);
 
         // Act
-        ListResponse<ItemResource> result = await grain.ListInputItemsAsync(5, "asc", null, null);
+        ListResponse<ItemResource> result = await grain.ListInputItemsAsync(5, SortOrder.Ascending, null, null, CancellationToken.None);
 
         // Assert
         result.Data.Count.Should().BeLessThanOrEqualTo(5);
@@ -155,8 +155,8 @@ public class ResponseGrainTests
         await grain.CreateAsync(request, CancellationToken.None);
 
         // Act
-        ListResponse<ItemResource> ascResult = await grain.ListInputItemsAsync(10, "asc", null, null);
-        ListResponse<ItemResource> descResult = await grain.ListInputItemsAsync(10, "desc", null, null);
+        ListResponse<ItemResource> ascResult = await grain.ListInputItemsAsync(10, SortOrder.Ascending, null, null, CancellationToken.None);
+        ListResponse<ItemResource> descResult = await grain.ListInputItemsAsync(10, SortOrder.Descending, null, null, CancellationToken.None);
 
         // Assert
         ascResult.Should().NotBeNull();

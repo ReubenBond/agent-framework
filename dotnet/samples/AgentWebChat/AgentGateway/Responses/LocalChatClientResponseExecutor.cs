@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using AgentGateway.Conversations;
 using AgentGateway.Models;
 using AgentGateway.Responses.Models;
+using AgentContracts;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 using Orleans;

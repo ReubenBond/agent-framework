@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -25,8 +25,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Conversations;
 /// In-memory implementation of conversation storage for testing and development.
 /// This implementation is thread-safe but data is not persisted across application restarts.
 /// </summary>
-internal sealed class
-InMemoryConversationStorage : IConversationStorage, IDisposable
+internal sealed class InMemoryConversationStorage : IConversationStorage, IDisposable
 {
     private const int DefaultListItemLimit = 20;
 

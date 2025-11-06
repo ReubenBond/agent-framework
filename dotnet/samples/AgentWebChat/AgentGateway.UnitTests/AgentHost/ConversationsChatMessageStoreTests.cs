@@ -2,9 +2,9 @@
 
 using System.Net;
 using System.Text.Json;
+using AgentGateway.Models;
+using AgentGateway.Responses.Models;
 using AgentWebChat.AgentHost.DurableAgents.Utilities;
-using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 using Microsoft.Extensions.AI;
 using Moq;
 using Moq.Protected;

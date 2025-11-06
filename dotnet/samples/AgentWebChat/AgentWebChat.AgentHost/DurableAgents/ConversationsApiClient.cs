@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using AgentGateway.Conversations.Models;
 using AgentGateway.Models;
@@ -14,6 +15,7 @@ namespace AgentWebChat.AgentHost.DurableAgents.Utilities;
 /// This client handles HTTP communication with the Conversations API exposed by the AgentGateway.
 /// It provides methods for creating conversations, listing items, and adding items to conversations.
 /// </remarks>
+[SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes", Justification = "This class is instantiated by dependency injection as a hosted service")]
 internal sealed class ConversationsApiClient
 {
     private readonly HttpClient _httpClient;

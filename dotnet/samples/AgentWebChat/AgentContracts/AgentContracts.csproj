@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="AgentWebChat.AgentHost.UnitTests" />
+    <InternalsVisibleTo Include="AgentGateway.UnitTests" />
     <InternalsVisibleTo Include="AgentGateway" />
     <InternalsVisibleTo Include="AgentWebChat.AgentHost" />
   </ItemGroup>
