@@ -1,5 +1,8 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System.Threading;
+using System.Threading.Tasks;
+
 namespace AgentGateway.Utilities;
 
 internal sealed class AsyncManualResetEvent

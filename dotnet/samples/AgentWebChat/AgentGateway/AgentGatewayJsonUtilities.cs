@@ -1,11 +1,11 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using AgentGateway.Conversations;
 using AgentGateway.Responses;
-using Microsoft.Agents.AI.Hosting.OpenAI;
 
 namespace AgentGateway;
 
@@ -29,7 +29,7 @@ public static class AgentGatewayJsonUtilities
         JsonSerializerOptions options = new(AgentGatewayJsonContext.Default.Options);
 
         // Chain with OpenAI Hosting types (which includes Microsoft.Extensions.AI types)
-        options.TypeInfoResolverChain.Add(OpenAIJsonUtilities.DefaultOptions.TypeInfoResolver!);
+        options.TypeInfoResolverChain.Add(OpenAIHostingJsonUtilities.DefaultOptions.TypeInfoResolver!);
 
         options.MakeReadOnly();
         return options;

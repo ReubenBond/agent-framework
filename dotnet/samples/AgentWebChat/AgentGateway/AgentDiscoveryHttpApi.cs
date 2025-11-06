@@ -1,6 +1,12 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using AgentContracts;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 
 namespace AgentGateway;
 
@@ -14,7 +20,7 @@ internal static class AgentDiscoveryHttpApi
             var allAgents = new Dictionary<string, AgentDiscoveryCard>(StringComparer.OrdinalIgnoreCase);
             foreach (var worker in registry.ActiveWorkers.Where(w => w.DiscoveryPath is not null))
             {
-                var supportedAgents = await cache.DiscoverAgentsAsync(worker, cancellationToken);
+                IReadOnlyDictionary<string, AgentDiscoveryCard>? supportedAgents = await cache.DiscoverAgentsAsync(worker, cancellationToken);
                 if (supportedAgents is not null)
                 {
                     foreach (var (agentName, agentCard) in supportedAgents)

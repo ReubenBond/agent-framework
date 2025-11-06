@@ -1,8 +1,14 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using AgentGateway.Conversations.Models;
 using AgentGateway.Models;
 using AgentGateway.Responses.Models;
+using Orleans;
+using Orleans.Runtime;
 
 namespace AgentGateway.Conversations;
 
@@ -78,7 +84,7 @@ internal interface IConversationGrain : IGrainWithStringKey
     /// <param name="order">Sort order.</param>
     /// <param name="after">Return items after this ID.</param>
     /// <returns>A list response with items and pagination info.</returns>
-    Task<ListResponse<ItemResource>> ListItemsAsync(int limit, SortOrder order, string? after);
+    Task<ListResponse<ItemResource>> ListItemsAsync(int? limit, SortOrder? order, string? after);
 
     /// <summary>
     /// Deletes a specific item from the conversation.
@@ -110,6 +116,8 @@ internal interface IConversationGrain : IGrainWithStringKey
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1812:Avoid uninstantiated internal classes", Justification = "Instantiated by Orleans framework")]
 internal sealed class ConversationGrain([PersistentState("state")] IPersistentState<ConversationState> conversationState) : Grain, IConversationGrain
 {
+    private const int DefaultListItemsLimit = 20;
+
     public async Task<Conversation> CreateAsync(Conversation conversation)
     {
         if (conversationState.State.Conversation is not null)
@@ -173,18 +181,19 @@ internal sealed class ConversationGrain([PersistentState("state")] IPersistentSt
         return Task.FromResult(item);
     }
 
-    public Task<ListResponse<ItemResource>> ListItemsAsync(int limit, SortOrder order, string? after)
+    public Task<ListResponse<ItemResource>> ListItemsAsync(int? limit, SortOrder? order, string? after)
     {
         if (conversationState.State.Conversation is null)
         {
             throw new InvalidOperationException($"Conversation '{this.GetPrimaryKeyString()}' not found.");
         }
 
-        limit = Math.Clamp(limit, 1, 100);
+        var effectiveLimit = Math.Clamp(limit ?? DefaultListItemsLimit, 1, 100);
 
         var items = conversationState.State.Items;
         var count = items.Count;
-        var isAscending = order.IsAscending();
+        var effectiveOrder = order ?? SortOrder.Descending;
+        var isAscending = effectiveOrder.IsAscending();
 
         // Determine iteration direction and bounds in insertion order space
         int startIndex = 0;
@@ -211,7 +220,7 @@ internal sealed class ConversationGrain([PersistentState("state")] IPersistentSt
 
         var result = new List<ItemResource>();
 
-        for (int i = 0; i < Math.Min(limit + 1, endIndex - startIndex); i++)
+        for (int i = 0; i < Math.Min(effectiveLimit + 1, endIndex - startIndex); i++)
         {
             var index = isAscending ? startIndex + i : endIndex - 1 - i;
             if (index >= startIndex && index < endIndex)

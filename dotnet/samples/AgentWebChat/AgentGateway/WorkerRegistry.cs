@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System;
 using System.Collections.Concurrent;
 using AgentContracts;
 using Microsoft.Extensions.Options;
@@ -9,7 +10,7 @@ namespace AgentGateway;
 /// <summary>
 /// Tracks Worker instances registered with the gateway.
 /// </summary>
-public sealed class WorkerRegistry
+internal sealed class WorkerRegistry
 {
     /// <summary>
     /// Well-known ID for the default worker.
@@ -153,7 +154,7 @@ public sealed class WorkerRegistry
     /// <summary>
     /// Info about a worker. Endpoints are represented as a base endpoint plus relative paths.
     /// </summary>
-    public sealed record WorkerInfo(
+    internal sealed record WorkerInfo(
         string Id,
         string HostId,
         Uri Endpoint,
@@ -165,7 +166,7 @@ public sealed class WorkerRegistry
         public Uri DiscoveryUri { get; } = new Uri(Endpoint, DiscoveryPath);
     }
 
-    public sealed record Entry(WorkerInfo Info, DateTimeOffset LastHeartbeat)
+    internal sealed record Entry(WorkerInfo Info, DateTimeOffset LastHeartbeat)
     {
         public int ConsecutiveFailures { get; init; }
         public bool IsDown { get; init; }

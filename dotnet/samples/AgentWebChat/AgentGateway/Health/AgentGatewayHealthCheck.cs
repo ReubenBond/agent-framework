@@ -1,5 +1,9 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace AgentGateway.Health;
@@ -7,7 +11,7 @@ namespace AgentGateway.Health;
 /// <summary>
 /// Health check for the Agent Gateway that verifies worker connectivity and entity discovery.
 /// </summary>
-public class AgentGatewayHealthCheck : IHealthCheck
+internal class AgentGatewayHealthCheck : IHealthCheck
 {
     private readonly WorkerRegistry _registry;
     private readonly WorkerDiscoveryCache _cache;

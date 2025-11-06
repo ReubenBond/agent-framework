@@ -2,11 +2,12 @@
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <!-- Suppress OPENAI001 diagnostic for experimental APIs used in source-generated serialization -->
     <NoWarn>$(NoWarn);OPENAI001;MEAI001;CA1812</NoWarn>
     <DefineConstants>$(DefineConstants);AGENTGATEWAY</DefineConstants>
+    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,6 +22,12 @@
 
   <ItemGroup>
     <Compile Include="..\..\..\src\Microsoft.Agents.AI.Hosting.OpenAI\Shared\**\*.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="AgentWebChat.AgentHost.UnitTests" />
+    <InternalsVisibleTo Include="AgentGateway" />
+    <InternalsVisibleTo Include="AgentWebChat.AgentHost" />
   </ItemGroup>
 
   <ItemGroup>

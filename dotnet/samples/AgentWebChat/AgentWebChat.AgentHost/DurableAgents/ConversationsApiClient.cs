@@ -1,8 +1,9 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Text.Json;
-using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
+using AgentGateway.Conversations.Models;
+using AgentGateway.Models;
+using AgentGateway.Responses.Models;
 
 namespace AgentWebChat.AgentHost.DurableAgents.Utilities;
 

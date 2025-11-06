@@ -1,9 +1,14 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System;
+using System.Net.Http;
 using AgentGateway.Utilities;
 using Azure;
 using Azure.AI.Inference;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using OllamaSharp;
 
 namespace AgentGateway.Utilities;

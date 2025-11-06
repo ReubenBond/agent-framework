@@ -1,11 +1,15 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using AgentGateway.Conversations;
+using AgentGateway.Models;
+using AgentGateway.Responses.Models;
 using Microsoft.Agents.AI;
-using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 using Microsoft.Extensions.AI;
+using Orleans;
 
 namespace AgentGateway.Responses;
 
@@ -13,7 +17,7 @@ namespace AgentGateway.Responses;
 /// Response executor that uses a local IChatClient to execute responses using ChatClientAgent.
 /// This is the original implementation that was embedded in ResponseGrain.
 /// </summary>
-public sealed class LocalChatClientResponseExecutor : IResponseExecutor
+internal sealed class LocalChatClientResponseExecutor : IResponseExecutor
 {
     private readonly IChatClient _chatClient;
     private readonly IGrainFactory _grainFactory;
@@ -29,7 +33,7 @@ public sealed class LocalChatClientResponseExecutor : IResponseExecutor
     public async IAsyncEnumerable<StreamingResponseEvent> ExecuteAsync(
         AgentInvocationContext context,
         CreateResponse request,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         var agent = new ChatClientAgent(
             this._chatClient,
@@ -50,10 +54,6 @@ public sealed class LocalChatClientResponseExecutor : IResponseExecutor
 #pragma warning disable MEAI001 // Type is for evaluation purposes only and is subject to change or removal in future updates.
             AllowBackgroundResponses = request.Background,
 #pragma warning restore MEAI001 // Type is for evaluation purposes only and is subject to change or removal in future updates.
-            AdditionalProperties = new AdditionalPropertiesDictionary
-            {
-                [nameof(CreateResponse)] = request
-            }
         };
         var options = new ChatClientAgentRunOptions(chatOptions);
 

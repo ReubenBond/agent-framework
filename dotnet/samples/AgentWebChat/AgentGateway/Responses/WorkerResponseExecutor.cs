@@ -1,10 +1,17 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
+using System.Threading;
+using System.Threading.Tasks;
+using AgentGateway.Responses.Models;
+using Microsoft.Extensions.Logging;
 
 namespace AgentGateway.Responses;
 
@@ -12,7 +19,7 @@ namespace AgentGateway.Responses;
 /// Response executor that forwards requests to remote workers via HTTP.
 /// Uses the worker registry and discovery cache to route requests to appropriate workers.
 /// </summary>
-public sealed class WorkerResponseExecutor : IResponseExecutor
+internal sealed class WorkerResponseExecutor : IResponseExecutor
 {
     private readonly WorkerRegistry _registry;
     private readonly WorkerDiscoveryCache _cache;
@@ -34,7 +41,7 @@ public sealed class WorkerResponseExecutor : IResponseExecutor
     public async IAsyncEnumerable<StreamingResponseEvent> ExecuteAsync(
         AgentInvocationContext context,
         CreateResponse request,
-        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         // Extract agent name similar to EndpointRouteBuilderExtensions.Responses.cs
         var agentName = request.Agent?.Name ?? request.Model;

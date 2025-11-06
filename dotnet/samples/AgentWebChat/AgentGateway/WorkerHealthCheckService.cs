@@ -1,11 +1,18 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System;
+using System.Net.Http;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
 namespace AgentGateway;
 
 /// <summary>
 /// Periodically probes registered workers for health status.
 /// </summary>
-public sealed class WorkerHealthCheckService : BackgroundService
+internal sealed class WorkerHealthCheckService : BackgroundService
 {
     private readonly TimeSpan _interval = TimeSpan.FromSeconds(15);
     private readonly int _failureThreshold = 3;

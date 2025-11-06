@@ -1,5 +1,8 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+
 namespace AgentGateway;
 
 internal static class A2AHttpApi

@@ -1,8 +1,12 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
-using Microsoft.Agents.AI.Hosting.OpenAI.Conversations;
-using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using AgentGateway.Conversations.Models;
+using AgentGateway.Models;
+using AgentGateway.Responses.Models;
+using Orleans;
 
 namespace AgentGateway.Conversations;
 
@@ -10,7 +14,7 @@ namespace AgentGateway.Conversations;
 /// Orleans-backed implementation of conversation storage.
 /// This implementation provides persistent, distributed storage for conversations and messages.
 /// </summary>
-public sealed class OrleansConversationStorage(IGrainFactory grainFactory) : IConversationStorage
+internal sealed class OrleansConversationStorage(IGrainFactory grainFactory) : IConversationStorage
 {
     public async Task<Conversation> CreateConversationAsync(Conversation conversation, CancellationToken cancellationToken = default)
     {
@@ -42,6 +46,12 @@ public sealed class OrleansConversationStorage(IGrainFactory grainFactory) : ICo
         return await grain.AddItemAsync(item);
     }
 
+    public async Task AddItemsAsync(string conversationId, IEnumerable<ItemResource> items, CancellationToken cancellationToken = default)
+    {
+        var grain = grainFactory.GetGrain<IConversationGrain>(conversationId);
+        return await grain.AddItemsAsync(items);
+    }
+
     public async Task<ItemResource?> GetItemAsync(string conversationId, string itemId, CancellationToken cancellationToken = default)
     {
         var grain = grainFactory.GetGrain<IConversationGrain>(conversationId);
@@ -50,8 +60,8 @@ public sealed class OrleansConversationStorage(IGrainFactory grainFactory) : ICo
 
     public async Task<ListResponse<ItemResource>> ListItemsAsync(
         string conversationId,
-        int limit = 20,
-        SortOrder order = SortOrder.Descending,
+        int? limit,
+        SortOrder? order,
         string? after = null,
         CancellationToken cancellationToken = default)
     {

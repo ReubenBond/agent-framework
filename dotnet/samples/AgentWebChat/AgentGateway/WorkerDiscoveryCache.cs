@@ -1,7 +1,15 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Threading;
+using System.Threading.Tasks;
 using AgentContracts;
+using Microsoft.Extensions.Logging;
 
 namespace AgentGateway;
 
@@ -9,7 +17,7 @@ namespace AgentGateway;
 /// Caches the results of worker discovery calls to avoid repeated HTTP requests.
 /// Cache entries are automatically invalidated when workers are removed or when they expire.
 /// </summary>
-public sealed partial class WorkerDiscoveryCache
+internal sealed partial class WorkerDiscoveryCache
 {
     private readonly ConcurrentDictionary<string, CachedDiscoveryResult> _cache = new();
     private readonly TimeSpan _cacheDuration;

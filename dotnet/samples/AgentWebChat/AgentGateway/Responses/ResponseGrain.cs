@@ -1,11 +1,18 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using AgentGateway.Conversations;
+using AgentGateway.Models;
+using AgentGateway.Responses.Models;
 using AgentGateway.Utilities;
-using Microsoft.Agents.AI.Hosting.OpenAI.Conversations.Models;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
+using Microsoft.Extensions.Logging;
+using Orleans;
+using Orleans.Runtime;
 
 namespace AgentGateway.Responses;
 
@@ -45,7 +52,7 @@ internal sealed class ResponseState
 /// <summary>
 /// Grain interface for managing a single response.
 /// </summary>
-public interface IResponseGrain : IGrainWithStringKey
+internal interface IResponseGrain : IGrainWithStringKey
 {
     /// <summary>
     /// Creates a new response and generates it using the ChatClientAgent.

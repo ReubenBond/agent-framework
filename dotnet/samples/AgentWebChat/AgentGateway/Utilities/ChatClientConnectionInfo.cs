@@ -1,5 +1,6 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System;
 using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 

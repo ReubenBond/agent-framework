@@ -1,14 +1,14 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
 
 #if AGENTGATEWAY
+using Microsoft.Agents.AI;
 using AgentGateway.Responses.Models;
 
 namespace AgentGateway.Responses;
@@ -22,8 +22,7 @@ namespace Microsoft.Agents.AI.Hosting.OpenAI.Responses;
 /// Response executor that uses an AIAgent to execute responses locally.
 /// This is the default implementation for local execution.
 /// </summary>
-internal sealed class
-AIAgentResponseExecutor : IResponseExecutor
+internal sealed class AIAgentResponseExecutor : IResponseExecutor
 {
     private readonly AIAgent _agent;
 

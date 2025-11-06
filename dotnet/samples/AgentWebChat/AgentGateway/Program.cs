@@ -1,5 +1,7 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System;
+using System.Net.Http;
 using AgentContracts;
 using AgentGateway;
 using AgentGateway.Conversations;
@@ -7,9 +9,13 @@ using AgentGateway.Health;
 using AgentGateway.Responses;
 using AgentGateway.Utilities;
 using Microsoft.Agents.AI.DevUI;
-using Microsoft.Agents.AI.Hosting.OpenAI.Conversations;
-using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Orleans.Configuration;
 using Orleans.Serialization;
@@ -61,34 +67,32 @@ builder.Services.AddHttpForwarder();
 builder.Services.AddSingleton<ForwardingHttpClientProvider>();
 
 // Configure Orleans
-builder.Host.UseOrleans(siloBuilder =>
-{
-    siloBuilder.Configure<ClusterOptions>(options =>
-    {
-        options.ClusterId = "agent-webchat-cluster1";
-        options.ServiceId = "AgentWebChatService1";
-    });
+builder.UseOrleans();
 
+builder.Services.Configure<ClusterOptions>(options =>
+{
+    options.ClusterId = "agent-webchat-cluster1";
+    options.ServiceId = "AgentWebChatService1";
+});
+
+builder.Services.AddSerializer(serializerBuilder =>
+{
     // Configure System.Text.Json serialization for all Microsoft.Agents.* and AgentGateway types
     // This uses AgentGatewayJsonUtilities which chains together all the necessary type resolvers
     // including OpenAIJsonUtilities (OpenAI Hosting types), AIJsonUtilities (Microsoft.Extensions.AI), and grain states
-    siloBuilder.Services.AddSerializer(serializerBuilder =>
-    {
-        serializerBuilder.AddJsonSerializer(
-            isSupported: type => type.Namespace?.StartsWith("Microsoft.Agents", StringComparison.Ordinal) == true ||
-                                type.Namespace?.StartsWith("AgentContracts", StringComparison.Ordinal) == true ||
-                                type.Namespace?.StartsWith("AgentGateway", StringComparison.Ordinal) == true,
-            jsonSerializerOptions: AgentGatewayJsonUtilities.DefaultOptions);
-    });
+    serializerBuilder.AddJsonSerializer(
+        isSupported: type => type.Namespace?.StartsWith("Microsoft.Agents", StringComparison.Ordinal) == true ||
+                            type.Namespace?.StartsWith("AgentContracts", StringComparison.Ordinal) == true ||
+                            type.Namespace?.StartsWith("AgentGateway", StringComparison.Ordinal) == true,
+        jsonSerializerOptions: AgentGatewayJsonUtilities.DefaultOptions);
+});
 
-    // Register System.Text.Json-based grain storage serializer
-    siloBuilder.Services.AddSingleton<IGrainStorageSerializer>(sp =>
-        new SystemTextJsonGrainStorageSerializer(AgentGatewayJsonUtilities.DefaultOptions));
-    siloBuilder.Configure<ClusterMembershipOptions>(o =>
-    {
-        o.NumMissedTableIAmAliveLimit = 2;
-        o.IAmAliveTablePublishTimeout = TimeSpan.FromSeconds(10);
-    });
+// Register System.Text.Json-based grain storage serializer
+builder.Services.AddSingleton<IGrainStorageSerializer>(sp => new SystemTextJsonGrainStorageSerializer(AgentGatewayJsonUtilities.DefaultOptions));
+builder.Services.Configure<ClusterMembershipOptions>(o =>
+{
+    o.NumMissedTableIAmAliveLimit = 2;
+    o.IAmAliveTablePublishTimeout = TimeSpan.FromSeconds(10);
 });
 
 // Register conversation storage - choose between in-memory and Orleans-backed
@@ -136,7 +140,9 @@ builder.Services.AddHostedService<WorkerHealthCheckService>();
 builder.Services.AddSingleton<WorkerHttpForwarder>();
 
 // Register entity provider for DevUI entities API
-builder.Services.AddEntityProvider<WorkerRegistryEntityProvider>();
+//builder.Services.AddEntityProvider<WorkerRegistryEntityProvider>();
+builder.AddOpenAIChatCompletions();
+builder.AddOpenAIResponses();
 
 var app = builder.Build();
 
@@ -163,7 +169,7 @@ app.MapDiscovery();
 app.MapA2AForwarder();
 
 // Map Conversations API endpoints
-app.MapConversations();
+app.MapOpenAIConversations();
 
 // Map Responses API endpoints using the shared implementation from Microsoft.Agents.AI.Hosting.OpenAI
 app.MapOpenAIResponses();

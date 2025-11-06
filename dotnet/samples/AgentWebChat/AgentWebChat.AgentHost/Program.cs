@@ -74,8 +74,6 @@ builder.AddAIAgent("pirate", (sp, key) =>
         name: "pirate");
 });
 
-builder.Services.AddOpenAIResponsesWithHostedAgents();
-
 var app = builder.Build();
 
 app.MapOpenApi();
@@ -85,10 +83,7 @@ app.UseSwaggerUI(options => options.SwaggerEndpoint("/openapi/v1.json", "Agents 
 app.UseExceptionHandler();
 
 // DevUI
-app.MapOpenAIResponses();
-app.MapConversations();
 app.MapDevUI();
-app.MapEntities();
 
 // Map the agents HTTP endpoints
 app.MapAgentDiscovery("/agents");

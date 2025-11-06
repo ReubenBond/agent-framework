@@ -1,6 +1,13 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
-using Microsoft.Agents.AI.Hosting.OpenAI.Conversations;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using AgentGateway.Models;
+using Orleans;
+using Orleans.Runtime;
 
 namespace AgentGateway.Conversations;
 
@@ -99,7 +106,7 @@ internal sealed class AgentConversationIndexGrain([PersistentState("state")] IPe
 /// persistent, scalable solution suitable for production scenarios.
 /// </para>
 /// </remarks>
-public sealed class OrleansAgentConversationIndex(IGrainFactory grainFactory) : IAgentConversationIndex
+internal sealed class OrleansAgentConversationIndex(IGrainFactory grainFactory) : IAgentConversationIndex
 {
     /// <inheritdoc />
     public async Task AddConversationAsync(string agentId, string conversationId, CancellationToken cancellationToken = default)
@@ -122,11 +129,12 @@ public sealed class OrleansAgentConversationIndex(IGrainFactory grainFactory) : 
     }
 
     /// <inheritdoc />
-    public async Task<IReadOnlyList<string>> GetConversationIdsAsync(string agentId, CancellationToken cancellationToken = default)
+    public async Task<ListResponse<string>> GetConversationIdsAsync(string agentId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(agentId);
 
         var grain = grainFactory.GetGrain<IAgentConversationIndexGrain>(agentId);
-        return await grain.GetConversationIdsAsync();
+        var results = await grain.GetConversationIdsAsync();
+        return new ListResponse<string> { Data = [.. results], HasMore = false };
     }
 }

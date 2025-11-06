@@ -1,17 +1,20 @@
 ﻿// Copyright (c) Microsoft. All rights reserved.
 
+using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-
+using System.Threading;
+using System.Threading.Tasks;
 using AgentContracts;
-using Microsoft.Agents.AI.DevUI.Entities;
+using AgentGateway.DevUI.Entities;
 
-namespace AgentGateway;
+namespace AgentGateway.DevUI;
 
 /// <summary>
 /// Entity provider that discovers entities from remote workers via WorkerRegistry and WorkerDiscoveryCache.
 /// </summary>
-public sealed class WorkerRegistryEntityProvider : IEntityProvider
+internal sealed class WorkerRegistryEntityProvider
 {
     private readonly WorkerRegistry _registry;
     private readonly WorkerDiscoveryCache _cache;
@@ -34,7 +37,7 @@ public sealed class WorkerRegistryEntityProvider : IEntityProvider
         var allAgents = new Dictionary<string, AgentDiscoveryCard>(StringComparer.OrdinalIgnoreCase);
         foreach (var worker in this._registry.ActiveWorkers.Where(w => w.DiscoveryPath is not null))
         {
-            var supportedAgents = await this._cache.DiscoverAgentsAsync(worker, cancellationToken).ConfigureAwait(false);
+            IReadOnlyDictionary<string, AgentDiscoveryCard>? supportedAgents = await this._cache.DiscoverAgentsAsync(worker, cancellationToken).ConfigureAwait(false);
             if (supportedAgents is not null)
             {
                 foreach (var (agentName, agentCard) in supportedAgents)
@@ -51,7 +54,6 @@ public sealed class WorkerRegistryEntityProvider : IEntityProvider
         foreach (var (agentId, agentCard) in allAgents)
         {
             var tools = new List<JsonElement>();
-            // AgentDiscoveryCard.Tools property access removed - not available in current schema
 
             yield return new EntityInfo(
                 Id: agentId,
