@@ -570,7 +570,7 @@ class ApiClient {
     // Convert to OpenAI format - use metadata.entity_id for routing
     const openAIRequest: AgentFrameworkRequest = {
       metadata: { entity_id: workflowId }, // Entity ID in metadata for routing
-      input: request.input_data || "", // Send dict directly, no stringification needed
+      input: JSON.stringify(request.input_data || {}), // Serialize workflow input as JSON string
       stream: true,
       conversation: request.conversation_id, // Include conversation if present
     };
