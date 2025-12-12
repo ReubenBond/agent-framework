@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using AgentContracts;
 using AgentWebChat.AgentHost;
@@ -160,18 +160,15 @@ builder.Services.AddKeyedSingleton<AIAgent>("my-di-matchingname-agent", (sp, nam
         instructions: "you are a dependency inject agent. Tell me all about dependency injection.");
 });
 
-// Register HITL Workflow Host Service and Marketing Content Workflow
-builder.Services.AddSingleton(sp =>
+// Register the marketing-content HITL workflow
+builder.AddWorkflow(MarketingWorkflowFactory.WorkflowName, (sp, key) =>
 {
-    var host = new WorkflowHostService(
-        sp,
-        sp.GetRequiredService<ILogger<WorkflowHostService>>());
-
-    // Register available workflows
-    host.RegisterWorkflow<MarketingContentWorkflow>("marketing-content");
-
-    return host;
+    var chatClient = sp.GetRequiredKeyedService<IChatClient>("chat-model");
+    return MarketingWorkflowFactory.Build(chatClient);
 });
+
+// Register HITL Workflow Host Service (discovers workflows from DI)
+builder.Services.AddSingleton<WorkflowHostService>();
 
 // Register entity provider for HITL workflows to appear in DevUI
 builder.Services.AddSingleton<IEntityProvider, WorkflowHostEntityProvider>();

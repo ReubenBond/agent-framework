@@ -1,75 +1,112 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Runtime.CompilerServices;
-using System.Text.Json;
 using Microsoft.Agents.AI.DevUI;
 using Microsoft.Agents.AI.DevUI.Entities;
+using Microsoft.Agents.AI.Workflows;
 
 namespace AgentWebChat.AgentHost.Workflows;
 
 /// <summary>
-/// Entity provider that exposes HITL workflows registered with the <see cref="WorkflowHostService"/>.
+/// Entity provider that exposes workflows registered with the <see cref="WorkflowHostService"/>.
 /// </summary>
 internal sealed class WorkflowHostEntityProvider : IEntityProvider
 {
+    private readonly IServiceProvider _serviceProvider;
     private readonly WorkflowHostService _workflowHost;
 
-    public WorkflowHostEntityProvider(WorkflowHostService workflowHost)
+    public WorkflowHostEntityProvider(IServiceProvider serviceProvider, WorkflowHostService workflowHost)
     {
+        this._serviceProvider = serviceProvider;
         this._workflowHost = workflowHost;
     }
 
     /// <inheritdoc/>
     public async IAsyncEnumerable<EntityInfo> GetEntitiesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var workflows = await this._workflowHost.GetAvailableWorkflowsAsync(cancellationToken);
+        var workflowInfos = await this._workflowHost.GetAvailableWorkflowsAsync(cancellationToken);
 
-        foreach (var workflow in workflows)
+        foreach (var workflowInfo in workflowInfos)
         {
-            yield return CreateEntityInfo(workflow);
+            // Try to get the actual workflow instance to extract more detailed information
+            var workflow = this._serviceProvider.GetKeyedService<Workflow>(workflowInfo.Name);
+            yield return CreateEntityInfo(workflowInfo, workflow);
         }
     }
 
     /// <inheritdoc/>
     public async Task<EntityInfo?> GetEntityAsync(string entityId, CancellationToken cancellationToken = default)
     {
-        var workflows = await this._workflowHost.GetAvailableWorkflowsAsync(cancellationToken);
+        var workflowInfos = await this._workflowHost.GetAvailableWorkflowsAsync(cancellationToken);
 
-        var workflow = workflows.FirstOrDefault(w =>
+        var workflowInfo = workflowInfos.FirstOrDefault(w =>
             string.Equals(w.Name, entityId, StringComparison.OrdinalIgnoreCase));
 
-        return workflow != null ? CreateEntityInfo(workflow) : null;
+        if (workflowInfo == null)
+        {
+            return null;
+        }
+
+        var workflow = this._serviceProvider.GetKeyedService<Workflow>(workflowInfo.Name);
+        return CreateEntityInfo(workflowInfo, workflow);
     }
 
-    private static EntityInfo CreateEntityInfo(AgentContracts.Workflows.WorkflowDefinitionInfo workflow)
+    private static EntityInfo CreateEntityInfo(AgentContracts.Workflows.WorkflowDefinitionInfo workflowInfo, Workflow? workflow)
     {
-        // Create input schema for ContentRequest
-        var inputSchema = new Dictionary<string, object>
+        // Extract executor IDs from the workflow edges if available
+        var executors = new List<string>();
+        string? startExecutorId = null;
+
+        if (workflow != null)
         {
-            ["type"] = "object",
-            ["properties"] = new Dictionary<string, object>
+            startExecutorId = workflow.StartExecutorId;
+
+            // Collect all executor IDs from the edge definitions
+            var edges = workflow.ReflectEdges();
+            var executorIds = new HashSet<string>();
+
+            // Add the start executor
+            if (!string.IsNullOrEmpty(startExecutorId))
             {
-                ["topic"] = new Dictionary<string, string> { ["type"] = "string", ["description"] = "The topic for the marketing content" },
-                ["targetAudience"] = new Dictionary<string, string> { ["type"] = "string", ["description"] = "The target audience for the content" },
-                ["tone"] = new Dictionary<string, string> { ["type"] = "string", ["description"] = "The desired tone of the content" }
+                executorIds.Add(startExecutorId);
             }
-        };
+
+            // Add all source and sink (target) executors from edges
+            foreach (var (source, edgeSet) in edges)
+            {
+                executorIds.Add(source);
+                foreach (var edge in edgeSet)
+                {
+                    // Add all source IDs
+                    foreach (var sourceId in edge.Connection.SourceIds)
+                    {
+                        executorIds.Add(sourceId);
+                    }
+
+                    // Add all sink IDs (targets)
+                    foreach (var sinkId in edge.Connection.SinkIds)
+                    {
+                        executorIds.Add(sinkId);
+                    }
+                }
+            }
+
+            executors = executorIds.ToList();
+        }
 
         return new EntityInfo(
-            Id: workflow.Name,
+            Id: workflowInfo.Name,
             Type: "workflow",
-            Name: workflow.DisplayName ?? workflow.Name,
-            Description: workflow.Description,
+            Name: workflowInfo.DisplayName ?? workflowInfo.Name,
+            Description: workflowInfo.Description,
             Framework: "agent_framework",
             Tools: [],
             Metadata: []
         )
         {
             Source = "in_memory",
-            Executors = ["ai-writer", "ai-reviewer", "human-approval"],
-            InputSchema = JsonSerializer.SerializeToElement(inputSchema),
-            InputTypeName = "ContentRequest",
-            StartExecutorId = "ai-writer"
+            Executors = executors,
+            StartExecutorId = startExecutorId
         };
     }
 }
