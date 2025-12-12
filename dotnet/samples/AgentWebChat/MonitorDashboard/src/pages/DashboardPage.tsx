@@ -14,6 +14,7 @@ interface DashboardPageProps {
   onRefreshWorkflows: () => void;
   selectedWorkflowId: string | null;
   onSelectWorkflow: (runId: string) => void;
+  onDeleteWorkflow: (runId: string) => void;
   onCloseModal: () => void;
   onWorkflowUpdated: () => void;
   events: MonitoringEvent[];
@@ -35,6 +36,7 @@ export function DashboardPage({
   onRefreshWorkflows,
   selectedWorkflowId,
   onSelectWorkflow,
+  onDeleteWorkflow,
   onCloseModal,
   onWorkflowUpdated,
   events,
@@ -93,6 +95,7 @@ export function DashboardPage({
               error={workflowsError}
               onRefresh={onRefreshWorkflows}
               onSelectWorkflow={onSelectWorkflow}
+              onDeleteWorkflow={onDeleteWorkflow}
             />
           </div>
         </section>

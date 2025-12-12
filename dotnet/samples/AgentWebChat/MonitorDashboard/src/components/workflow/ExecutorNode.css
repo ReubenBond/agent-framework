@@ -1,0 +1,237 @@
+.executor-node {
+  width: 200px;
+  background: var(--color-bg-secondary, #1a1a2e);
+  border-radius: 8px;
+  border: 2px solid var(--color-border, #333);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.executor-node--selected {
+  box-shadow: 0 0 0 2px var(--color-primary, #4a9eff);
+}
+
+.executor-node--pending {
+  border-color: var(--color-border, #444);
+}
+
+.executor-node--running {
+  border-color: #8b5cf6;
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+}
+
+.executor-node--completed {
+  border-color: #10b981;
+}
+
+.executor-node--failed {
+  border-color: #ef4444;
+}
+
+.executor-node--cancelled {
+  border-color: #f97316;
+}
+
+.executor-node__content {
+  padding: 12px;
+}
+
+.executor-node__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.executor-node__icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  background: rgba(139, 92, 246, 0.1);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.executor-node__icon svg {
+  width: 18px;
+  height: 18px;
+  color: var(--color-text-secondary, #888);
+}
+
+.executor-node--running .executor-node__icon svg {
+  color: #8b5cf6;
+}
+
+.executor-node--completed .executor-node__icon svg {
+  color: #10b981;
+}
+
+.executor-node--failed .executor-node__icon svg {
+  color: #ef4444;
+}
+
+.executor-node__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.executor-node__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary, #fff);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.executor-node__spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(139, 92, 246, 0.3);
+  border-top-color: #8b5cf6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.executor-node__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.executor-node__badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.badge--pending {
+  background: rgba(100, 100, 100, 0.2);
+  color: #888;
+}
+
+.badge--running {
+  background: rgba(139, 92, 246, 0.2);
+  color: #a78bfa;
+}
+
+.badge--completed {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.badge--failed {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+.badge--cancelled {
+  background: rgba(249, 115, 22, 0.2);
+  color: #fb923c;
+}
+
+.executor-node__duration {
+  font-size: 11px;
+  color: var(--color-text-tertiary, #666);
+  font-family: monospace;
+}
+
+.executor-node__error {
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 4px;
+  font-size: 11px;
+  color: #f87171;
+  word-break: break-word;
+}
+
+.executor-node__pulse {
+  position: absolute;
+  inset: -2px;
+  border: 2px solid rgba(139, 92, 246, 0.5);
+  border-radius: 10px;
+  animation: pulse 2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+}
+
+/* Handle styles */
+.executor-handle {
+  width: 10px !important;
+  height: 10px !important;
+  background: var(--color-border, #444) !important;
+  border: 2px solid var(--color-bg-secondary, #1a1a2e) !important;
+  border-radius: 50% !important;
+}
+
+.executor-node--running .executor-handle {
+  background: #8b5cf6 !important;
+}
+
+.executor-node--completed .executor-handle {
+  background: #10b981 !important;
+}
+
+.executor-node--failed .executor-handle {
+  background: #ef4444 !important;
+}
+
+.executor-node--cancelled .executor-handle {
+  background: #f97316 !important;
+}
+
+/* Light theme support */
+.theme-light .executor-node {
+  background: #ffffff;
+  border-color: #e0e0e0;
+}
+
+.theme-light .executor-node__name {
+  color: #1a1a1a;
+}
+
+.theme-light .executor-node__icon {
+  background: rgba(139, 92, 246, 0.08);
+}
+
+.theme-light .executor-node__icon svg {
+  color: #666;
+}
+
+.theme-light .executor-node__duration {
+  color: #888;
+}
+
+.theme-light .executor-handle {
+  background: #ccc !important;
+  border-color: #fff !important;
+}

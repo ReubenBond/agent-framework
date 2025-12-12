@@ -19,6 +19,42 @@ interface WorkflowsWidgetProps {
   error: Error | null;
   onRefresh: () => void;
   onSelectWorkflow: (runId: string) => void;
+  onDeleteWorkflow?: (runId: string) => void;
+}
+
+// Check if a workflow is in terminal status (can be deleted)
+function isTerminalStatus(status: string): boolean {
+  const lower = status.toLowerCase();
+  return (
+    lower.includes('completed') ||
+    lower.includes('failed') ||
+    lower.includes('cancelled') ||
+    lower.includes('canceled') ||
+    lower.includes('aborted')
+  );
+}
+
+// Icon components
+function InspectIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+      <line x1="11" y1="8" x2="11" y2="14" />
+      <line x1="8" y1="11" x2="14" y2="11" />
+    </svg>
+  );
+}
+
+function DeleteIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <line x1="10" y1="11" x2="10" y2="17" />
+      <line x1="14" y1="11" x2="14" y2="17" />
+    </svg>
+  );
 }
 
 // Check if a workflow is considered "active" based on its status
@@ -41,6 +77,7 @@ export function WorkflowsWidget({
   error,
   onRefresh,
   onSelectWorkflow,
+  onDeleteWorkflow,
 }: WorkflowsWidgetProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -230,15 +267,27 @@ export function WorkflowsWidget({
                   </td>
                   <td className="actions">
                     <button
-                      className="inspect-button"
+                      className="action-icon-button inspect-button"
                       onClick={(e) => {
                         e.stopPropagation();
                         onSelectWorkflow(wf.runId);
                       }}
                       title="View details"
                     >
-                      Inspect
+                      <InspectIcon />
                     </button>
+                    {isTerminalStatus(wf.status) && onDeleteWorkflow && (
+                      <button
+                        className="action-icon-button delete-button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteWorkflow(wf.runId);
+                        }}
+                        title="Delete workflow"
+                      >
+                        <DeleteIcon />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

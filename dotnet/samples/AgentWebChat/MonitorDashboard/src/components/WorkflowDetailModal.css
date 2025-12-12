@@ -759,3 +759,12 @@
 .confirm-button.confirm-delete:hover:not(:disabled) {
   background: #f27573;
 }
+
+/* Graph Section */
+.graph-section {
+  height: 500px;
+  min-height: 400px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--card-inner-bg, #252525);
+}

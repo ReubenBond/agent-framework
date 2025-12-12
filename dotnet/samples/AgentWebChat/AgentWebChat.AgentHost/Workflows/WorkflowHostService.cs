@@ -112,9 +112,10 @@ internal sealed class WorkflowHostService : IWorkflowHost
         ChannelWriter<WorkflowStatusEvent> writer,
         CancellationToken cancellationToken)
     {
-        StreamingRun? run = null;
+        Checkpointed<StreamingRun>? checkpointedRun = null;
         int sequenceNumber = 0;
-        Dictionary<string, DateTimeOffset>? stepStartTimes;
+        Dictionary<string, DateTimeOffset> stepStartTimes = [];
+        Dictionary<string, string> executorStepIds = []; // Map executorId to stepId for completion
 
         try
         {
@@ -135,53 +136,78 @@ internal sealed class WorkflowHostService : IWorkflowHost
                 Input = request.Input
             }, cancellationToken);
 
-            // Deserialize input and start workflow execution
+            // Deserialize input and start workflow execution with checkpoint manager
             var inputData = DeserializeInput(request.Input);
-            run = await InProcessExecution.StreamAsync(workflow, inputData, request.RunId, cancellationToken);
-            stepStartTimes = [];
+            var checkpointManager = CheckpointManager.Default;
+            checkpointedRun = await InProcessExecution.StreamAsync(workflow, inputData, checkpointManager, request.RunId, cancellationToken);
 
             // Process framework events and map to contract events
-            await foreach (var evt in run.WatchStreamAsync(cancellationToken))
+            await foreach (var evt in checkpointedRun.Run.WatchStreamAsync(cancellationToken))
             {
                 switch (evt)
                 {
                     case ExecutorInvokedEvent executorInvoked:
                         var stepId = $"step_{sequenceNumber}";
-                        stepStartTimes[executorInvoked.ExecutorId] = DateTimeOffset.UtcNow;
+                        var startedAt = DateTimeOffset.UtcNow;
+                        stepStartTimes[executorInvoked.ExecutorId] = startedAt;
+                        executorStepIds[executorInvoked.ExecutorId] = stepId;
+
+                        var stepStartedRecord = new WorkflowStepStartedRecord
+                        {
+                            StepId = stepId,
+                            ExecutorId = executorInvoked.ExecutorId,
+                            ExecutorName = executorInvoked.ExecutorId,
+                            StartedAt = startedAt
+                        };
+
+                        // Record step to Gateway for persistence
+                        await stateClient.RecordStepStartedAsync(
+                            request.RunId,
+                            stepStartedRecord,
+                            etag: null,
+                            cancellationToken);
+
+                        // Emit SSE event
                         await writer.WriteAsync(new WorkflowStepStartedEvent
                         {
                             RunId = request.RunId,
                             SequenceNumber = sequenceNumber++,
-                            Timestamp = DateTimeOffset.UtcNow,
-                            Step = new WorkflowStepStartedRecord
-                            {
-                                StepId = stepId,
-                                ExecutorId = executorInvoked.ExecutorId,
-                                ExecutorName = executorInvoked.ExecutorId,
-                                StartedAt = DateTimeOffset.UtcNow
-                            }
+                            Timestamp = startedAt,
+                            Step = stepStartedRecord
                         }, cancellationToken);
                         break;
 
                     case ExecutorCompletedEvent executorCompleted:
-                        var completedStepId = $"step_{sequenceNumber}";
-                        var startedAt = stepStartTimes.GetValueOrDefault(executorCompleted.ExecutorId, DateTimeOffset.UtcNow);
-                        var durationMs = (long)(DateTimeOffset.UtcNow - startedAt).TotalMilliseconds;
+                        var completedStepId = executorStepIds.GetValueOrDefault(executorCompleted.ExecutorId, $"step_{sequenceNumber}");
+                        var stepStartedAt = stepStartTimes.GetValueOrDefault(executorCompleted.ExecutorId, DateTimeOffset.UtcNow);
+                        var completedAt = DateTimeOffset.UtcNow;
+                        var durationMs = (long)(completedAt - stepStartedAt).TotalMilliseconds;
+
+                        var stepCompletedRecord = new WorkflowStepCompletedRecord
+                        {
+                            StepId = completedStepId,
+                            ExecutorId = executorCompleted.ExecutorId,
+                            CompletedAt = completedAt,
+                            Output = executorCompleted.Data is not null
+                                ? WorkflowMessage.Create(executorCompleted.Data)
+                                : null,
+                            DurationMs = durationMs
+                        };
+
+                        // Record step completion to Gateway for persistence
+                        await stateClient.RecordStepCompletedAsync(
+                            request.RunId,
+                            stepCompletedRecord,
+                            etag: null,
+                            cancellationToken);
+
+                        // Emit SSE event
                         await writer.WriteAsync(new WorkflowStepCompletedEvent
                         {
                             RunId = request.RunId,
                             SequenceNumber = sequenceNumber++,
-                            Timestamp = DateTimeOffset.UtcNow,
-                            Step = new WorkflowStepCompletedRecord
-                            {
-                                StepId = completedStepId,
-                                ExecutorId = executorCompleted.ExecutorId,
-                                CompletedAt = DateTimeOffset.UtcNow,
-                                Output = executorCompleted.Data is not null
-                                    ? WorkflowMessage.Create(executorCompleted.Data)
-                                    : null,
-                                DurationMs = durationMs
-                            }
+                            Timestamp = completedAt,
+                            Step = stepCompletedRecord
                         }, cancellationToken);
                         break;
 
@@ -193,7 +219,24 @@ internal sealed class WorkflowHostService : IWorkflowHost
 
                         var pendingRequest = MapToPendingExternalRequest(requestInfo.Request);
 
-                        // Store checkpoint and pending request via callback
+                        // Store checkpoint for resume - checkpoint is automatically created by framework at each superstep
+                        var checkpointInfo = checkpointedRun.LastCheckpoint
+                            ?? throw new InvalidOperationException("No checkpoint available for HITL resume. The workflow may not have completed a superstep.");
+                        var checkpointData = JsonSerializer.SerializeToUtf8Bytes(
+                            new CheckpointInfoDto(request.RunId, checkpointInfo.CheckpointId));
+
+                        await stateClient.SaveCheckpointAsync(
+                            request.RunId,
+                            new WorkflowCheckpointData
+                            {
+                                CheckpointId = checkpointInfo.CheckpointId,
+                                Data = checkpointData,
+                                CreatedAt = DateTimeOffset.UtcNow
+                            },
+                            etag: null,
+                            cancellationToken);
+
+                        // Store pending request via callback
                         await stateClient.RecordPendingRequestAsync(
                             request.RunId,
                             pendingRequest,
@@ -216,9 +259,7 @@ internal sealed class WorkflowHostService : IWorkflowHost
                             Request = pendingRequest
                         }, cancellationToken);
 
-                        // Store the run handle for resume (this is a key architectural decision)
-                        // For now, we'll let the stream end here and require a full resume
-                        // The workflow will be resumed via ResumeAsync with checkpoint data
+                        // Return here - workflow will be resumed via ResumeAsync
                         return;
 
                     case WorkflowOutputEvent outputEvent:
@@ -290,9 +331,9 @@ internal sealed class WorkflowHostService : IWorkflowHost
         {
             writer.Complete();
 
-            if (run is not null)
+            if (checkpointedRun is not null)
             {
-                await run.DisposeAsync();
+                await checkpointedRun.DisposeAsync();
             }
         }
     }
@@ -373,7 +414,8 @@ internal sealed class WorkflowHostService : IWorkflowHost
     {
         Checkpointed<StreamingRun>? checkpointedRun = null;
         int sequenceNumber = 0;
-        Dictionary<string, DateTimeOffset>? stepStartTimes;
+        Dictionary<string, DateTimeOffset> stepStartTimes = [];
+        Dictionary<string, string> executorStepIds = []; // Map executorId to stepId for completion
 
         try
         {
@@ -424,8 +466,6 @@ internal sealed class WorkflowHostService : IWorkflowHost
                 request.RunId,
                 cancellationToken);
 
-            stepStartTimes = [];
-
             // Deserialize the response data for later use
             var responseData = DeserializeInput(request.Signal.Response);
             var expectedRequestId = request.Signal.RequestId;
@@ -455,6 +495,23 @@ internal sealed class WorkflowHostService : IWorkflowHost
 
                         var pendingRequest = MapToPendingExternalRequest(requestInfo.Request);
 
+                        // Store checkpoint for resume - checkpoint is automatically created by framework at each superstep
+                        var newCheckpointInfo = checkpointedRun.LastCheckpoint
+                            ?? throw new InvalidOperationException("No checkpoint available for HITL resume. The workflow may not have completed a superstep.");
+                        var newCheckpointData = JsonSerializer.SerializeToUtf8Bytes(
+                            new CheckpointInfoDto(request.RunId, newCheckpointInfo.CheckpointId));
+
+                        await stateClient.SaveCheckpointAsync(
+                            request.RunId,
+                            new WorkflowCheckpointData
+                            {
+                                CheckpointId = newCheckpointInfo.CheckpointId,
+                                Data = newCheckpointData,
+                                CreatedAt = DateTimeOffset.UtcNow
+                            },
+                            etag: null,
+                            cancellationToken);
+
                         // Store pending request via callback
                         await stateClient.RecordPendingRequestAsync(
                             request.RunId,
@@ -482,41 +539,66 @@ internal sealed class WorkflowHostService : IWorkflowHost
 
                     case ExecutorInvokedEvent executorInvoked:
                         var stepId = $"step_{sequenceNumber}";
-                        stepStartTimes[executorInvoked.ExecutorId] = DateTimeOffset.UtcNow;
+                        var startedAt = DateTimeOffset.UtcNow;
+                        stepStartTimes[executorInvoked.ExecutorId] = startedAt;
+                        executorStepIds[executorInvoked.ExecutorId] = stepId;
+
+                        var stepStartedRecord = new WorkflowStepStartedRecord
+                        {
+                            StepId = stepId,
+                            ExecutorId = executorInvoked.ExecutorId,
+                            ExecutorName = executorInvoked.ExecutorId,
+                            StartedAt = startedAt
+                        };
+
+                        // Record step to Gateway for persistence
+                        await stateClient.RecordStepStartedAsync(
+                            request.RunId,
+                            stepStartedRecord,
+                            etag: null,
+                            cancellationToken);
+
+                        // Emit SSE event
                         await writer.WriteAsync(new WorkflowStepStartedEvent
                         {
                             RunId = request.RunId,
                             SequenceNumber = sequenceNumber++,
-                            Timestamp = DateTimeOffset.UtcNow,
-                            Step = new WorkflowStepStartedRecord
-                            {
-                                StepId = stepId,
-                                ExecutorId = executorInvoked.ExecutorId,
-                                ExecutorName = executorInvoked.ExecutorId,
-                                StartedAt = DateTimeOffset.UtcNow
-                            }
+                            Timestamp = startedAt,
+                            Step = stepStartedRecord
                         }, cancellationToken);
                         break;
 
                     case ExecutorCompletedEvent executorCompleted:
-                        var completedStepId = $"step_{sequenceNumber}";
-                        var startedAt = stepStartTimes.GetValueOrDefault(executorCompleted.ExecutorId, DateTimeOffset.UtcNow);
-                        var durationMs = (long)(DateTimeOffset.UtcNow - startedAt).TotalMilliseconds;
+                        var completedStepId = executorStepIds.GetValueOrDefault(executorCompleted.ExecutorId, $"step_{sequenceNumber}");
+                        var stepStartedAt = stepStartTimes.GetValueOrDefault(executorCompleted.ExecutorId, DateTimeOffset.UtcNow);
+                        var completedAt = DateTimeOffset.UtcNow;
+                        var durationMs = (long)(completedAt - stepStartedAt).TotalMilliseconds;
+
+                        var stepCompletedRecord = new WorkflowStepCompletedRecord
+                        {
+                            StepId = completedStepId,
+                            ExecutorId = executorCompleted.ExecutorId,
+                            CompletedAt = completedAt,
+                            Output = executorCompleted.Data is not null
+                                ? WorkflowMessage.Create(executorCompleted.Data)
+                                : null,
+                            DurationMs = durationMs
+                        };
+
+                        // Record step completion to Gateway for persistence
+                        await stateClient.RecordStepCompletedAsync(
+                            request.RunId,
+                            stepCompletedRecord,
+                            etag: null,
+                            cancellationToken);
+
+                        // Emit SSE event
                         await writer.WriteAsync(new WorkflowStepCompletedEvent
                         {
                             RunId = request.RunId,
                             SequenceNumber = sequenceNumber++,
-                            Timestamp = DateTimeOffset.UtcNow,
-                            Step = new WorkflowStepCompletedRecord
-                            {
-                                StepId = completedStepId,
-                                ExecutorId = executorCompleted.ExecutorId,
-                                CompletedAt = DateTimeOffset.UtcNow,
-                                Output = executorCompleted.Data is not null
-                                    ? WorkflowMessage.Create(executorCompleted.Data)
-                                    : null,
-                                DurationMs = durationMs
-                            }
+                            Timestamp = completedAt,
+                            Step = stepCompletedRecord
                         }, cancellationToken);
                         break;
 

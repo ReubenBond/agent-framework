@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { WorkflowRun } from '../types';
 import { monitoringApi } from '../api';
+import { WorkflowVisualizer } from './workflow';
 import './WorkflowDetailModal.css';
 
 interface WorkflowDetailModalProps {
@@ -15,7 +16,7 @@ export function WorkflowDetailModal({ runId, onClose, onWorkflowUpdated }: Workf
   const [workflow, setWorkflow] = useState<WorkflowRun | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [activeSection, setActiveSection] = useState<'overview' | 'steps' | 'artifacts' | 'requests'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'graph' | 'steps' | 'artifacts' | 'requests'>('overview');
   const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
   const [actionInProgress, setActionInProgress] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -140,6 +141,12 @@ export function WorkflowDetailModal({ runId, onClose, onWorkflowUpdated }: Workf
                 Overview
               </button>
               <button
+                className={`modal-tab ${activeSection === 'graph' ? 'active' : ''}`}
+                onClick={() => setActiveSection('graph')}
+              >
+                Graph
+              </button>
+              <button
                 className={`modal-tab ${activeSection === 'steps' ? 'active' : ''}`}
                 onClick={() => setActiveSection('steps')}
               >
@@ -161,6 +168,7 @@ export function WorkflowDetailModal({ runId, onClose, onWorkflowUpdated }: Workf
 
             <div className="modal-body">
               {activeSection === 'overview' && <OverviewSection workflow={workflow} />}
+              {activeSection === 'graph' && <GraphSection workflow={workflow} />}
               {activeSection === 'steps' && <StepsSection workflow={workflow} />}
               {activeSection === 'artifacts' && <ArtifactsSection workflow={workflow} />}
               {activeSection === 'requests' && <PendingRequestsSection workflow={workflow} />}
@@ -461,6 +469,19 @@ function OverviewSection({ workflow }: { workflow: WorkflowRun }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function GraphSection({ workflow }: { workflow: WorkflowRun }) {
+  return (
+    <div className="section graph-section">
+      <WorkflowVisualizer
+        workflow={workflow}
+        layoutDirection="LR"
+        showMinimap={true}
+        showGrid={true}
+      />
     </div>
   );
 }

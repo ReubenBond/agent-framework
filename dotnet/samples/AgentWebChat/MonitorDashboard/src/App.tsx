@@ -128,6 +128,21 @@ export default function App() {
     setSelectedWorkflowId(null);
   }, []);
 
+  const handleDeleteWorkflow = useCallback(async (runId: string) => {
+    if (!confirm(`Are you sure you want to delete workflow ${runId}?`)) {
+      return;
+    }
+    try {
+      await monitoringApi.deleteWorkflow(runId);
+      // Refresh the workflow list after deletion
+      await fetchWorkflows();
+      await fetchSystemStatus();
+    } catch (e) {
+      console.error('Failed to delete workflow:', e);
+      alert(`Failed to delete workflow: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }, [fetchWorkflows, fetchSystemStatus]);
+
   const toggleTheme = useCallback(() => {
     setIsLightTheme((prev) => !prev);
   }, []);
@@ -237,6 +252,7 @@ export default function App() {
                     onRefreshWorkflows={fetchWorkflows}
                     selectedWorkflowId={selectedWorkflowId}
                     onSelectWorkflow={handleSelectWorkflow}
+                    onDeleteWorkflow={handleDeleteWorkflow}
                     onCloseModal={handleCloseModal}
                     onWorkflowUpdated={refreshAll}
                     events={events}
@@ -275,6 +291,7 @@ export default function App() {
                     onRefresh={fetchWorkflows}
                     selectedWorkflowId={selectedWorkflowId}
                     onSelectWorkflow={handleSelectWorkflow}
+                    onDeleteWorkflow={handleDeleteWorkflow}
                     onCloseModal={handleCloseModal}
                     onWorkflowUpdated={refreshAll}
                     events={events}

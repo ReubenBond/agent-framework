@@ -17,6 +17,7 @@ interface WorkflowsPageProps {
   onRefresh: () => void;
   selectedWorkflowId: string | null;
   onSelectWorkflow: (runId: string) => void;
+  onDeleteWorkflow: (runId: string) => void;
   onCloseModal: () => void;
   onWorkflowUpdated: () => void;
   events: MonitoringEvent[];
@@ -34,6 +35,7 @@ export function WorkflowsPage({
   onRefresh,
   selectedWorkflowId,
   onSelectWorkflow,
+  onDeleteWorkflow,
   onCloseModal,
   onWorkflowUpdated,
   events,
@@ -61,6 +63,7 @@ export function WorkflowsPage({
             error={error}
             onRefresh={onRefresh}
             onSelectWorkflow={onSelectWorkflow}
+            onDeleteWorkflow={onDeleteWorkflow}
           />
         </div>
 
