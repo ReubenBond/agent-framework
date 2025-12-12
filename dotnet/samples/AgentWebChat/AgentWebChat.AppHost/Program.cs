@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using AgentWebChat.AppHost;
 
@@ -22,6 +22,10 @@ var gateway = builder.AddProject<Projects.AgentGateway>("gateway")
     .WithExternalHttpEndpoints()
     .WithReference(orleans)
     .WithReference(chatModel);
+
+// Configure the callback URL for the gateway based on its own http endpoint
+// This is used by workflows to report state updates back to the gateway
+gateway.WithEnvironment("AgentGateway__CallbackBaseUrl", gateway.GetEndpoint("http")!);
 
 var agentHost = builder.AddProject<Projects.AgentWebChat_AgentHost>("agenthost")
     .WithHttpEndpoint(name: "devui")

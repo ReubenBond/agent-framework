@@ -20,6 +20,7 @@
     <PackageVersion Include="Aspire.Hosting.Orleans" Version="$(AspireAppHostSdkVersion)" />
     <PackageVersion Include="Aspire.Hosting.NodeJs" Version="9.5.2" />
     <PackageVersion Include="Aspire.Hosting.Redis" Version="$(AspireAppHostSdkVersion)" />
+    <PackageVersion Include="Aspire.Hosting.Testing" Version="$(AspireAppHostSdkVersion)" />
     <PackageVersion Include="Aspire.Microsoft.Azure.Cosmos" Version="$(AspireAppHostSdkVersion)" />
     <PackageVersion Include="Aspire.StackExchange.Redis" Version="$(AspireAppHostSdkVersion)" />
     <PackageVersion Include="CommunityToolkit.Aspire.OllamaSharp" Version="13.0.0-beta.440" />

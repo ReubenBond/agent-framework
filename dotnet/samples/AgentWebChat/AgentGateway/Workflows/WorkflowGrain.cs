@@ -11,6 +11,7 @@ using AgentContracts.Telemetry;
 using AgentContracts.Workflows;
 using AgentGateway.Utilities;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Orleans;
 using Orleans.Runtime;
 
@@ -26,6 +27,7 @@ internal sealed class WorkflowGrain(
     [PersistentState("state")] IPersistentState<WorkflowGrainState> workflowState,
     IGrainFactory grainFactory,
     IWorkflowExecutor workflowExecutor,
+    IOptions<AgentGatewayOptions> gatewayOptions,
     ILogger<WorkflowGrain> logger) : Grain, IWorkflowGrain, IRemindable, IDisposable
 {
     private const string ExecutionReminderName = "WorkflowExecution";
@@ -848,11 +850,12 @@ internal sealed class WorkflowGrain(
         }
     }
 
-    private static string GetCallbackBaseUrl()
+    private string GetCallbackBaseUrl()
     {
-        // In a production system, this should be configured via options
-        // For now, we return a placeholder that the gateway should resolve
-        return Environment.GetEnvironmentVariable("GATEWAY_CALLBACK_URL") ?? "http://localhost:5000";
+        // Use configured callback URL if available, otherwise fall back to environment variable or default
+        return gatewayOptions.Value.CallbackBaseUrl
+            ?? Environment.GetEnvironmentVariable("GATEWAY_CALLBACK_URL")
+            ?? "http://localhost:5000";
     }
 
     // ============ Helpers ============

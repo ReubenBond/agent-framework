@@ -18,6 +18,7 @@
     <Project Path="samples/AgentWebChat/AgentGateway.UnitTests/AgentGateway.UnitTests.csproj" />
     <Project Path="samples/AgentWebChat/AgentWebChat.AgentHost/AgentWebChat.AgentHost.csproj" />
     <Project Path="samples/AgentWebChat/AgentWebChat.AppHost/AgentWebChat.AppHost.csproj" />
+    <Project Path="samples/AgentWebChat/AgentWebChat.IntegrationTests/AgentWebChat.IntegrationTests.csproj" />
     <Project Path="samples/AgentWebChat/AgentWebChat.ServiceDefaults/AgentWebChat.ServiceDefaults.csproj" />
     <Project Path="samples/AgentWebChat/AgentWebChat.Web/AgentWebChat.Web.csproj" />
   </Folder>
