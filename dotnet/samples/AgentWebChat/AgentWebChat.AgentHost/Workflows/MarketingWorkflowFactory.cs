@@ -158,6 +158,7 @@ internal sealed class MarketingWorkflowState
     public string? OriginalTopic { get; set; }
     public string? LastContent { get; set; }
     public string? LastFeedback { get; set; }
+    public string? LastReviewerNotes { get; set; }
     public ApprovalDecision? LastDecision { get; set; }
 }
 
@@ -251,16 +252,28 @@ internal sealed class WriterExecutor : Executor
 
         state.Version++;
         state.LastFeedback = approvalResponse.Feedback;
+        state.LastDecision = approvalResponse.Decision;
+
+        // Include reviewer notes if available for more comprehensive revision guidance
+        var reviewerGuidance = !string.IsNullOrEmpty(state.LastReviewerNotes)
+            ? $"""
+
+              REVIEWER ANALYSIS:
+              {state.LastReviewerNotes}
+              """
+            : string.Empty;
 
         var prompt = $"""
             Revise the following marketing content based on this feedback:
 
-            FEEDBACK: {approvalResponse.Feedback ?? "General improvements needed"}
+            HUMAN FEEDBACK: {approvalResponse.Feedback ?? "General improvements needed"}
+            {reviewerGuidance}
 
             ORIGINAL CONTENT:
             {state.LastContent}
 
             Please address all feedback points while maintaining the overall message and tone.
+            Pay special attention to the human feedback, but also consider the reviewer's analysis.
             """;
 
         var response = await this._agent.RunAsync(prompt, cancellationToken: cancellationToken);
@@ -308,10 +321,26 @@ internal sealed class ReviewerExecutor : Executor<MarketingContent, MarketingApp
         IWorkflowContext context,
         CancellationToken cancellationToken = default)
     {
+        // Read existing state to include context from previous iterations
+        var state = await context.ReadStateAsync<MarketingWorkflowState>(
+            MarketingWorkflowStateKeys.Key,
+            MarketingWorkflowStateKeys.Scope,
+            cancellationToken) ?? new MarketingWorkflowState();
+
+        // Build prompt with context from previous review if this is a revision
+        var contextInfo = state.Version > 1 && !string.IsNullOrEmpty(state.LastReviewerNotes)
+            ? $"""
+
+              CONTEXT: This is version {message.Version} of the content.
+              Previous feedback that was addressed: {state.LastFeedback ?? "None provided"}
+              """
+            : string.Empty;
+
         var prompt = $"""
             Review the following marketing content:
 
             {message.Content}
+            {contextInfo}
 
             Provide a structured review with:
             - Quality Score (1-10)
@@ -323,11 +352,9 @@ internal sealed class ReviewerExecutor : Executor<MarketingContent, MarketingApp
         var response = await this._agent.RunAsync(prompt, cancellationToken: cancellationToken);
         var reviewerNotes = response.Text ?? string.Empty;
 
-        // Update state with reviewed content
-        var state = await context.ReadStateAsync<MarketingWorkflowState>(
-            MarketingWorkflowStateKeys.Key,
-            MarketingWorkflowStateKeys.Scope,
-            cancellationToken) ?? new MarketingWorkflowState();
+        // Update state with reviewer notes for use in potential revisions
+        state.LastReviewerNotes = reviewerNotes;
+        await context.QueueStateUpdateAsync(MarketingWorkflowStateKeys.Key, state, MarketingWorkflowStateKeys.Scope, cancellationToken);
 
         // Return approval request for human review
         return new MarketingApprovalRequest
