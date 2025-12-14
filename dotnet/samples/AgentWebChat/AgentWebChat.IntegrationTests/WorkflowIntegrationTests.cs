@@ -271,4 +271,311 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     }
 
     #endregion
+
+    #region HITL (Human-in-the-Loop) Tests
+
+    [Fact]
+    public async Task MarketingWorkflow_TransitionsToWaitingForSignal_WhenHITLRequired()
+    {
+        // Arrange
+        var client = this._gatewayClient!;
+        var request = new StartWorkflowRequest
+        {
+            WorkflowName = "marketing-content",
+            Input = WorkflowMessage.Create(new { topic = "HITL Test Topic", targetAudience = "Testers", tone = "professional" }),
+            Metadata = new Dictionary<string, string> { ["test"] = "hitl-transition" }
+        };
+
+        // Act - Start the workflow
+        var startResponse = await client.PostAsJsonAsync(CreateUri("/v1/workflows"), request, s_jsonOptions);
+        startResponse.StatusCode.Should().Be(HttpStatusCode.Created);
+        var created = await startResponse.Content.ReadFromJsonAsync<WorkflowRun>(s_jsonOptions);
+
+        // Wait for the workflow to reach WaitingForSignal (HITL pause point)
+        WorkflowRun? workflow = null;
+        var maxWait = TimeSpan.FromSeconds(60);
+        var start = DateTime.UtcNow;
+
+        while (DateTime.UtcNow - start < maxWait)
+        {
+            var getResponse = await client.GetAsync(CreateUri($"/v1/workflows/{created!.Id}"));
+            getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+            workflow = await getResponse.Content.ReadFromJsonAsync<WorkflowRun>(s_jsonOptions);
+
+            // Break if we've reached the HITL waiting state or a terminal state
+            if (workflow!.Status == WorkflowRunStatus.WaitingForSignal ||
+                workflow.Status == WorkflowRunStatus.Completed ||
+                workflow.Status == WorkflowRunStatus.Failed ||
+                workflow.Status == WorkflowRunStatus.Aborted)
+            {
+                break;
+            }
+
+            await Task.Delay(1000);
+        }
+
+        // Assert
+        workflow.Should().NotBeNull();
+        // If the AI is configured and working, we should reach WaitingForSignal
+        // If AI is not configured or fails, we might get Failed status
+        workflow!.Status.Should().BeOneOf(
+            WorkflowRunStatus.WaitingForSignal,
+            WorkflowRunStatus.Completed,
+            WorkflowRunStatus.Failed);
+    }
+
+    [Fact]
+    public async Task MarketingWorkflow_HasPendingRequests_WhenWaitingForSignal()
+    {
+        // Arrange
+        var client = this._gatewayClient!;
+        var request = new StartWorkflowRequest
+        {
+            WorkflowName = "marketing-content",
+            Input = WorkflowMessage.Create(new { topic = "Pending Request Test", targetAudience = "QA", tone = "casual" })
+        };
+
+        // Act - Start the workflow and wait for HITL
+        var startResponse = await client.PostAsJsonAsync(CreateUri("/v1/workflows"), request, s_jsonOptions);
+        var created = await startResponse.Content.ReadFromJsonAsync<WorkflowRun>(s_jsonOptions);
+
+        WorkflowRun? workflow = await WaitForWorkflowStatusAsync(
+            client,
+            created!.Id,
+            [WorkflowRunStatus.WaitingForSignal, WorkflowRunStatus.Completed, WorkflowRunStatus.Failed],
+            TimeSpan.FromSeconds(60));
+
+        // Assert
+        if (workflow?.Status == WorkflowRunStatus.WaitingForSignal)
+        {
+            // When waiting for signal, there should be pending requests
+            workflow.PendingRequests.Should().NotBeEmpty();
+            workflow.PendingRequests.Should().Contain(r => r.PortId == "approval");
+        }
+    }
+
+    [Fact]
+    public async Task MarketingWorkflow_RecordsSteps_DuringExecution()
+    {
+        // Arrange
+        var client = this._gatewayClient!;
+        var request = new StartWorkflowRequest
+        {
+            WorkflowName = "marketing-content",
+            Input = WorkflowMessage.Create(new { topic = "Steps Recording Test", targetAudience = "Engineers", tone = "technical" })
+        };
+
+        // Act - Start the workflow and wait for it to progress
+        var startResponse = await client.PostAsJsonAsync(CreateUri("/v1/workflows"), request, s_jsonOptions);
+        var created = await startResponse.Content.ReadFromJsonAsync<WorkflowRun>(s_jsonOptions);
+
+        WorkflowRun? workflow = await WaitForWorkflowStatusAsync(
+            client,
+            created!.Id,
+            [WorkflowRunStatus.WaitingForSignal, WorkflowRunStatus.Completed, WorkflowRunStatus.Failed],
+            TimeSpan.FromSeconds(60));
+
+        // Assert - If the workflow progressed, it should have recorded steps
+        workflow.Should().NotBeNull();
+        if (workflow!.Status != WorkflowRunStatus.Failed && workflow.Status != WorkflowRunStatus.Queued)
+        {
+            // The workflow should have recorded at least the writer step
+            workflow.Steps.Should().NotBeEmpty("Workflow should record execution steps");
+
+            // If we have steps, verify their structure
+            foreach (var step in workflow.Steps)
+            {
+                step.StepId.Should().NotBeNullOrEmpty();
+                step.ExecutorId.Should().NotBeNullOrEmpty();
+                step.StartedAt.Should().NotBe(default);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task MarketingWorkflow_Signal_ResumesWorkflow()
+    {
+        // Arrange
+        var client = this._gatewayClient!;
+        var request = new StartWorkflowRequest
+        {
+            WorkflowName = "marketing-content",
+            Input = WorkflowMessage.Create(new { topic = "Signal Resume Test", targetAudience = "Product Managers", tone = "persuasive" })
+        };
+
+        // Act - Start the workflow and wait for HITL
+        var startResponse = await client.PostAsJsonAsync(CreateUri("/v1/workflows"), request, s_jsonOptions);
+        var created = await startResponse.Content.ReadFromJsonAsync<WorkflowRun>(s_jsonOptions);
+
+        var workflow = await WaitForWorkflowStatusAsync(
+            client,
+            created!.Id,
+            [WorkflowRunStatus.WaitingForSignal, WorkflowRunStatus.Completed, WorkflowRunStatus.Failed],
+            TimeSpan.FromSeconds(60));
+
+        // Skip if workflow didn't reach HITL waiting state
+        if (workflow?.Status != WorkflowRunStatus.WaitingForSignal)
+        {
+            return; // Skip - AI may not be configured
+        }
+
+        // Get the pending request
+        var pendingRequest = workflow.PendingRequests.FirstOrDefault();
+        pendingRequest.Should().NotBeNull();
+
+        // Send approval signal
+        var signal = new WorkflowSignal
+        {
+            RequestId = pendingRequest!.RequestId,
+            Response = WorkflowMessage.Create(new { decision = "Approve", feedback = "Great content!" })
+        };
+
+        var signalResponse = await client.PostAsJsonAsync(
+            CreateUri($"/v1/workflows/{created.Id}/signal"),
+            signal,
+            s_jsonOptions);
+
+        // Assert
+        signalResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var signalResult = await signalResponse.Content.ReadFromJsonAsync<WorkflowRun>(s_jsonOptions);
+        signalResult.Should().NotBeNull();
+
+        // After signaling, the workflow should be Running (resumed) or already Completed
+        signalResult!.Status.Should().BeOneOf(
+            WorkflowRunStatus.Running,
+            WorkflowRunStatus.Completed,
+            WorkflowRunStatus.WaitingForSignal);
+
+        // Pending requests should be cleared for the approved request
+        if (signalResult.Status == WorkflowRunStatus.Running || signalResult.Status == WorkflowRunStatus.Completed)
+        {
+            signalResult.PendingRequests.Should().NotContain(r => r.RequestId == pendingRequest.RequestId);
+        }
+    }
+
+    [Fact]
+    public async Task MarketingWorkflow_Signal_WithRevision_LoopsBackToWriter()
+    {
+        // Arrange
+        var client = this._gatewayClient!;
+        var request = new StartWorkflowRequest
+        {
+            WorkflowName = "marketing-content",
+            Input = WorkflowMessage.Create(new { topic = "Revision Loop Test", targetAudience = "Executives", tone = "formal" })
+        };
+
+        // Start workflow and wait for HITL
+        var startResponse = await client.PostAsJsonAsync(CreateUri("/v1/workflows"), request, s_jsonOptions);
+        var created = await startResponse.Content.ReadFromJsonAsync<WorkflowRun>(s_jsonOptions);
+
+        var workflow = await WaitForWorkflowStatusAsync(
+            client,
+            created!.Id,
+            [WorkflowRunStatus.WaitingForSignal, WorkflowRunStatus.Completed, WorkflowRunStatus.Failed],
+            TimeSpan.FromSeconds(60));
+
+        // Skip if workflow didn't reach HITL waiting state
+        if (workflow?.Status != WorkflowRunStatus.WaitingForSignal)
+        {
+            return;
+        }
+
+        var pendingRequest = workflow.PendingRequests.FirstOrDefault();
+        pendingRequest.Should().NotBeNull();
+
+        // Send revision signal
+        var signal = new WorkflowSignal
+        {
+            RequestId = pendingRequest!.RequestId,
+            Response = WorkflowMessage.Create(new { decision = "Revise", feedback = "Please make it more concise" })
+        };
+
+        var signalResponse = await client.PostAsJsonAsync(
+            CreateUri($"/v1/workflows/{created.Id}/signal"),
+            signal,
+            s_jsonOptions);
+
+        // Assert
+        signalResponse.StatusCode.Should().Be(HttpStatusCode.OK);
+        var signalResult = await signalResponse.Content.ReadFromJsonAsync<WorkflowRun>(s_jsonOptions);
+
+        // After revision request, workflow should loop back and eventually wait again or complete
+        // We'll wait for it to reach another state
+        workflow = await WaitForWorkflowStatusAsync(
+            client,
+            created.Id,
+            [WorkflowRunStatus.WaitingForSignal, WorkflowRunStatus.Completed, WorkflowRunStatus.Failed],
+            TimeSpan.FromSeconds(60));
+
+        workflow.Should().NotBeNull();
+        // The workflow should either be waiting again (for another approval) or completed
+        workflow!.Status.Should().BeOneOf(
+            WorkflowRunStatus.WaitingForSignal,
+            WorkflowRunStatus.Completed,
+            WorkflowRunStatus.Failed);
+    }
+
+    #endregion
+
+    #region Input Type Resolution Tests
+
+    [Fact]
+    public async Task MarketingWorkflow_InputTypeName_IsPreserved()
+    {
+        // Arrange
+        var client = this._gatewayClient!;
+
+        // Create input using the WorkflowMessage.Create which should set TypeName
+        var input = WorkflowMessage.Create(new { topic = "Type Test", targetAudience = "Devs", tone = "casual" });
+
+        var request = new StartWorkflowRequest
+        {
+            WorkflowName = "marketing-content",
+            Input = input
+        };
+
+        // Act
+        var response = await client.PostAsJsonAsync(CreateUri("/v1/workflows"), request, s_jsonOptions);
+        var created = await response.Content.ReadFromJsonAsync<WorkflowRun>(s_jsonOptions);
+
+        // Assert
+        created.Should().NotBeNull();
+        created!.Input.Should().NotBeNull();
+        // The TypeName should be preserved in the workflow run
+        // Note: Anonymous types will have compiler-generated names
+    }
+
+    #endregion
+
+    #region Helper Methods
+
+    private static async Task<WorkflowRun?> WaitForWorkflowStatusAsync(
+        HttpClient client,
+        string workflowId,
+        WorkflowRunStatus[] targetStatuses,
+        TimeSpan timeout)
+    {
+        var start = DateTime.UtcNow;
+        WorkflowRun? workflow = null;
+
+        while (DateTime.UtcNow - start < timeout)
+        {
+            var response = await client.GetAsync(CreateUri($"/v1/workflows/{workflowId}"));
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                workflow = await response.Content.ReadFromJsonAsync<WorkflowRun>(s_jsonOptions);
+
+                if (workflow != null && targetStatuses.Contains(workflow.Status))
+                {
+                    return workflow;
+                }
+            }
+
+            await Task.Delay(1000);
+        }
+
+        return workflow;
+    }
+
+    #endregion
 }

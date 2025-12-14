@@ -26,10 +26,10 @@ internal sealed class WorkflowGrainState
     public List<WorkflowStatusEvent> Events { get; set; } = [];
 
     /// <summary>
-    /// The latest checkpoint for workflow resumption.
+    /// All checkpoints stored for this workflow run, keyed by checkpoint ID.
     /// </summary>
     [Id(2)]
-    public WorkflowCheckpointData? Checkpoint { get; set; }
+    public Dictionary<string, WorkflowCheckpointData> Checkpoints { get; set; } = [];
 
     /// <summary>
     /// Version number incremented on each state change.

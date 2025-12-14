@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -135,6 +136,19 @@ internal static class WorkflowHttpApi
         stateGroup.MapGet("/checkpoint", GetCheckpointAsync)
             .WithName("GetCheckpoint")
             .Produces<WorkflowCheckpointResult>()
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        // GET /v1/workflows/{runId}/state/checkpoints/{checkpointId} - Get specific checkpoint by ID
+        stateGroup.MapGet("/checkpoints/{checkpointId}", GetCheckpointByIdAsync)
+            .WithName("GetCheckpointById")
+            .Produces<WorkflowCheckpointData>()
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound);
+
+        // GET /v1/workflows/{runId}/state/checkpoints - List all checkpoint IDs
+        stateGroup.MapGet("/checkpoints", ListCheckpointIdsAsync)
+            .WithName("ListCheckpointIds")
+            .Produces<IReadOnlyList<string>>()
             .ProducesProblem(StatusCodes.Status404NotFound);
 
         // POST /v1/workflows/{runId}/state/artifacts - Record artifact
@@ -782,6 +796,53 @@ internal static class WorkflowHttpApi
                 return Results.NoContent();
             }
             return Results.Ok(checkpoint);
+        }
+        catch (WorkflowNotFoundException)
+        {
+            return Results.Problem(
+                title: "Workflow not found",
+                detail: $"Workflow '{runId}' not found.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+    }
+
+    private static async Task<IResult> GetCheckpointByIdAsync(
+        string runId,
+        string checkpointId,
+        IGrainFactory grainFactory,
+        CancellationToken ct)
+    {
+        var grain = grainFactory.GetGrain<IWorkflowGrain>(runId);
+
+        try
+        {
+            var checkpoint = await grain.GetCheckpointByIdAsync(checkpointId, ct);
+            if (checkpoint is null)
+            {
+                return Results.NoContent();
+            }
+            return Results.Ok(checkpoint);
+        }
+        catch (WorkflowNotFoundException)
+        {
+            return Results.Problem(
+                title: "Workflow not found",
+                detail: $"Workflow '{runId}' not found.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+    }
+
+    private static async Task<IResult> ListCheckpointIdsAsync(
+        string runId,
+        IGrainFactory grainFactory,
+        CancellationToken ct)
+    {
+        var grain = grainFactory.GetGrain<IWorkflowGrain>(runId);
+
+        try
+        {
+            var checkpointIds = await grain.ListCheckpointIdsAsync(ct);
+            return Results.Ok(checkpointIds);
         }
         catch (WorkflowNotFoundException)
         {

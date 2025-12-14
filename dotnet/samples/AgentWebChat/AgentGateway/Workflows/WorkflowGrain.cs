@@ -501,7 +501,7 @@ internal sealed class WorkflowGrain(
 
         this.EnsureRunExists();
 
-        workflowState.State.Checkpoint = checkpoint;
+        workflowState.State.Checkpoints[checkpoint.CheckpointId] = checkpoint;
 
         workflowState.State.IncrementVersion(etag, this.RunId);
         await workflowState.WriteStateAsync(cancellationToken);
@@ -513,16 +513,32 @@ internal sealed class WorkflowGrain(
 
     public Task<WorkflowCheckpointResult?> GetCheckpointAsync(CancellationToken cancellationToken)
     {
-        if (workflowState.State.Checkpoint is null)
+        // Get the most recent checkpoint from the dictionary
+        var mostRecentCheckpoint = workflowState.State.Checkpoints.Values
+            .OrderByDescending(c => c.CreatedAt)
+            .FirstOrDefault();
+
+        if (mostRecentCheckpoint is null)
         {
             return Task.FromResult<WorkflowCheckpointResult?>(null);
         }
 
         return Task.FromResult<WorkflowCheckpointResult?>(new WorkflowCheckpointResult
         {
-            Checkpoint = workflowState.State.Checkpoint,
+            Checkpoint = mostRecentCheckpoint,
             ETag = workflowState.State.GetETag()
         });
+    }
+
+    public Task<WorkflowCheckpointData?> GetCheckpointByIdAsync(string checkpointId, CancellationToken cancellationToken)
+    {
+        workflowState.State.Checkpoints.TryGetValue(checkpointId, out var checkpoint);
+        return Task.FromResult(checkpoint);
+    }
+
+    public Task<IReadOnlyList<string>> ListCheckpointIdsAsync(CancellationToken cancellationToken)
+    {
+        return Task.FromResult<IReadOnlyList<string>>(workflowState.State.Checkpoints.Keys.ToList());
     }
 
     public async Task<string> RecordArtifactAsync(WorkflowArtifactRecord artifact, string? etag, CancellationToken cancellationToken)
@@ -818,13 +834,18 @@ internal sealed class WorkflowGrain(
 
         var callbackBaseUrl = GetCallbackBaseUrl();
 
+        // Get the most recent checkpoint data for resume
+        var mostRecentCheckpoint = workflowState.State.Checkpoints.Values
+            .OrderByDescending(c => c.CreatedAt)
+            .FirstOrDefault();
+
         var resumeRequest = new WorkflowResumeRequest
         {
             RunId = this.RunId,
             WorkflowName = run.WorkflowName,
             CallbackBaseUrl = callbackBaseUrl,
             Signal = signal,
-            CheckpointData = workflowState.State.Checkpoint?.Data
+            CheckpointData = mostRecentCheckpoint?.Data
         };
 
         workflowState.State.ExecutionState = WorkflowExecutionState.ResumeDispatched;

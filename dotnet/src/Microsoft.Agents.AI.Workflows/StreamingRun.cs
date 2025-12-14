@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -57,7 +57,21 @@ public sealed class StreamingRun : IAsyncDisposable
     public ValueTask<bool> TrySendMessageAsync<TMessage>(TMessage message)
         => this._runHandle.EnqueueMessageAsync(message);
 
-    internal ValueTask<bool> TrySendMessageUntypedAsync(object message, Type? declaredType = null)
+    /// <summary>
+    /// Sends a message to the workflow using the runtime type of the message for routing purposes.
+    /// </summary>
+    /// <remarks>
+    /// This method preserves the runtime type of the message for correct message routing, unlike
+    /// <see cref="TrySendMessageAsync{TMessage}"/> which uses the compile-time generic type parameter.
+    /// Use this method when you have a message whose runtime type differs from its compile-time type
+    /// (e.g., when deserializing messages where the compile-time type is <see cref="object"/>).
+    /// </remarks>
+    /// <param name="message">The message instance to send. Cannot be null.</param>
+    /// <param name="declaredType">The type to use for routing. If null, the runtime type of the message is used.</param>
+    /// <returns>A <see cref="ValueTask{Boolean}"/> that represents the asynchronous send operation. It's
+    /// <see cref="ValueTask{Boolean}.Result"/> is <see langword="true"/> if the message was sent
+    /// successfully; otherwise, <see langword="false"/>.</returns>
+    public ValueTask<bool> TrySendMessageUntypedAsync(object message, Type? declaredType = null)
         => this._runHandle.EnqueueMessageUntypedAsync(message, declaredType);
 
     /// <summary>

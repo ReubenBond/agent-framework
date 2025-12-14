@@ -136,17 +136,40 @@ internal sealed class WorkflowHostService : IWorkflowHost
                 Input = request.Input
             }, cancellationToken);
 
-            // Deserialize input and start workflow execution with checkpoint manager
+            // Deserialize input and start workflow execution with Gateway-backed checkpoint manager
             var inputData = DeserializeInput(request.Input);
-            var checkpointManager = CheckpointManager.Default;
-            checkpointedRun = await InProcessExecution.StreamAsync(workflow, inputData, checkpointManager, request.RunId, cancellationToken);
+            var inputType = inputData.GetType();
+            this._logger.LogDebug("[DIAG] Input TypeName from message: {TypeName}, Deserialized type: {DeserializedType}",
+                request.Input.TypeName,
+                inputType.FullName);
+            var checkpointManager = GatewayCheckpointStore.CreateCheckpointManager(stateClient, request.RunId);
+
+            // CRITICAL: Use the non-generic StreamAsync and then send the message with its runtime type.
+            // This preserves the actual message type (e.g., MarketingContentInput) for workflow routing.
+            // Using the generic StreamAsync<TInput> with inputData would use 'object' as TInput, which
+            // would cause the message router to fail to match any handlers.
+            checkpointedRun = await InProcessExecution.StreamAsync(workflow, checkpointManager, request.RunId, cancellationToken);
+            var messageSent = await checkpointedRun.Run.TrySendMessageUntypedAsync(inputData, inputType);
+
+            if (!messageSent)
+            {
+                this._logger.LogError(
+                    "Workflow {WorkflowName} does not accept input of type {InputType}. The workflow's starting executor may not have a handler for this message type.",
+                    request.WorkflowName, inputType.FullName);
+                throw new InvalidOperationException(
+                    $"Workflow '{request.WorkflowName}' does not accept input of type '{inputType.FullName}'. " +
+                    "Ensure the workflow's starting executor has a handler for this message type.");
+            }
 
             // Process framework events and map to contract events
+            this._logger.LogDebug("[DIAG] Starting WatchStreamAsync loop for workflow {RunId}", request.RunId);
             await foreach (var evt in checkpointedRun.Run.WatchStreamAsync(cancellationToken))
             {
+                this._logger.LogDebug("[DIAG] Received event type: {EventType} for workflow {RunId}", evt.GetType().Name, request.RunId);
                 switch (evt)
                 {
                     case ExecutorInvokedEvent executorInvoked:
+                        this._logger.LogDebug("[DIAG] ExecutorInvokedEvent: ExecutorId={ExecutorId}", executorInvoked.ExecutorId);
                         var stepId = $"step_{sequenceNumber}";
                         var startedAt = DateTimeOffset.UtcNow;
                         stepStartTimes[executorInvoked.ExecutorId] = startedAt;
@@ -178,6 +201,8 @@ internal sealed class WorkflowHostService : IWorkflowHost
                         break;
 
                     case ExecutorCompletedEvent executorCompleted:
+                        this._logger.LogDebug("[DIAG] ExecutorCompletedEvent: ExecutorId={ExecutorId}, DataType={DataType}",
+                            executorCompleted.ExecutorId, executorCompleted.Data?.GetType().Name ?? "null");
                         var completedStepId = executorStepIds.GetValueOrDefault(executorCompleted.ExecutorId, $"step_{sequenceNumber}");
                         var stepStartedAt = stepStartTimes.GetValueOrDefault(executorCompleted.ExecutorId, DateTimeOffset.UtcNow);
                         var completedAt = DateTimeOffset.UtcNow;
@@ -214,8 +239,8 @@ internal sealed class WorkflowHostService : IWorkflowHost
                     case RequestInfoEvent requestInfo:
                         // HITL: Workflow is waiting for external input
                         this._logger.LogInformation(
-                            "Workflow paused for external input: {RunId}, RequestId: {RequestId}",
-                            request.RunId, requestInfo.Request.RequestId);
+                            "[DIAG] RequestInfoEvent received: {RunId}, RequestId: {RequestId}, PortId: {PortId}",
+                            request.RunId, requestInfo.Request.RequestId, requestInfo.Request.PortInfo.PortId);
 
                         var pendingRequest = MapToPendingExternalRequest(requestInfo.Request);
 
@@ -276,8 +301,23 @@ internal sealed class WorkflowHostService : IWorkflowHost
                             "Workflow warning: {RunId} - {Warning}",
                             request.RunId, warningEvent.Data);
                         break;
+
+                    case SuperStepCompletedEvent superStepCompleted:
+                        this._logger.LogDebug(
+                            "[DIAG] SuperStepCompletedEvent: RunId={RunId}, StepNumber={StepNumber}, HasPendingMessages={HasPendingMessages}, HasPendingRequests={HasPendingRequests}",
+                            request.RunId,
+                            superStepCompleted.StepNumber,
+                            superStepCompleted.CompletionInfo?.HasPendingMessages,
+                            superStepCompleted.CompletionInfo?.HasPendingRequests);
+                        break;
+
+                    default:
+                        this._logger.LogDebug("[DIAG] Unhandled event type: {EventType}", evt.GetType().Name);
+                        break;
                 }
             }
+
+            this._logger.LogDebug("[DIAG] WatchStreamAsync loop exited normally for workflow {RunId}", request.RunId);
 
             // Workflow completed successfully
             await stateClient.UpdateStatusAsync(
@@ -428,7 +468,7 @@ internal sealed class WorkflowHostService : IWorkflowHost
 
             // Deserialize checkpoint info from the stored data
             // The checkpoint data contains JSON-serialized CheckpointInfo (runId + checkpointId)
-            var checkpointManager = CheckpointManager.Default;
+            var checkpointManager = GatewayCheckpointStore.CreateCheckpointManager(stateClient, request.RunId);
             var checkpointJson = System.Text.Encoding.UTF8.GetString(request.CheckpointData);
             var checkpointInfo = JsonSerializer.Deserialize<CheckpointInfoDto>(checkpointJson)
                 ?? throw new InvalidOperationException("Failed to deserialize checkpoint info from checkpoint data.");
@@ -730,15 +770,57 @@ internal sealed class WorkflowHostService : IWorkflowHost
 
     /// <summary>
     /// Deserializes the workflow input message to an object.
+    /// Attempts to resolve the actual type from TypeName for proper routing in the workflow framework.
     /// </summary>
-    private static object DeserializeInput(WorkflowMessage input)
+    private object DeserializeInput(WorkflowMessage input)
     {
-        // Try to deserialize as a dictionary first for generic input handling
+        // Try to resolve the actual type from TypeName for proper workflow routing
+        if (!string.IsNullOrEmpty(input.TypeName))
+        {
+            // Try to find the type in the current assemblies
+            var type = Type.GetType(input.TypeName);
+            if (type is null)
+            {
+                // Try to find in all loaded assemblies
+                foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    type = assembly.GetType(input.TypeName.Split(',')[0].Trim());
+                    if (type is not null)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            if (type is not null)
+            {
+                try
+                {
+                    var typedResult = input.Data.Deserialize(type);
+                    if (typedResult is not null)
+                    {
+                        this._logger.LogDebug("[DIAG] Successfully deserialized input to type {TypeName}", type.FullName);
+                        return typedResult;
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    this._logger.LogDebug(ex, "[DIAG] Failed to deserialize input to type {TypeName}, falling back to dictionary", type.FullName);
+                }
+            }
+            else
+            {
+                this._logger.LogDebug("[DIAG] Could not resolve type from TypeName: {TypeName}", input.TypeName);
+            }
+        }
+
+        // Fallback: Try to deserialize as a dictionary for generic input handling
         try
         {
             var dict = input.Data.Deserialize<Dictionary<string, object?>>();
             if (dict is not null)
             {
+                this._logger.LogDebug("[DIAG] Deserialized input as Dictionary<string, object?>");
                 return dict;
             }
         }
@@ -748,6 +830,7 @@ internal sealed class WorkflowHostService : IWorkflowHost
         }
 
         // Return the raw JsonElement as a string representation
+        this._logger.LogDebug("[DIAG] Returning raw input data as string");
         return input.Data.GetRawText();
     }
 

@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using AgentContracts.Workflows;
 using AgentGateway.Workflows;
@@ -483,6 +483,76 @@ public sealed class WorkflowGrainTests
 
         // Assert
         result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SaveCheckpointAsync_MultipleCheckpoints_ReturnsMostRecent()
+    {
+        // Arrange
+        var runId = NewRunId();
+        var grain = this._fixture.GrainFactory.GetGrain<IWorkflowGrain>(runId);
+        await grain.StartAsync(CreateStartRequest(), CancellationToken.None);
+
+        // Save first checkpoint
+        var checkpoint1 = new WorkflowCheckpointData
+        {
+            CheckpointId = "cp-1",
+            Data = [1, 2, 3],
+            CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-5)
+        };
+        await grain.SaveCheckpointAsync(checkpoint1, null, CancellationToken.None);
+
+        // Save second checkpoint (more recent)
+        var checkpoint2 = new WorkflowCheckpointData
+        {
+            CheckpointId = "cp-2",
+            Data = [4, 5, 6],
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        await grain.SaveCheckpointAsync(checkpoint2, null, CancellationToken.None);
+
+        // Act
+        var result = await grain.GetCheckpointAsync(CancellationToken.None);
+
+        // Assert - Should return the most recent checkpoint
+        result.Should().NotBeNull();
+        result!.Checkpoint.CheckpointId.Should().Be("cp-2");
+        result.Checkpoint.Data.Should().BeEquivalentTo(new byte[] { 4, 5, 6 });
+    }
+
+    [Fact]
+    public async Task SaveCheckpointAsync_SameCheckpointId_UpdatesExisting()
+    {
+        // Arrange
+        var runId = NewRunId();
+        var grain = this._fixture.GrainFactory.GetGrain<IWorkflowGrain>(runId);
+        await grain.StartAsync(CreateStartRequest(), CancellationToken.None);
+
+        // Save initial checkpoint
+        var checkpoint1 = new WorkflowCheckpointData
+        {
+            CheckpointId = "cp-1",
+            Data = [1, 2, 3],
+            CreatedAt = DateTimeOffset.UtcNow.AddMinutes(-1)
+        };
+        await grain.SaveCheckpointAsync(checkpoint1, null, CancellationToken.None);
+
+        // Update the same checkpoint
+        var checkpoint2 = new WorkflowCheckpointData
+        {
+            CheckpointId = "cp-1",
+            Data = [7, 8, 9],
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+        await grain.SaveCheckpointAsync(checkpoint2, null, CancellationToken.None);
+
+        // Act
+        var result = await grain.GetCheckpointAsync(CancellationToken.None);
+
+        // Assert - Should have the updated data
+        result.Should().NotBeNull();
+        result!.Checkpoint.CheckpointId.Should().Be("cp-1");
+        result.Checkpoint.Data.Should().BeEquivalentTo(new byte[] { 7, 8, 9 });
     }
 
     #endregion

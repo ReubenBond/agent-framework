@@ -1,13 +1,16 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Net;
 using System.Text;
 using System.Text.Json;
 using AgentContracts;
+using AgentContracts.Monitoring;
 using AgentContracts.Workflows;
 using AgentGateway.Workflows;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.Options;
+using Moq;
 using Orleans.Serialization;
 using Orleans.Storage;
 
@@ -59,7 +62,29 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
             // Register System.Text.Json-based grain storage serializer
             siloBuilder.Services.AddSingleton<IGrainStorageSerializer>(sp =>
                 new Utilities.SystemTextJsonGrainStorageSerializer(AgentGatewayJsonUtilities.DefaultOptions));
+
+            // Register mock IWorkflowExecutor for workflow grain
+            var mockWorkflowExecutor = new Mock<IWorkflowExecutor>();
+            mockWorkflowExecutor
+                .Setup(x => x.ExecuteAsync(
+                    It.IsAny<WorkflowExecutionRequest>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new WorkflowExecutionResult { Success = true, WorkerId = "test-worker-1" });
+            mockWorkflowExecutor
+                .Setup(x => x.ResumeAsync(
+                    It.IsAny<WorkflowResumeRequest>(),
+                    It.IsAny<string?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new WorkflowExecutionResult { Success = true, WorkerId = "test-worker-1" });
+            siloBuilder.Services.AddSingleton(_ => mockWorkflowExecutor.Object);
         });
+
+        // Register required services for WorkflowHttpApi endpoints
+        var mockEventBroadcaster = new Mock<IMonitoringEventBroadcaster>();
+        builder.Services.AddSingleton(_ => mockEventBroadcaster.Object);
+        builder.Services.Configure<AgentGatewayOptions>(options => options.CallbackBaseUrl = "http://localhost:5000");
+        builder.Services.AddSingleton<IWorkflowExecutor>(_ => CreateMockWorkflowExecutor());
 
         this._app = builder.Build();
 
@@ -84,6 +109,22 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
         }
 
         GC.SuppressFinalize(this);
+    }
+
+    private static IWorkflowExecutor CreateMockWorkflowExecutor()
+    {
+        var mock = new Mock<IWorkflowExecutor>();
+        mock.Setup(x => x.ExecuteAsync(
+                It.IsAny<WorkflowExecutionRequest>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new WorkflowExecutionResult { Success = true, WorkerId = "test-worker-1" });
+        mock.Setup(x => x.ResumeAsync(
+                It.IsAny<WorkflowResumeRequest>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new WorkflowExecutionResult { Success = true, WorkerId = "test-worker-1" });
+        return mock.Object;
     }
 
     #endregion

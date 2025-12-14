@@ -1,5 +1,7 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
+using AgentContracts.Workflows;
+using AgentGateway.Workflows;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 using Moq;
@@ -32,12 +34,28 @@ public sealed class OrleansTestClusterFixture : IAsyncLifetime
     internal Mock<IResponseExecutor> ResponseExecutorMock { get; private set; } = null!;
 
     /// <summary>
+    /// Gets the mock IWorkflowExecutor instance shared across all tests.
+    /// Reset this mock between tests using ResetWorkflowExecutorMock().
+    /// </summary>
+    internal Mock<IWorkflowExecutor> WorkflowExecutorMock { get; private set; } = null!;
+
+    /// <summary>
     /// Resets the mock IResponseExecutor to clear any previous setups or verifications.
     /// Call this in test constructors or setup methods to ensure test isolation.
     /// </summary>
     public void ResetResponseExecutorMock()
     {
         this.ResponseExecutorMock.Reset();
+    }
+
+    /// <summary>
+    /// Resets the mock IWorkflowExecutor to clear any previous setups or verifications.
+    /// Call this in test constructors or setup methods to ensure test isolation.
+    /// </summary>
+    public void ResetWorkflowExecutorMock()
+    {
+        this.WorkflowExecutorMock.Reset();
+        this.SetupDefaultWorkflowExecutor();
     }
 
     /// <summary>
@@ -56,6 +74,38 @@ public sealed class OrleansTestClusterFixture : IAsyncLifetime
             .Returns((AgentInvocationContext ctx,
                      CreateResponse req,
                      CancellationToken ct) => GetMinimalStreamingResponseEventsAsync(ctx, req));
+    }
+
+    /// <summary>
+    /// Sets up a default response for the mock IWorkflowExecutor.
+    /// This provides a successful execution result that will satisfy tests.
+    /// Tests that need specific behavior should set up their own mock.
+    /// </summary>
+    public void SetupDefaultWorkflowExecutor()
+    {
+        this.WorkflowExecutorMock
+            .Setup(x => x.ExecuteAsync(
+                It.IsAny<WorkflowExecutionRequest>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((WorkflowExecutionRequest req, string? workerId, CancellationToken ct) =>
+                new WorkflowExecutionResult
+                {
+                    Success = true,
+                    WorkerId = workerId ?? "test-worker-1"
+                });
+
+        this.WorkflowExecutorMock
+            .Setup(x => x.ResumeAsync(
+                It.IsAny<WorkflowResumeRequest>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((WorkflowResumeRequest req, string? workerId, CancellationToken ct) =>
+                new WorkflowExecutionResult
+                {
+                    Success = true,
+                    WorkerId = workerId ?? "test-worker-1"
+                });
     }
 
     private static async IAsyncEnumerable<StreamingResponseEvent> GetMinimalStreamingResponseEventsAsync(
@@ -130,8 +180,10 @@ public sealed class OrleansTestClusterFixture : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        // Create the shared mock IResponseExecutor
+        // Create the shared mock instances
         this.ResponseExecutorMock = new Mock<IResponseExecutor>();
+        this.WorkflowExecutorMock = new Mock<IWorkflowExecutor>();
+        this.SetupDefaultWorkflowExecutor();
 
         var builder = new InProcessTestClusterBuilder();
         builder.ConfigureHost(hostBuilder =>
@@ -167,6 +219,9 @@ public sealed class OrleansTestClusterFixture : IAsyncLifetime
 
             // Register the shared mock IResponseExecutor for testing
             siloBuilder.Services.AddSingleton(_ => this.ResponseExecutorMock.Object);
+
+            // Register the shared mock IWorkflowExecutor for testing
+            siloBuilder.Services.AddSingleton(_ => this.WorkflowExecutorMock.Object);
         });
         this.Cluster = builder.Build();
         await this.Cluster.DeployAsync();

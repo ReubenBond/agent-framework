@@ -200,6 +200,70 @@ internal sealed class GatewayWorkflowStateClient : IWorkflowStateService
     }
 
     /// <inheritdoc/>
+    public async Task<WorkflowCheckpointData?> GetCheckpointByIdAsync(
+        string runId,
+        string checkpointId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(runId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(checkpointId);
+
+        var uri = new Uri($"/v1/workflows/{Uri.EscapeDataString(runId)}/state/checkpoints/{Uri.EscapeDataString(checkpointId)}", UriKind.Relative);
+
+        try
+        {
+            var response = await this._httpClient.GetAsync(uri, cancellationToken).ConfigureAwait(false);
+
+            if (response.StatusCode == HttpStatusCode.NoContent)
+            {
+                return null;
+            }
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                throw WorkflowNotFoundException.ForRunId(runId);
+            }
+
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadFromJsonAsync<WorkflowCheckpointData>(this._jsonOptions, cancellationToken).ConfigureAwait(false);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new InvalidOperationException($"Failed to get checkpoint '{checkpointId}' for workflow '{runId}'.", ex);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<IReadOnlyList<string>> ListCheckpointIdsAsync(
+        string runId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(runId);
+
+        var uri = new Uri($"/v1/workflows/{Uri.EscapeDataString(runId)}/state/checkpoints", UriKind.Relative);
+
+        try
+        {
+            var response = await this._httpClient.GetAsync(uri, cancellationToken).ConfigureAwait(false);
+
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                throw WorkflowNotFoundException.ForRunId(runId);
+            }
+
+            response.EnsureSuccessStatusCode();
+
+            return await response.Content.ReadFromJsonAsync<IReadOnlyList<string>>(this._jsonOptions, cancellationToken).ConfigureAwait(false)
+                ?? [];
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new InvalidOperationException($"Failed to list checkpoints for workflow '{runId}'.", ex);
+        }
+    }
+
+    /// <inheritdoc/>
     public async Task<string> RecordArtifactAsync(
         string runId,
         WorkflowArtifactRecord artifact,

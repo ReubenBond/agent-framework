@@ -81,6 +81,16 @@ internal interface IWorkflowGrain : IGrainWithStringKey
     Task<WorkflowCheckpointResult?> GetCheckpointAsync(CancellationToken cancellationToken);
 
     /// <summary>
+    /// Gets a specific checkpoint by ID.
+    /// </summary>
+    Task<WorkflowCheckpointData?> GetCheckpointByIdAsync(string checkpointId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Lists all checkpoint IDs for this workflow.
+    /// </summary>
+    Task<IReadOnlyList<string>> ListCheckpointIdsAsync(CancellationToken cancellationToken);
+
+    /// <summary>
     /// Records an artifact.
     /// </summary>
     Task<string> RecordArtifactAsync(WorkflowArtifactRecord artifact, string? etag, CancellationToken cancellationToken);

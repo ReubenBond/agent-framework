@@ -169,6 +169,22 @@ public interface IWorkflowStateService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Retrieves a specific checkpoint by ID.
+    /// </summary>
+    /// <returns>The checkpoint data, or null if not found.</returns>
+    Task<WorkflowCheckpointData?> GetCheckpointByIdAsync(
+        string runId,
+        string checkpointId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists all checkpoint IDs for a workflow run.
+    /// </summary>
+    Task<IReadOnlyList<string>> ListCheckpointIdsAsync(
+        string runId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Records an output artifact from the workflow.
     /// </summary>
     Task<string> RecordArtifactAsync(
