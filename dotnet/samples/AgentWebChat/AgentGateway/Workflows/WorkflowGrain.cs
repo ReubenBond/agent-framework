@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -845,7 +845,7 @@ internal sealed class WorkflowGrain(
             WorkflowName = run.WorkflowName,
             CallbackBaseUrl = callbackBaseUrl,
             Signal = signal,
-            CheckpointData = mostRecentCheckpoint?.Data
+            CheckpointId = mostRecentCheckpoint?.CheckpointId
         };
 
         workflowState.State.ExecutionState = WorkflowExecutionState.ResumeDispatched;

@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
@@ -389,12 +389,4 @@ internal sealed class GatewayWorkflowStateClient : IWorkflowStateService
             throw new InvalidOperationException($"Failed to update workflow state for '{runId}'.", ex);
         }
     }
-}
-
-/// <summary>
-/// Response containing the new ETag after a state update.
-/// </summary>
-internal sealed class ETagResponse
-{
-    public string? ETag { get; init; }
 }

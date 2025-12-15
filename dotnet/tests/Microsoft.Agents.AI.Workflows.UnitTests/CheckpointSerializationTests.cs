@@ -54,7 +54,7 @@ public class CheckpointSerializationTests
     private static RunnerStateData CreateRunnerStateDataWithRequests()
     {
         RequestPort port = RequestPort.Create<string, int>("TestPort");
-        ExternalRequest request = ExternalRequest.Create(port, "Request1", "TestData");
+        ExternalRequest request = ExternalRequest.Create(port, "TestData", "Request1");
 
         return new(
             ["Executor1", "Executor2"],
@@ -300,7 +300,7 @@ public class CheckpointSerializationTests
             stateData: CreateEmptyStateData(),
             edgeStateData: CreateEmptyEdgeStateData());
 
-        CheckpointManager manager = CheckpointManager.CreateJson(new InMemoryJsonStore());
+        ICheckpointManager manager = CheckpointManager.CreateJson(new InMemoryJsonStore());
         string runId = Guid.NewGuid().ToString("N");
 
         // Act
@@ -318,7 +318,7 @@ public class CheckpointSerializationTests
     {
         // Arrange
         WorkflowInfo workflowInfo = CreateMinimalWorkflowInfo();
-        CheckpointManager manager = CheckpointManager.CreateJson(new InMemoryJsonStore());
+        ICheckpointManager manager = CheckpointManager.CreateJson(new InMemoryJsonStore());
         string runId = Guid.NewGuid().ToString("N");
 
         List<CheckpointInfo> checkpointInfos = [];
@@ -359,7 +359,7 @@ public class CheckpointSerializationTests
             stateData: CreateEmptyStateData(),
             edgeStateData: CreateEmptyEdgeStateData());
 
-        CheckpointManager manager = CheckpointManager.CreateJson(new InMemoryJsonStore());
+        ICheckpointManager manager = CheckpointManager.CreateJson(new InMemoryJsonStore());
         string runId = Guid.NewGuid().ToString("N");
 
         // Act
@@ -495,7 +495,7 @@ public class CheckpointSerializationTests
     public async Task CheckpointManager_LookupNonExistentCheckpoint_ThrowsAsync()
     {
         // Arrange
-        CheckpointManager manager = CheckpointManager.CreateJson(new InMemoryJsonStore());
+        ICheckpointManager manager = CheckpointManager.CreateJson(new InMemoryJsonStore());
         string runId = Guid.NewGuid().ToString("N");
         CheckpointInfo nonExistentInfo = new(runId, "non-existent-checkpoint-id");
 
@@ -515,7 +515,7 @@ public class CheckpointSerializationTests
         // stored by a different version of the code or with different serializer settings
 
         // Arrange - Create JSON that matches expected camelCase format
-        string jsonString = """
+        const string jsonString = """
         {
             "stepNumber": 5,
             "workflow": {

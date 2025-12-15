@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -390,7 +390,7 @@ internal static class WorkflowHttpApi
                 WorkflowName = currentRun.WorkflowName,
                 CallbackBaseUrl = callbackBaseUrl,
                 Signal = signal,
-                CheckpointData = checkpointResult?.Checkpoint.Data
+                CheckpointId = checkpointResult?.Checkpoint.CheckpointId
             };
 
             // Dispatch and await the result
@@ -905,12 +905,4 @@ internal static class WorkflowHttpApi
                 statusCode: StatusCodes.Status404NotFound);
         }
     }
-}
-
-/// <summary>
-/// Response containing the new ETag after a state update.
-/// </summary>
-internal sealed class ETagResponse
-{
-    public required string ETag { get; init; }
 }

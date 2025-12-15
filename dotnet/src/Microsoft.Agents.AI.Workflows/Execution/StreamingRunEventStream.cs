@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -31,6 +31,7 @@ internal sealed class StreamingRunEventStream : IRunEventStream
     private Task? _runLoopTask;
     private RunStatus _runStatus = RunStatus.NotStarted;
     private int _completionEpoch; // Tracks which completion signal belongs to which consumer iteration
+    private int _isStopped; // 0 = not stopped, 1 = stopped
 
     public StreamingRunEventStream(ISuperStepRunner stepRunner, bool disableRunLoop = false, ILogger? logger = null)
     {
@@ -248,6 +249,25 @@ internal sealed class StreamingRunEventStream : IRunEventStream
 
     public async ValueTask StopAsync()
     {
+        // Ensure idempotency - only stop once
+        if (Interlocked.CompareExchange(ref this._isStopped, 1, 0) != 0)
+        {
+            // Already stopped, just wait for the run loop task if needed
+            if (this._runLoopTask != null)
+            {
+                try
+                {
+                    await this._runLoopTask.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected during cancellation
+                }
+            }
+
+            return;
+        }
+
         // Cancel the run loop
         this._runLoopCancellation.Cancel();
 

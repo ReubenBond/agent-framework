@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
@@ -42,6 +42,7 @@ namespace AgentContracts;
 [JsonSerializable(typeof(WorkflowStepCompletedRecord))]
 [JsonSerializable(typeof(WorkflowListResponse<WorkflowRunSummary>))]
 [JsonSerializable(typeof(WorkflowCheckpointResult))]
+[JsonSerializable(typeof(ETagResponse))]
 // Workflow events (polymorphic)
 [JsonSerializable(typeof(WorkflowStatusEvent))]
 [JsonSerializable(typeof(WorkflowStartedEvent))]

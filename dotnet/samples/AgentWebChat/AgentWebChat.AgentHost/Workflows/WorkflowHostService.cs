@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -251,22 +251,14 @@ internal sealed class WorkflowHostService : IWorkflowHost
 
                         var pendingRequest = MapToPendingExternalRequest(requestInfo.Request);
 
-                        // Store checkpoint for resume - checkpoint is automatically created by framework at each superstep
+                        // The checkpoint is automatically stored by the framework via GatewayCheckpointStore
+                        // at each superstep. We just need to verify it exists.
                         var checkpointInfo = checkpointedRun.LastCheckpoint
                             ?? throw new InvalidOperationException("No checkpoint available for HITL resume. The workflow may not have completed a superstep.");
-                        var checkpointData = JsonSerializer.SerializeToUtf8Bytes(
-                            new CheckpointInfoDto(request.RunId, checkpointInfo.CheckpointId));
 
-                        await stateClient.SaveCheckpointAsync(
-                            request.RunId,
-                            new WorkflowCheckpointData
-                            {
-                                CheckpointId = checkpointInfo.CheckpointId,
-                                Data = checkpointData,
-                                CreatedAt = DateTimeOffset.UtcNow
-                            },
-                            etag: null,
-                            cancellationToken);
+                        this._logger.LogDebug(
+                            "Checkpoint available for HITL: {RunId}, CheckpointId: {CheckpointId}",
+                            request.RunId, checkpointInfo.CheckpointId);
 
                         // Store pending request via callback
                         await stateClient.RecordPendingRequestAsync(
@@ -466,20 +458,16 @@ internal sealed class WorkflowHostService : IWorkflowHost
 
         try
         {
-            // Require checkpoint data for workflow resume
-            if (request.CheckpointData is null || request.CheckpointData.Length == 0)
+            // Require checkpoint ID for workflow resume
+            if (string.IsNullOrEmpty(request.CheckpointId))
             {
                 throw new InvalidOperationException(
-                    "Workflow resume requires checkpoint data. The workflow cannot be resumed without a valid checkpoint.");
+                    "Workflow resume requires a checkpoint ID. The workflow cannot be resumed without a valid checkpoint.");
             }
 
-            // Deserialize checkpoint info from the stored data
-            // The checkpoint data contains JSON-serialized CheckpointInfo (runId + checkpointId)
+            // Create checkpoint manager and checkpoint info
             var checkpointManager = GatewayCheckpointStore.CreateCheckpointManager(stateClient, request.RunId);
-            var checkpointJson = System.Text.Encoding.UTF8.GetString(request.CheckpointData);
-            var checkpointInfo = JsonSerializer.Deserialize<CheckpointInfoDto>(checkpointJson)
-                ?? throw new InvalidOperationException("Failed to deserialize checkpoint info from checkpoint data.");
-            var frameworkCheckpointInfo = new CheckpointInfo(checkpointInfo.RunId, checkpointInfo.CheckpointId);
+            var frameworkCheckpointInfo = new CheckpointInfo(request.RunId, request.CheckpointId);
 
             // Update status to Running
             await stateClient.UpdateStatusAsync(
@@ -543,22 +531,14 @@ internal sealed class WorkflowHostService : IWorkflowHost
 
                         var pendingRequest = MapToPendingExternalRequest(requestInfo.Request);
 
-                        // Store checkpoint for resume - checkpoint is automatically created by framework at each superstep
+                        // The checkpoint is automatically stored by the framework via GatewayCheckpointStore
+                        // at each superstep. We just need to verify it exists.
                         var newCheckpointInfo = checkpointedRun.LastCheckpoint
                             ?? throw new InvalidOperationException("No checkpoint available for HITL resume. The workflow may not have completed a superstep.");
-                        var newCheckpointData = JsonSerializer.SerializeToUtf8Bytes(
-                            new CheckpointInfoDto(request.RunId, newCheckpointInfo.CheckpointId));
 
-                        await stateClient.SaveCheckpointAsync(
-                            request.RunId,
-                            new WorkflowCheckpointData
-                            {
-                                CheckpointId = newCheckpointInfo.CheckpointId,
-                                Data = newCheckpointData,
-                                CreatedAt = DateTimeOffset.UtcNow
-                            },
-                            etag: null,
-                            cancellationToken);
+                        this._logger.LogDebug(
+                            "Checkpoint available for HITL: {RunId}, CheckpointId: {CheckpointId}",
+                            request.RunId, newCheckpointInfo.CheckpointId);
 
                         // Store pending request via callback
                         await stateClient.RecordPendingRequestAsync(
@@ -891,8 +871,3 @@ internal sealed class WorkflowHostService : IWorkflowHost
         };
     }
 }
-
-/// <summary>
-/// DTO for serializing/deserializing checkpoint info to/from storage.
-/// </summary>
-internal sealed record CheckpointInfoDto(string RunId, string CheckpointId);

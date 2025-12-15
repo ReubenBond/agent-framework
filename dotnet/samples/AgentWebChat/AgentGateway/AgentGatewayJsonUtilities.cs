@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -58,6 +58,5 @@ public static class AgentGatewayJsonUtilities
 [JsonSerializable(typeof(DiscoveryResponse))]
 [JsonSerializable(typeof(List<EntityInfo>))]
 [JsonSerializable(typeof(WorkflowGrainState))]
-[JsonSerializable(typeof(ETagResponse))]
 [ExcludeFromCodeCoverage]
 internal sealed partial class AgentGatewayJsonContext : JsonSerializerContext;

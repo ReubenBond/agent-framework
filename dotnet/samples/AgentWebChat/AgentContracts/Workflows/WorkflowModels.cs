@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -438,8 +438,15 @@ public sealed class WorkflowResumeRequest
     [JsonPropertyName("signal")]
     public required WorkflowSignal Signal { get; init; }
 
+    /// <summary>
+    /// The ID of the checkpoint to resume from.
+    /// </summary>
+    [JsonPropertyName("checkpointId")]
+    public string? CheckpointId { get; init; }
+
     [JsonPropertyName("checkpointData")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1819:Properties should not return arrays", Justification = "Required for binary JSON serialization")]
+    [Obsolete("Use CheckpointId instead. CheckpointData is no longer used for passing checkpoint information.")]
     public byte[]? CheckpointData { get; init; }
 }
 
@@ -506,6 +513,21 @@ public sealed class WorkflowStepCompletedRecord
 
     [JsonPropertyName("durationMs")]
     public long DurationMs { get; init; }
+}
+
+// ============ State Update Response Types ============
+
+/// <summary>
+/// Response containing the new ETag after a state update.
+/// Used for optimistic concurrency control in workflow state updates.
+/// </summary>
+public sealed class ETagResponse
+{
+    /// <summary>
+    /// The new ETag value after the state update.
+    /// </summary>
+    [JsonPropertyName("eTag")]
+    public required string ETag { get; init; }
 }
 
 // ============ Generic List Response ============
