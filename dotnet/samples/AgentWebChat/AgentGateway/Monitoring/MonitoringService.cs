@@ -64,7 +64,7 @@ internal sealed class MonitoringService : IMonitoringService
         // Get worker counts
         var workers = this._workerRegistry.Entries.ToList();
         var healthyWorkers = workers.Count(w => !w.IsDown);
-        const int drainedWorkers = 0; // TODO: Track drained state
+        const int DrainedWorkers = 0; // TODO: Track drained state
 
         return new SystemStatus
         {
@@ -76,7 +76,7 @@ internal sealed class MonitoringService : IMonitoringService
             FailedWorkflows24h = failedLast24h,
             RegisteredWorkers = workers.Count,
             HealthyWorkers = healthyWorkers,
-            DrainedWorkers = drainedWorkers,
+            DrainedWorkers = DrainedWorkers,
             Uptime = now - this._startTime,
             Version = GetVersion()
         };

@@ -13,6 +13,7 @@ using Microsoft.Agents.AI.Workflows.Execution;
 using Microsoft.Agents.AI.Workflows.Observability;
 using Microsoft.Agents.AI.Workflows.Specialized;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Shared.Diagnostics;
 using OpenTelemetry;
 using OpenTelemetry.Context.Propagation;
@@ -24,6 +25,7 @@ internal sealed class InProcessRunnerContext : IRunnerContext
     private int _runEnded;
     private readonly string _runId;
     private readonly Workflow _workflow;
+    private readonly ILogger _logger;
 
     private readonly EdgeMap _edgeMap;
     private readonly OutputFilter _outputFilter;
@@ -57,6 +59,7 @@ internal sealed class InProcessRunnerContext : IRunnerContext
         }
         this._workflow = workflow;
         this._runId = runId;
+        this._logger = logger ?? NullLogger.Instance;
 
         this._edgeMap = new(this, this._workflow, stepTracer);
         this._outputFilter = new(workflow);
@@ -113,16 +116,21 @@ internal sealed class InProcessRunnerContext : IRunnerContext
         this.CheckEnded();
         Throw.IfNull(message);
 
+        this._logger.LogDebug("[DIAG] AddExternalMessageAsync: Adding message of type {DeclaredType}, RunId={RunId}", declaredType.Name, this._runId);
         this._queuedExternalDeliveries.Enqueue(PrepareExternalDeliveryAsync);
+        this._logger.LogDebug("[DIAG] AddExternalMessageAsync: Queued deliveries count after enqueue: {Count}", this._queuedExternalDeliveries.Count);
         return default;
 
         async ValueTask PrepareExternalDeliveryAsync()
         {
+            this._logger.LogDebug("[DIAG] PrepareExternalDeliveryAsync: Preparing delivery for {DeclaredType}", declaredType.Name);
             DeliveryMapping? maybeMapping =
                 await this._edgeMap.PrepareDeliveryForInputAsync(new(message, ExecutorIdentity.None, declaredType))
                                    .ConfigureAwait(false);
 
+            this._logger.LogDebug("[DIAG] PrepareExternalDeliveryAsync: maybeMapping is {MappingStatus}", maybeMapping is null ? "null" : "not null");
             maybeMapping?.MapInto(this._nextStep);
+            this._logger.LogDebug("[DIAG] PrepareExternalDeliveryAsync: After MapInto, _nextStep.HasMessages={HasMessages}", this._nextStep.HasMessages);
         }
     }
 

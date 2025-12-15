@@ -8,6 +8,8 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using Microsoft.Agents.AI.Workflows.Observability;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Microsoft.Agents.AI.Workflows.Execution;
 
@@ -25,16 +27,18 @@ internal sealed class StreamingRunEventStream : IRunEventStream
     private readonly InputWaiter _inputWaiter;
     private readonly CancellationTokenSource _runLoopCancellation;
     private readonly bool _disableRunLoop;
+    private readonly ILogger _logger;
     private Task? _runLoopTask;
     private RunStatus _runStatus = RunStatus.NotStarted;
     private int _completionEpoch; // Tracks which completion signal belongs to which consumer iteration
 
-    public StreamingRunEventStream(ISuperStepRunner stepRunner, bool disableRunLoop = false)
+    public StreamingRunEventStream(ISuperStepRunner stepRunner, bool disableRunLoop = false, ILogger? logger = null)
     {
         this._stepRunner = stepRunner;
         this._runLoopCancellation = new CancellationTokenSource();
         this._inputWaiter = new();
         this._disableRunLoop = disableRunLoop;
+        this._logger = logger ?? NullLogger.Instance;
 
         // Unbounded channel - events never block the producer
         // This allows events to flow freely during superstep execution
@@ -57,11 +61,13 @@ internal sealed class StreamingRunEventStream : IRunEventStream
 
     private async Task RunLoopAsync(CancellationToken cancellationToken)
     {
+        this._logger.LogDebug("[DIAG] RunLoopAsync: Starting run loop for RunId={RunId}", this._stepRunner.RunId);
         using CancellationTokenSource errorSource = new();
         CancellationTokenSource linkedSource = CancellationTokenSource.CreateLinkedTokenSource(errorSource.Token, cancellationToken);
 
         // Subscribe to events - they will flow directly to the channel as they're raised
         this._stepRunner.OutgoingEvents.EventRaised += OnEventRaisedAsync;
+        this._logger.LogDebug("[DIAG] RunLoopAsync: Subscribed to OutgoingEvents.EventRaised");
 
         using Activity? activity = s_activitySource.StartActivity(ActivityNames.WorkflowRun);
         activity?.SetTag(Tags.WorkflowId, this._stepRunner.StartExecutorId).SetTag(Tags.RunId, this._stepRunner.RunId);
@@ -70,7 +76,9 @@ internal sealed class StreamingRunEventStream : IRunEventStream
         {
             // Wait for the first input before starting
             // The consumer will call EnqueueMessageAsync which signals the run loop
+            this._logger.LogDebug("[DIAG] RunLoopAsync: Waiting for first input...");
             await this._inputWaiter.WaitForInputAsync(cancellationToken: linkedSource.Token).ConfigureAwait(false);
+            this._logger.LogDebug("[DIAG] RunLoopAsync: First input received, starting main loop");
 
             this._runStatus = RunStatus.Running;
             activity?.AddEvent(new ActivityEvent(EventNames.WorkflowStarted));
@@ -79,9 +87,12 @@ internal sealed class StreamingRunEventStream : IRunEventStream
             {
                 // Run all available supersteps continuously
                 // Events are streamed out in real-time as they happen via the event handler
+                this._logger.LogDebug("[DIAG] RunLoopAsync: Checking HasUnprocessedMessages={HasUnprocessedMessages}", this._stepRunner.HasUnprocessedMessages);
                 while (this._stepRunner.HasUnprocessedMessages && !linkedSource.Token.IsCancellationRequested)
                 {
+                    this._logger.LogDebug("[DIAG] RunLoopAsync: Running superstep...");
                     await this._stepRunner.RunSuperStepAsync(linkedSource.Token).ConfigureAwait(false);
+                    this._logger.LogDebug("[DIAG] RunLoopAsync: Superstep completed");
                 }
 
                 // Update status based on what's waiting

@@ -15,7 +15,6 @@ using System.Threading.Tasks;
 using AgentContracts.Telemetry;
 using AgentContracts.Workflows;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace AgentGateway.Workflows;
 
@@ -26,22 +25,16 @@ namespace AgentGateway.Workflows;
 internal sealed class WorkerWorkflowExecutor : IWorkflowExecutor
 {
     private readonly WorkerRegistry _registry;
-    private readonly WorkerDiscoveryCache _cache;
     private readonly HttpClient _httpClient;
-    private readonly AgentGatewayOptions _options;
     private readonly ILogger<WorkerWorkflowExecutor> _logger;
 
     public WorkerWorkflowExecutor(
         WorkerRegistry registry,
-        WorkerDiscoveryCache cache,
         IHttpClientFactory httpClientFactory,
-        IOptions<AgentGatewayOptions> options,
         ILogger<WorkerWorkflowExecutor> logger)
     {
         this._registry = registry;
-        this._cache = cache;
         this._httpClient = httpClientFactory.CreateClient();
-        this._options = options.Value;
         this._logger = logger;
     }
 

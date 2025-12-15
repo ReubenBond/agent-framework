@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Agents.AI.Workflows.Checkpointing;
 using Microsoft.Agents.AI.Workflows.Execution;
+using Microsoft.Extensions.Logging;
 
 namespace Microsoft.Agents.AI.Workflows.InProc;
 
@@ -15,24 +16,26 @@ namespace Microsoft.Agents.AI.Workflows.InProc;
 /// </summary>
 public sealed class InProcessExecutionEnvironment : IWorkflowExecutionEnvironment
 {
-    internal InProcessExecutionEnvironment(ExecutionMode mode, bool enableConcurrentRuns = false)
+    internal InProcessExecutionEnvironment(ExecutionMode mode, bool enableConcurrentRuns = false, ILogger? logger = null)
     {
         this.ExecutionMode = mode;
         this.EnableConcurrentRuns = enableConcurrentRuns;
+        this.Logger = logger;
     }
 
     internal ExecutionMode ExecutionMode { get; }
     internal bool EnableConcurrentRuns { get; }
+    internal ILogger? Logger { get; }
 
     internal ValueTask<AsyncRunHandle> BeginRunAsync(Workflow workflow, ICheckpointManager? checkpointManager, string? runId, IEnumerable<Type> knownValidInputTypes, CancellationToken cancellationToken)
     {
-        InProcessRunner runner = InProcessRunner.CreateTopLevelRunner(workflow, checkpointManager, runId, this.EnableConcurrentRuns, knownValidInputTypes);
+        InProcessRunner runner = InProcessRunner.CreateTopLevelRunner(workflow, checkpointManager, runId, this.EnableConcurrentRuns, knownValidInputTypes, this.Logger);
         return runner.BeginStreamAsync(this.ExecutionMode, cancellationToken);
     }
 
     internal ValueTask<AsyncRunHandle> ResumeRunAsync(Workflow workflow, ICheckpointManager? checkpointManager, string? runId, CheckpointInfo fromCheckpoint, IEnumerable<Type> knownValidInputTypes, CancellationToken cancellationToken)
     {
-        InProcessRunner runner = InProcessRunner.CreateTopLevelRunner(workflow, checkpointManager, runId, this.EnableConcurrentRuns, knownValidInputTypes);
+        InProcessRunner runner = InProcessRunner.CreateTopLevelRunner(workflow, checkpointManager, runId, this.EnableConcurrentRuns, knownValidInputTypes, this.Logger);
         return runner.ResumeStreamAsync(this.ExecutionMode, fromCheckpoint, cancellationToken);
     }
 

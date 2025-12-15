@@ -7,6 +7,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Agents.AI.Workflows.Checkpointing;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Shared.Diagnostics;
 
 namespace Microsoft.Agents.AI.Workflows.Execution;
@@ -15,21 +17,23 @@ internal sealed class AsyncRunHandle : ICheckpointingHandle, IAsyncDisposable
 {
     private readonly ISuperStepRunner _stepRunner;
     private readonly ICheckpointingHandle _checkpointingHandle;
+    private readonly ILogger _logger;
 
     private readonly IRunEventStream _eventStream;
     private readonly CancellationTokenSource _endRunSource = new();
     private int _isDisposed;
     private int _isEventStreamTaken;
 
-    internal AsyncRunHandle(ISuperStepRunner stepRunner, ICheckpointingHandle checkpointingHandle, ExecutionMode mode)
+    internal AsyncRunHandle(ISuperStepRunner stepRunner, ICheckpointingHandle checkpointingHandle, ExecutionMode mode, ILogger? logger = null)
     {
         this._stepRunner = Throw.IfNull(stepRunner);
         this._checkpointingHandle = Throw.IfNull(checkpointingHandle);
+        this._logger = logger ?? NullLogger.Instance;
 
         this._eventStream = mode switch
         {
-            ExecutionMode.OffThread => new StreamingRunEventStream(stepRunner),
-            ExecutionMode.Subworkflow => new StreamingRunEventStream(stepRunner, disableRunLoop: true),
+            ExecutionMode.OffThread => new StreamingRunEventStream(stepRunner, logger: this._logger),
+            ExecutionMode.Subworkflow => new StreamingRunEventStream(stepRunner, disableRunLoop: true, logger: this._logger),
             ExecutionMode.Lockstep => new LockstepRunEventStream(stepRunner),
             _ => throw new ArgumentOutOfRangeException(nameof(mode), $"Unknown execution mode {mode}")
         };
@@ -112,6 +116,7 @@ internal sealed class AsyncRunHandle : ICheckpointingHandle, IAsyncDisposable
 
     public async ValueTask<bool> EnqueueMessageUntypedAsync([NotNull] object message, Type? declaredType = null, CancellationToken cancellationToken = default)
     {
+        this._logger.LogDebug("[DIAG] AsyncRunHandle.EnqueueMessageUntypedAsync: message type={MessageType}, declaredType={DeclaredType}", message.GetType().Name, declaredType?.Name ?? "null");
         if (declaredType?.IsInstanceOfType(message) == false)
         {
             throw new ArgumentException($"Message is not of the declared type {declaredType}. Actual type: {message.GetType()}", nameof(message));
@@ -136,9 +141,12 @@ internal sealed class AsyncRunHandle : ICheckpointingHandle, IAsyncDisposable
 
         bool result = await this._stepRunner.EnqueueMessageUntypedAsync(message, declaredType ?? message.GetType(), cancellationToken)
                                             .ConfigureAwait(false);
+        this._logger.LogDebug("[DIAG] AsyncRunHandle.EnqueueMessageUntypedAsync: EnqueueMessageUntypedAsync result={Result}", result);
 
         // Signal the run loop that new input is available
+        this._logger.LogDebug("[DIAG] AsyncRunHandle.EnqueueMessageUntypedAsync: Signaling input to run loop");
         this.SignalInputToRunLoop();
+        this._logger.LogDebug("[DIAG] AsyncRunHandle.EnqueueMessageUntypedAsync: Signal sent");
 
         return result;
     }

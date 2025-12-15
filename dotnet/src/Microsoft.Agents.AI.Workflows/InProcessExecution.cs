@@ -3,6 +3,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Agents.AI.Workflows.InProc;
+using Microsoft.Extensions.Logging;
 
 namespace Microsoft.Agents.AI.Workflows;
 
@@ -40,6 +41,16 @@ public static class InProcessExecution
     /// on the hosting workflow to run them directly, while streaming events out as they are raised.
     /// </summary>
     internal static InProcessExecutionEnvironment Subworkflow { get; } = new(ExecutionMode.Subworkflow);
+
+    /// <summary>
+    /// Creates an <see cref="InProcessExecutionEnvironment"/> configured with the specified logger for diagnostic tracing.
+    /// Uses the default OffThread execution mode.
+    /// </summary>
+    /// <param name="logger">The logger to use for diagnostic output during workflow execution.</param>
+    /// <param name="enableConcurrentRuns">Whether to enable concurrent runs. Defaults to false.</param>
+    /// <returns>A new execution environment configured with the specified logger.</returns>
+    public static InProcessExecutionEnvironment WithLogger(ILogger logger, bool enableConcurrentRuns = false)
+        => new(ExecutionMode.OffThread, enableConcurrentRuns, logger);
 
     /// <inheritdoc cref="IWorkflowExecutionEnvironment.OpenStreamAsync(Workflow, string?, CancellationToken)"/>
     public static ValueTask<StreamingRun> OpenStreamAsync(Workflow workflow, string? runId = null, CancellationToken cancellationToken = default)

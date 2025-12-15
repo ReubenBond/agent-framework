@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -32,9 +32,9 @@ internal sealed class WorkflowGrain(
 {
     private const string ExecutionReminderName = "WorkflowExecution";
     private const int MaxRetryCount = 5;
-    private static readonly TimeSpan BaseRetryDelay = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromMinutes(5);
-    private static readonly TimeSpan ExecutionTimeout = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan s_baseRetryDelay = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan s_maxRetryDelay = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan s_executionTimeout = TimeSpan.FromMinutes(10);
 
     private readonly CancellationTokenSource _shutdownCts = new();
     private readonly AsyncManualResetEvent _stateUpdatedEvent = new();
@@ -718,8 +718,8 @@ internal sealed class WorkflowGrain(
 
         // Calculate if enough time has passed for a retry (exponential backoff)
         var backoffDelay = TimeSpan.FromTicks(Math.Min(
-            BaseRetryDelay.Ticks * (1L << retryCount),
-            MaxRetryDelay.Ticks));
+            s_baseRetryDelay.Ticks * (1L << retryCount),
+            s_maxRetryDelay.Ticks));
 
         var timeSinceLastAttempt = lastAttempt.HasValue
             ? DateTimeOffset.UtcNow - lastAttempt.Value
@@ -730,19 +730,19 @@ internal sealed class WorkflowGrain(
         {
             // Not started - this is initial dispatch, should be handled by HTTP API
             WorkflowExecutionState.NotStarted when run.Status == WorkflowRunStatus.Queued
-                && timeSinceLastAttempt > ExecutionTimeout => true,
+                && timeSinceLastAttempt > s_executionTimeout => true,
 
             // Dispatched but no worker updates received - worker may have crashed
-            WorkflowExecutionState.Dispatched when timeSinceLastAttempt > ExecutionTimeout => true,
+            WorkflowExecutionState.Dispatched when timeSinceLastAttempt > s_executionTimeout => true,
 
             // Executing but no recent updates - worker may have crashed
-            WorkflowExecutionState.Executing when timeSinceLastAttempt > ExecutionTimeout => true,
+            WorkflowExecutionState.Executing when timeSinceLastAttempt > s_executionTimeout => true,
 
             // Resume was dispatched but no updates - worker may have crashed during resume
-            WorkflowExecutionState.ResumeDispatched when timeSinceLastAttempt > ExecutionTimeout => true,
+            WorkflowExecutionState.ResumeDispatched when timeSinceLastAttempt > s_executionTimeout => true,
 
             // Resuming but no recent updates
-            WorkflowExecutionState.Resuming when timeSinceLastAttempt > ExecutionTimeout => true,
+            WorkflowExecutionState.Resuming when timeSinceLastAttempt > s_executionTimeout => true,
 
             // Waiting for signal - nothing to retry, user action needed
             WorkflowExecutionState.WaitingForSignal => false,
@@ -794,7 +794,7 @@ internal sealed class WorkflowGrain(
 
         // Build callback URL - use a default since we don't have HTTP context
         // The worker will call back to update state
-        var callbackBaseUrl = GetCallbackBaseUrl();
+        var callbackBaseUrl = this.GetCallbackBaseUrl();
 
         var executionRequest = new WorkflowExecutionRequest
         {
@@ -832,7 +832,7 @@ internal sealed class WorkflowGrain(
     {
         var run = workflowState.State.Run!;
 
-        var callbackBaseUrl = GetCallbackBaseUrl();
+        var callbackBaseUrl = this.GetCallbackBaseUrl();
 
         // Get the most recent checkpoint data for resume
         var mostRecentCheckpoint = workflowState.State.Checkpoints.Values

@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Net;
 using System.Net.Http.Json;
@@ -56,7 +56,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     #region List Workflows Tests
 
     [Fact]
-    public async Task ListWorkflows_ReturnsEmptyList_WhenNoWorkflows()
+    public async Task ListWorkflows_ReturnsEmptyList_WhenNoWorkflowsAsync()
     {
         // Arrange
         var client = this._gatewayClient!;
@@ -77,7 +77,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     #region Start Workflow Tests
 
     [Fact]
-    public async Task StartWorkflow_CreatesWorkflow_AndReturns201()
+    public async Task StartWorkflow_CreatesWorkflow_AndReturns201Async()
     {
         // Arrange
         var client = this._gatewayClient!;
@@ -106,7 +106,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task StartWorkflow_TransitionsToRunning_WhenAgentHostPicksUp()
+    public async Task StartWorkflow_TransitionsToRunning_WhenAgentHostPicksUpAsync()
     {
         // Arrange
         var client = this._gatewayClient!;
@@ -158,7 +158,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     #region Get Workflow Tests
 
     [Fact]
-    public async Task GetWorkflow_ReturnsWorkflow_WhenExists()
+    public async Task GetWorkflow_ReturnsWorkflow_WhenExistsAsync()
     {
         // Arrange
         var client = this._gatewayClient!;
@@ -182,7 +182,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task GetWorkflow_Returns404_WhenNotExists()
+    public async Task GetWorkflow_Returns404_WhenNotExistsAsync()
     {
         // Arrange
         var client = this._gatewayClient!;
@@ -199,7 +199,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     #region Workflow Lifecycle Tests
 
     [Fact]
-    public async Task ListWorkflows_ReturnsWorkflows_AfterCreation()
+    public async Task ListWorkflows_ReturnsWorkflows_AfterCreationAsync()
     {
         // Arrange
         var client = this._gatewayClient!;
@@ -224,7 +224,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task CancelWorkflow_SetsCancellingStatus()
+    public async Task CancelWorkflow_SetsCancellingStatusAsync()
     {
         // Arrange
         var client = this._gatewayClient!;
@@ -246,7 +246,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task AbortWorkflow_SetsAbortedStatus()
+    public async Task AbortWorkflow_SetsAbortedStatusAsync()
     {
         // Arrange
         var client = this._gatewayClient!;
@@ -275,7 +275,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     #region HITL (Human-in-the-Loop) Tests
 
     [Fact]
-    public async Task MarketingWorkflow_TransitionsToWaitingForSignal_WhenHITLRequired()
+    public async Task MarketingWorkflow_TransitionsToWaitingForSignal_WhenHITLRequiredAsync()
     {
         // Arrange
         var client = this._gatewayClient!;
@@ -325,7 +325,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task MarketingWorkflow_HasPendingRequests_WhenWaitingForSignal()
+    public async Task MarketingWorkflow_HasPendingRequests_WhenWaitingForSignalAsync()
     {
         // Arrange
         var client = this._gatewayClient!;
@@ -355,7 +355,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task MarketingWorkflow_RecordsSteps_DuringExecution()
+    public async Task MarketingWorkflow_RecordsSteps_DuringExecutionAsync()
     {
         // Arrange
         var client = this._gatewayClient!;
@@ -393,7 +393,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task MarketingWorkflow_Signal_ResumesWorkflow()
+    public async Task MarketingWorkflow_Signal_ResumesWorkflowAsync()
     {
         // Arrange
         var client = this._gatewayClient!;
@@ -454,7 +454,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task MarketingWorkflow_Signal_WithRevision_LoopsBackToWriter()
+    public async Task MarketingWorkflow_Signal_WithRevision_LoopsBackToWriterAsync()
     {
         // Arrange
         var client = this._gatewayClient!;
@@ -497,7 +497,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
 
         // Assert
         signalResponse.StatusCode.Should().Be(HttpStatusCode.OK);
-        var signalResult = await signalResponse.Content.ReadFromJsonAsync<WorkflowRun>(s_jsonOptions);
+        _ = await signalResponse.Content.ReadFromJsonAsync<WorkflowRun>(s_jsonOptions);
 
         // After revision request, workflow should loop back and eventually wait again or complete
         // We'll wait for it to reach another state
@@ -520,7 +520,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     #region Input Type Resolution Tests
 
     [Fact]
-    public async Task MarketingWorkflow_InputTypeName_IsPreserved()
+    public async Task MarketingWorkflow_InputTypeName_IsPreservedAsync()
     {
         // Arrange
         var client = this._gatewayClient!;

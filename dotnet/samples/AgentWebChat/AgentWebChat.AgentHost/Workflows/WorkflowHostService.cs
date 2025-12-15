@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -8,7 +8,6 @@ using System.Threading.Channels;
 using AgentContracts.Telemetry;
 using AgentContracts.Workflows;
 using Microsoft.Agents.AI.Workflows;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace AgentWebChat.AgentHost.Workflows;
 
@@ -136,8 +135,15 @@ internal sealed class WorkflowHostService : IWorkflowHost
                 Input = request.Input
             }, cancellationToken);
 
+            // Get the accepted input types from the workflow's starting executor
+            var protocolDescriptor = await workflow.DescribeProtocolAsync(cancellationToken);
+            var acceptedInputTypes = protocolDescriptor.Accepts.ToArray();
+            this._logger.LogDebug("[DIAG] Workflow {WorkflowName} accepts input types: {AcceptedTypes}",
+                request.WorkflowName,
+                string.Join(", ", acceptedInputTypes.Select(t => t.FullName)));
+
             // Deserialize input and start workflow execution with Gateway-backed checkpoint manager
-            var inputData = DeserializeInput(request.Input);
+            var inputData = this.DeserializeInput(request.Input, acceptedInputTypes);
             var inputType = inputData.GetType();
             this._logger.LogDebug("[DIAG] Input TypeName from message: {TypeName}, Deserialized type: {DeserializedType}",
                 request.Input.TypeName,
@@ -148,7 +154,8 @@ internal sealed class WorkflowHostService : IWorkflowHost
             // This preserves the actual message type (e.g., MarketingContentInput) for workflow routing.
             // Using the generic StreamAsync<TInput> with inputData would use 'object' as TInput, which
             // would cause the message router to fail to match any handlers.
-            checkpointedRun = await InProcessExecution.StreamAsync(workflow, checkpointManager, request.RunId, cancellationToken);
+            var executionEnvironment = InProcessExecution.WithLogger(this._logger);
+            checkpointedRun = await executionEnvironment.StreamAsync(workflow, checkpointManager, request.RunId, cancellationToken);
             var messageSent = await checkpointedRun.Run.TrySendMessageUntypedAsync(inputData, inputType);
 
             if (!messageSent)
@@ -499,7 +506,8 @@ internal sealed class WorkflowHostService : IWorkflowHost
             }, cancellationToken);
 
             // Resume from checkpoint
-            checkpointedRun = await InProcessExecution.ResumeStreamAsync(
+            var executionEnvironment = InProcessExecution.WithLogger(this._logger);
+            checkpointedRun = await executionEnvironment.ResumeStreamAsync(
                 workflow,
                 frameworkCheckpointInfo,
                 checkpointManager,
@@ -507,7 +515,7 @@ internal sealed class WorkflowHostService : IWorkflowHost
                 cancellationToken);
 
             // Deserialize the response data for later use
-            var responseData = DeserializeInput(request.Signal.Response);
+            var responseData = this.DeserializeInput(request.Signal.Response);
             var expectedRequestId = request.Signal.RequestId;
             var responseSent = false;
 
@@ -771,8 +779,12 @@ internal sealed class WorkflowHostService : IWorkflowHost
     /// <summary>
     /// Deserializes the workflow input message to an object.
     /// Attempts to resolve the actual type from TypeName for proper routing in the workflow framework.
+    /// If the type cannot be resolved, tries to deserialize to one of the accepted input types.
     /// </summary>
-    private object DeserializeInput(WorkflowMessage input)
+    /// <param name="input">The workflow message containing the serialized input data.</param>
+    /// <param name="acceptedInputTypes">Optional array of types that the workflow accepts as input.
+    /// When type resolution from TypeName fails, deserialization is attempted for each of these types.</param>
+    private object DeserializeInput(WorkflowMessage input, Type[]? acceptedInputTypes = null)
     {
         // Try to resolve the actual type from TypeName for proper workflow routing
         if (!string.IsNullOrEmpty(input.TypeName))
@@ -805,12 +817,33 @@ internal sealed class WorkflowHostService : IWorkflowHost
                 }
                 catch (JsonException ex)
                 {
-                    this._logger.LogDebug(ex, "[DIAG] Failed to deserialize input to type {TypeName}, falling back to dictionary", type.FullName);
+                    this._logger.LogDebug(ex, "[DIAG] Failed to deserialize input to type {TypeName}, trying accepted types", type.FullName);
                 }
             }
             else
             {
-                this._logger.LogDebug("[DIAG] Could not resolve type from TypeName: {TypeName}", input.TypeName);
+                this._logger.LogDebug("[DIAG] Could not resolve type from TypeName: {TypeName}, trying accepted types", input.TypeName);
+            }
+        }
+
+        // Try to deserialize to one of the accepted input types
+        if (acceptedInputTypes is { Length: > 0 })
+        {
+            foreach (var acceptedType in acceptedInputTypes)
+            {
+                try
+                {
+                    var typedResult = input.Data.Deserialize(acceptedType);
+                    if (typedResult is not null)
+                    {
+                        this._logger.LogDebug("[DIAG] Successfully deserialized input to accepted type {TypeName}", acceptedType.FullName);
+                        return typedResult;
+                    }
+                }
+                catch (JsonException ex)
+                {
+                    this._logger.LogDebug(ex, "[DIAG] Failed to deserialize input to accepted type {TypeName}", acceptedType.FullName);
+                }
             }
         }
 

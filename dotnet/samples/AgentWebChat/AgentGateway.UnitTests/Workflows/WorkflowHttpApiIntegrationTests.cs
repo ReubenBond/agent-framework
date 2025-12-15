@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using System.Net;
 using System.Text;
@@ -9,7 +9,6 @@ using AgentContracts.Workflows;
 using AgentGateway.Workflows;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.Options;
 using Moq;
 using Orleans.Serialization;
 using Orleans.Storage;
@@ -84,7 +83,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
         var mockEventBroadcaster = new Mock<IMonitoringEventBroadcaster>();
         builder.Services.AddSingleton(_ => mockEventBroadcaster.Object);
         builder.Services.Configure<AgentGatewayOptions>(options => options.CallbackBaseUrl = "http://localhost:5000");
-        builder.Services.AddSingleton<IWorkflowExecutor>(_ => CreateMockWorkflowExecutor());
+        builder.Services.AddSingleton(_ => CreateMockWorkflowExecutor());
 
         this._app = builder.Build();
 
@@ -132,7 +131,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     #region List Workflows Tests
 
     [Fact]
-    public async Task ListWorkflows_ReturnsEmptyList_WhenNoWorkflows()
+    public async Task ListWorkflows_ReturnsEmptyList_WhenNoWorkflowsAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -149,7 +148,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ListWorkflows_ReturnsWorkflows_AfterCreation()
+    public async Task ListWorkflows_ReturnsWorkflows_AfterCreationAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -174,7 +173,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task ListWorkflows_FiltersByStatus()
+    public async Task ListWorkflows_FiltersByStatusAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -207,7 +206,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     #region Start Workflow Tests
 
     [Fact]
-    public async Task StartWorkflow_CreatesWorkflow_Returns201()
+    public async Task StartWorkflow_CreatesWorkflow_Returns201Async()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -241,7 +240,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     #region Get Workflow Tests
 
     [Fact]
-    public async Task GetWorkflow_ReturnsWorkflow_WhenExists()
+    public async Task GetWorkflow_ReturnsWorkflow_WhenExistsAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -265,7 +264,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetWorkflow_Returns404_WhenNotExists()
+    public async Task GetWorkflow_Returns404_WhenNotExistsAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -282,7 +281,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     #region Send Signal Tests
 
     [Fact]
-    public async Task SendSignal_ResumesWorkflow_WhenPendingRequestExists()
+    public async Task SendSignal_ResumesWorkflow_WhenPendingRequestExistsAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -331,7 +330,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task SendSignal_Returns400_WhenRequestNotFound()
+    public async Task SendSignal_Returns400_WhenRequestNotFoundAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -363,7 +362,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     #region Cancel Workflow Tests
 
     [Fact]
-    public async Task CancelWorkflow_SetsCancellingStatus()
+    public async Task CancelWorkflow_SetsCancellingStatusAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -385,7 +384,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task CancelWorkflow_Returns409_WhenAlreadyTerminal()
+    public async Task CancelWorkflow_Returns409_WhenAlreadyTerminalAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -415,7 +414,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     #region Abort Workflow Tests
 
     [Fact]
-    public async Task AbortWorkflow_SetsAbortedStatus()
+    public async Task AbortWorkflow_SetsAbortedStatusAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -444,7 +443,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     #region State API Tests (AgentHost callbacks)
 
     [Fact]
-    public async Task UpdateStatus_UpdatesWorkflowStatus()
+    public async Task UpdateStatus_UpdatesWorkflowStatusAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -473,7 +472,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task UpdateStatus_Returns409_WhenETagMismatch()
+    public async Task UpdateStatus_Returns409_WhenETagMismatchAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -501,7 +500,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task RecordStepStarted_AddsStepToWorkflow()
+    public async Task RecordStepStarted_AddsStepToWorkflowAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -535,7 +534,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task RecordPendingRequest_SetsWaitingStatus()
+    public async Task RecordPendingRequest_SetsWaitingStatusAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -572,7 +571,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task SaveAndGetCheckpoint_WorksCorrectly()
+    public async Task SaveAndGetCheckpoint_WorksCorrectlyAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -608,7 +607,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task GetCheckpoint_Returns204_WhenNoCheckpoint()
+    public async Task GetCheckpoint_Returns204_WhenNoCheckpointAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -628,7 +627,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     }
 
     [Fact]
-    public async Task RecordArtifact_AddsArtifactToWorkflow()
+    public async Task RecordArtifact_AddsArtifactToWorkflowAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -667,7 +666,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     #region Full HITL Flow Test
 
     [Fact]
-    public async Task FullHITLFlow_ViaHttpApi_WorksEndToEnd()
+    public async Task FullHITLFlow_ViaHttpApi_WorksEndToEndAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();

@@ -1,4 +1,4 @@
-// Copyright (c) Microsoft. All rights reserved.
+﻿// Copyright (c) Microsoft. All rights reserved.
 
 using AgentContracts.Workflows;
 using AgentGateway.Workflows;
@@ -38,7 +38,7 @@ public sealed class WorkflowGrainTests
     #region StartAsync Tests
 
     [Fact]
-    public async Task StartAsync_CreatesNewWorkflow_WithQueuedStatus()
+    public async Task StartAsync_CreatesNewWorkflow_WithQueuedStatusAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -60,7 +60,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task StartAsync_ThrowsInvalidOperationException_WhenWorkflowAlreadyExists()
+    public async Task StartAsync_ThrowsInvalidOperationException_WhenWorkflowAlreadyExistsAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -74,7 +74,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task StartAsync_RegistersWithWorkflowIndex()
+    public async Task StartAsync_RegistersWithWorkflowIndexAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -98,7 +98,7 @@ public sealed class WorkflowGrainTests
     #region GetAsync Tests
 
     [Fact]
-    public async Task GetAsync_ReturnsNull_WhenWorkflowDoesNotExist()
+    public async Task GetAsync_ReturnsNull_WhenWorkflowDoesNotExistAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -112,7 +112,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task GetAsync_ReturnsWorkflow_WhenExists()
+    public async Task GetAsync_ReturnsWorkflow_WhenExistsAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -134,7 +134,7 @@ public sealed class WorkflowGrainTests
     #region UpdateStatusAsync Tests
 
     [Fact]
-    public async Task UpdateStatusAsync_UpdatesStatus_AndReturnsNewETag()
+    public async Task UpdateStatusAsync_UpdatesStatus_AndReturnsNewETagAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -159,7 +159,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task UpdateStatusAsync_SetsCompletedAt_ForTerminalStatus()
+    public async Task UpdateStatusAsync_SetsCompletedAt_ForTerminalStatusAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -182,7 +182,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task UpdateStatusAsync_ThrowsWorkflowNotFoundException_WhenNotExists()
+    public async Task UpdateStatusAsync_ThrowsWorkflowNotFoundException_WhenNotExistsAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -214,7 +214,7 @@ public sealed class WorkflowGrainTests
     #region RecordStepStartedAsync / RecordStepCompletedAsync Tests
 
     [Fact]
-    public async Task RecordStepStartedAsync_AddsStep_ToWorkflow()
+    public async Task RecordStepStartedAsync_AddsStep_ToWorkflowAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -244,7 +244,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task RecordStepCompletedAsync_UpdatesStep_WithCompletion()
+    public async Task RecordStepCompletedAsync_UpdatesStep_WithCompletionAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -287,7 +287,7 @@ public sealed class WorkflowGrainTests
     #region RecordPendingRequestAsync / SendSignalAsync Tests (HITL Flow)
 
     [Fact]
-    public async Task RecordPendingRequestAsync_AddsPendingRequest_AndSetsWaitingStatus()
+    public async Task RecordPendingRequestAsync_AddsPendingRequest_AndSetsWaitingStatusAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -321,7 +321,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task SendSignalAsync_RemovesPendingRequest_AndSetsRunningStatus()
+    public async Task SendSignalAsync_RemovesPendingRequest_AndSetsRunningStatusAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -354,7 +354,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task SendSignalAsync_ThrowsInvalidOperationException_WhenRequestNotFound()
+    public async Task SendSignalAsync_ThrowsInvalidOperationException_WhenRequestNotFoundAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -378,7 +378,7 @@ public sealed class WorkflowGrainTests
     #region CancelAsync / AbortAsync Tests
 
     [Fact]
-    public async Task CancelAsync_SetsCancellingStatus()
+    public async Task CancelAsync_SetsCancellingStatusAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -393,7 +393,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task CancelAsync_ThrowsInvalidOperationException_WhenAlreadyTerminal()
+    public async Task CancelAsync_ThrowsInvalidOperationException_WhenAlreadyTerminalAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -408,7 +408,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task AbortAsync_SetsAbortedStatus_WithReason()
+    public async Task AbortAsync_SetsAbortedStatus_WithReasonAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -424,7 +424,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task AbortAsync_ThrowsInvalidOperationException_WhenAlreadyTerminal()
+    public async Task AbortAsync_ThrowsInvalidOperationException_WhenAlreadyTerminalAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -443,7 +443,7 @@ public sealed class WorkflowGrainTests
     #region SaveCheckpointAsync / GetCheckpointAsync Tests
 
     [Fact]
-    public async Task SaveCheckpointAsync_SavesCheckpoint()
+    public async Task SaveCheckpointAsync_SavesCheckpointAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -471,7 +471,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task GetCheckpointAsync_ReturnsNull_WhenNoCheckpoint()
+    public async Task GetCheckpointAsync_ReturnsNull_WhenNoCheckpointAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -486,7 +486,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task SaveCheckpointAsync_MultipleCheckpoints_ReturnsMostRecent()
+    public async Task SaveCheckpointAsync_MultipleCheckpoints_ReturnsMostRecentAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -521,7 +521,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task SaveCheckpointAsync_SameCheckpointId_UpdatesExisting()
+    public async Task SaveCheckpointAsync_SameCheckpointId_UpdatesExistingAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -560,7 +560,7 @@ public sealed class WorkflowGrainTests
     #region RecordArtifactAsync Tests
 
     [Fact]
-    public async Task RecordArtifactAsync_AddsArtifact()
+    public async Task RecordArtifactAsync_AddsArtifactAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -595,7 +595,7 @@ public sealed class WorkflowGrainTests
     #region ETag Concurrency Tests
 
     [Fact]
-    public async Task UpdateStatusAsync_ThrowsConcurrencyException_WhenETagMismatch()
+    public async Task UpdateStatusAsync_ThrowsConcurrencyException_WhenETagMismatchAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -625,7 +625,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task UpdateStatusAsync_SucceedsWithCorrectETag()
+    public async Task UpdateStatusAsync_SucceedsWithCorrectETagAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -649,7 +649,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task GetETagAsync_ReturnsCurrentETag()
+    public async Task GetETagAsync_ReturnsCurrentETagAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -664,7 +664,7 @@ public sealed class WorkflowGrainTests
     }
 
     [Fact]
-    public async Task GetETagAsync_ReturnsNull_WhenWorkflowNotExists()
+    public async Task GetETagAsync_ReturnsNull_WhenWorkflowNotExistsAsync()
     {
         // Arrange
         var runId = NewRunId();
@@ -682,7 +682,7 @@ public sealed class WorkflowGrainTests
     #region Full HITL Flow Integration Test
 
     [Fact]
-    public async Task FullHITLFlow_WorksEndToEnd()
+    public async Task FullHITLFlow_WorksEndToEndAsync()
     {
         // Arrange
         var runId = NewRunId();
