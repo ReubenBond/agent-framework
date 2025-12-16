@@ -1,7 +1,7 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 using System.Text.Json;
-using AgentContracts.Workflows;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workflows;
 using AgentWebChat.AgentHost.Workflows;
 
 namespace AgentWebChat.AgentHost.UnitTests.Workflows;

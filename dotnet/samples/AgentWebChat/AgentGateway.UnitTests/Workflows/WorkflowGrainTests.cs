@@ -1,7 +1,7 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
-using AgentContracts.Workflows;
-using AgentGateway.Workflows;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workflows;
+using Microsoft.Agents.AI.Runtime.Orleans.Workflows;
 
 namespace AgentGateway.UnitTests.Workflows;
 

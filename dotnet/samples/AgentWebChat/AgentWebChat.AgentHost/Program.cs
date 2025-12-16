@@ -1,6 +1,5 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
-using AgentContracts;
 using AgentWebChat.AgentHost;
 using AgentWebChat.AgentHost.Custom;
 using AgentWebChat.AgentHost.DurableAgents.Utilities;
@@ -10,6 +9,7 @@ using AgentWebChat.AgentHost.Workflows;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.DevUI;
 using Microsoft.Agents.AI.Hosting;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workers;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Options;
@@ -21,12 +21,21 @@ builder.Services.AddOptions<WorkerOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
-// Add a singleton capturing this worker process metadata (instance id + host id)
+// Add a singleton capturing this worker process metadata
 builder.Services.AddSingleton(sp =>
 {
     var options = sp.GetRequiredService<IOptions<WorkerOptions>>().Value;
     string hostId = options.HostId ?? Environment.MachineName;
-    return new WorkerProcessMetadata { InstanceId = Guid.NewGuid(), HostId = hostId };
+    // Use AdvertisedBaseAddress if configured, otherwise fallback to localhost with a default port
+    string endpoint = options.AdvertisedBaseAddress ?? $"http://localhost:{builder.Configuration["ASPNETCORE_URLS"]?.Split(':').LastOrDefault() ?? "5000"}";
+    return new WorkerProcessMetadata
+    {
+        HostId = hostId,
+        Endpoint = endpoint,
+        HealthPath = options.HealthPath,
+        DiscoveryPath = options.DiscoveryPath,
+        StartedAt = DateTimeOffset.UtcNow
+    };
 });
 
 bool enableWorkerRegistration = builder.Configuration.GetValue<bool>("AgentRuntime:RegisterWorker");

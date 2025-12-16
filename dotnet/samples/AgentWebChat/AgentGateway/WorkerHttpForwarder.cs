@@ -1,9 +1,10 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Agents.AI.Runtime.Workers;
 using Microsoft.AspNetCore.Http;
 using Yarp.ReverseProxy.Forwarder;
 
@@ -50,7 +51,7 @@ internal sealed class WorkerHttpForwarder
 
     // Select the best available worker (if any) from the registry that supports the given agent.
     // Prefers non-default workers over the default worker.
-    private async ValueTask<WorkerRegistry.WorkerInfo?> SelectWorkerAsync(string? agentName, CancellationToken cancellationToken = default)
+    private async ValueTask<WorkerInfo?> SelectWorkerAsync(string? agentName, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(agentName))
         {

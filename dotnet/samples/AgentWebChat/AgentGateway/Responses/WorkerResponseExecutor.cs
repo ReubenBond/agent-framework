@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -13,6 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
+using Microsoft.Agents.AI.Runtime.Workers;
 using Microsoft.Extensions.Logging;
 
 namespace AgentGateway.Responses;
@@ -131,7 +132,7 @@ internal sealed class WorkerResponseExecutor : IResponseExecutor
     /// <summary>
     /// Select the best available worker (if any) from the registry that supports the given agent.
     /// </summary>
-    private async ValueTask<WorkerRegistry.WorkerInfo?> SelectWorkerAsync(string? agentName, CancellationToken cancellationToken = default)
+    private async ValueTask<WorkerInfo?> SelectWorkerAsync(string? agentName, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrEmpty(agentName))
         {

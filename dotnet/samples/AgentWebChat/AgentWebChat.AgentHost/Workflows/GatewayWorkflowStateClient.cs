@@ -3,9 +3,9 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text.Json;
-using AgentContracts;
-using AgentContracts.Telemetry;
-using AgentContracts.Workflows;
+using Microsoft.Agents.AI.Runtime.Abstractions;
+using Microsoft.Agents.AI.Runtime.Abstractions.Telemetry;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workflows;
 
 namespace AgentWebChat.AgentHost.Workflows;
 
@@ -32,7 +32,7 @@ internal sealed class GatewayWorkflowStateClient : IWorkflowStateService
         ArgumentNullException.ThrowIfNull(httpClient);
 
         this._httpClient = httpClient;
-        this._jsonOptions = jsonOptions ?? AgentContractsJsonUtilities.DefaultOptions;
+        this._jsonOptions = jsonOptions ?? RuntimeJsonUtilities.DefaultOptions;
     }
 
     /// <inheritdoc/>
@@ -62,19 +62,19 @@ internal sealed class GatewayWorkflowStateClient : IWorkflowStateService
     /// <inheritdoc/>
     public async Task<string> RecordStepStartedAsync(
         string runId,
-        WorkflowStepStartedRecord step,
+        WorkflowStepStartedRecord stepRecord,
         string? etag,
         CancellationToken cancellationToken = default)
     {
-        using var activity = WorkflowActivitySource.StartStepExecution(runId, step.StepId, step.ExecutorId, step.ExecutorName);
+        using var activity = WorkflowActivitySource.StartStepExecution(runId, stepRecord.StepId, stepRecord.ExecutorId, stepRecord.ExecutorName);
 
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
-        ArgumentNullException.ThrowIfNull(step);
+        ArgumentNullException.ThrowIfNull(stepRecord);
 
         var uri = new Uri($"/v1/workflows/{Uri.EscapeDataString(runId)}/state/steps/started", UriKind.Relative);
         using var request = new HttpRequestMessage(HttpMethod.Post, uri)
         {
-            Content = JsonContent.Create(step, mediaType: null, this._jsonOptions)
+            Content = JsonContent.Create(stepRecord, mediaType: null, this._jsonOptions)
         };
         AddETagHeader(request, etag);
 
@@ -84,21 +84,21 @@ internal sealed class GatewayWorkflowStateClient : IWorkflowStateService
     /// <inheritdoc/>
     public async Task<string> RecordStepCompletedAsync(
         string runId,
-        WorkflowStepCompletedRecord step,
+        WorkflowStepCompletedRecord stepRecord,
         string? etag,
         CancellationToken cancellationToken = default)
     {
         using var activity = WorkflowActivitySource.StartGrainOperation("record_step_completed", "StateClient", runId);
-        activity?.SetTag(TelemetryConstants.StepId, step.StepId);
-        activity?.SetTag(TelemetryConstants.StepDurationMs, step.DurationMs);
+        activity?.SetTag(TelemetryConstants.StepId, stepRecord.StepId);
+        activity?.SetTag(TelemetryConstants.StepDurationMs, stepRecord.DurationMs);
 
         ArgumentException.ThrowIfNullOrWhiteSpace(runId);
-        ArgumentNullException.ThrowIfNull(step);
+        ArgumentNullException.ThrowIfNull(stepRecord);
 
         var uri = new Uri($"/v1/workflows/{Uri.EscapeDataString(runId)}/state/steps/completed", UriKind.Relative);
         using var request = new HttpRequestMessage(HttpMethod.Post, uri)
         {
-            Content = JsonContent.Create(step, mediaType: null, this._jsonOptions)
+            Content = JsonContent.Create(stepRecord, mediaType: null, this._jsonOptions)
         };
         AddETagHeader(request, etag);
 

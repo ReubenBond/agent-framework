@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Runtime.CompilerServices;
 using Microsoft.Agents.AI.DevUI;
@@ -51,7 +51,7 @@ internal sealed class WorkflowHostEntityProvider : IEntityProvider
         return CreateEntityInfo(workflowInfo, workflow);
     }
 
-    private static EntityInfo CreateEntityInfo(AgentContracts.Workflows.WorkflowDefinitionInfo workflowInfo, Workflow? workflow)
+    private static EntityInfo CreateEntityInfo(Microsoft.Agents.AI.Runtime.Abstractions.Workflows.WorkflowDefinitionInfo workflowInfo, Workflow? workflow)
     {
         // Extract executor IDs from the workflow edges if available
         var executors = new List<string>();

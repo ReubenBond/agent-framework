@@ -1,9 +1,10 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Diagnostics.CodeAnalysis;
 using System.Net;
-using AgentContracts;
 using AgentWebChat.AgentHost.Options;
+using Microsoft.Agents.AI.Runtime.Abstractions;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workers;
 using AgentWebChat.AgentHost.Utilities;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
@@ -177,16 +178,16 @@ internal sealed class WorkerRegistrationService : IHostedService, IDisposable
             var client = this._httpClientFactory.CreateClient();
             var uri = new Uri(new Uri(this._options.GatewayBaseAddress, UriKind.Absolute), "/workers/registrations");
 
-            using var response = await client.PostAsJsonAsync(uri, this.RegistrationInfo, AgentContractsJsonContext.Default.WorkerRegistrationRequest, ct).ConfigureAwait(false);
+            using var response = await client.PostAsJsonAsync(uri, this.RegistrationInfo, RuntimeJsonContext.Default.WorkerRegistrationRequest, ct).ConfigureAwait(false);
             if (response.IsSuccessStatusCode)
             {
                 this._isRegistered = true;
                 try
                 {
-                    var registrationResponse = await response.Content.ReadFromJsonAsync(AgentContractsJsonContext.Default.WorkerRegistrationResponse, ct).ConfigureAwait(false);
+                    var registrationResponse = await response.Content.ReadFromJsonAsync(RuntimeJsonContext.Default.WorkerRegistrationResponse, ct).ConfigureAwait(false);
                     if (registrationResponse is not null)
                     {
-                        this._logger.LogInformation("Worker registered with id {RegistrationId} (base: {BaseAddress})", registrationResponse.RegistrationId, this.RegistrationInfo.Endpoint);
+                        this._logger.LogInformation("Worker registered with id {RegistrationId} (base: {BaseAddress})", registrationResponse.Id, this.RegistrationInfo.Endpoint);
                     }
                 }
                 catch (Exception ex)

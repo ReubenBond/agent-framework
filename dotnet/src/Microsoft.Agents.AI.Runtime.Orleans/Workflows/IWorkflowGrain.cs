@@ -1,0 +1,149 @@
+// Copyright (c) Microsoft. All rights reserved.
+
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workflows;
+using Orleans;
+
+namespace Microsoft.Agents.AI.Runtime.Orleans.Workflows;
+
+/// <summary>
+/// Orleans grain interface for managing a single workflow run.
+/// </summary>
+public interface IWorkflowGrain : IGrainWithStringKey
+{
+    /// <summary>
+    /// Creates and starts a new workflow run.
+    /// </summary>
+    Task<WorkflowRun> StartAsync(StartWorkflowRequest request, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets the current state of the workflow run.
+    /// </summary>
+    Task<WorkflowRun?> GetAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Sends a signal to the workflow (response to a pending request).
+    /// </summary>
+    Task<WorkflowRun> SendSignalAsync(WorkflowSignal signal, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Requests cooperative cancellation of the workflow.
+    /// </summary>
+    Task<WorkflowRun> CancelAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Forcefully aborts the workflow.
+    /// </summary>
+    Task<WorkflowRun> AbortAsync(string reason, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Streams workflow events starting from the specified sequence number.
+    /// </summary>
+    IAsyncEnumerable<WorkflowStatusEvent> StreamEventsAsync(int? startingAfter, CancellationToken cancellationToken);
+
+    // ============ State Service Methods (called by Worker) ============
+
+    /// <summary>
+    /// Updates the workflow status.
+    /// </summary>
+    Task<string> UpdateStatusAsync(WorkflowRunStatusUpdate update, string? etag, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records that a step started.
+    /// </summary>
+    Task<string> RecordStepStartedAsync(WorkflowStepStartedRecord stepRecord, string? etag, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records that a step completed.
+    /// </summary>
+    Task<string> RecordStepCompletedAsync(WorkflowStepCompletedRecord stepRecord, string? etag, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records a pending external request.
+    /// </summary>
+    Task<string> RecordPendingRequestAsync(PendingExternalRequest request, string? etag, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Clears a pending request.
+    /// </summary>
+    Task<string> ClearPendingRequestAsync(string requestId, string? etag, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Saves a checkpoint.
+    /// </summary>
+    Task<string> SaveCheckpointAsync(WorkflowCheckpointData checkpoint, string? etag, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets the current checkpoint.
+    /// </summary>
+    Task<WorkflowCheckpointResult?> GetCheckpointAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets a specific checkpoint by ID.
+    /// </summary>
+    Task<WorkflowCheckpointData?> GetCheckpointByIdAsync(string checkpointId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Lists all checkpoint IDs for this workflow.
+    /// </summary>
+    Task<IReadOnlyList<string>> ListCheckpointIdsAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records an artifact.
+    /// </summary>
+    Task<string> RecordArtifactAsync(WorkflowArtifactRecord artifact, string? etag, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets the current ETag.
+    /// </summary>
+    Task<string?> GetETagAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets the ID of the worker assigned to execute this workflow.
+    /// </summary>
+    Task<string?> GetAssignedWorkerIdAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Assigns a worker to execute this workflow.
+    /// </summary>
+    Task SetAssignedWorkerIdAsync(string workerId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Permanently deletes a workflow run and all its associated data.
+    /// Only allowed for workflows in terminal status (Completed, Cancelled, Aborted, Failed).
+    /// </summary>
+    Task DeleteAsync(CancellationToken cancellationToken);
+
+    // ============ Execution State Methods (for retry/recovery support) ============
+
+    /// <summary>
+    /// Updates the execution state for tracking dispatch/execution progress.
+    /// Called by the HTTP API after dispatching to a worker.
+    /// </summary>
+    Task SetExecutionStateAsync(WorkflowExecutionState state, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets the current execution state.
+    /// </summary>
+    Task<WorkflowExecutionState> GetExecutionStateAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Stores a pending signal that needs to be processed.
+    /// Used when a signal is received but the resume hasn't been dispatched yet.
+    /// </summary>
+    Task SetPendingSignalAsync(WorkflowSignal? signal, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Gets any pending signal that needs to be processed.
+    /// </summary>
+    Task<WorkflowSignal?> GetPendingSignalAsync(CancellationToken cancellationToken);
+
+    // ============ Streaming Output Methods (for token-by-token streaming) ============
+
+    /// <summary>
+    /// Records a streaming output delta (token-by-token content).
+    /// </summary>
+    Task<string> RecordOutputDeltaAsync(WorkflowOutputDelta delta, string? etag, CancellationToken cancellationToken);
+}

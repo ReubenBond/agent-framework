@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System;
 using System.Collections.Generic;
@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Agents.AI.DevUI;
 using Microsoft.Agents.AI.DevUI.Entities;
+using Microsoft.Agents.AI.Runtime.Workers;
 
 namespace AgentGateway.DevUI;
 

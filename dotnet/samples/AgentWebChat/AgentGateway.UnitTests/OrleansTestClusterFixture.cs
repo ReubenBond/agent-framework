@@ -1,7 +1,8 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
-using AgentContracts.Workflows;
-using AgentGateway.Workflows;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workers;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workflows;
+using Microsoft.Agents.AI.Runtime.Orleans.Workflows;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses.Models;
 using Moq;

@@ -1,12 +1,14 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using AgentContracts;
-using AgentContracts.Monitoring;
-using AgentContracts.Workflows;
-using AgentGateway.Workflows;
+using Microsoft.Agents.AI.Runtime.Abstractions;
+using Microsoft.Agents.AI.Runtime.Abstractions.Monitoring;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workers;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workflows;
+using Microsoft.Agents.AI.Runtime.Hosting;
+using Microsoft.Agents.AI.Runtime.Orleans.Workflows;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.TestHost;
 using Moq;
@@ -24,7 +26,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
     private WebApplication? _app;
     private HttpClient? _httpClient;
 
-    private static readonly JsonSerializerOptions s_jsonOptions = AgentContractsJsonUtilities.DefaultOptions;
+    private static readonly JsonSerializerOptions s_jsonOptions = RuntimeJsonUtilities.DefaultOptions;
 
     /// <summary>
     /// Creates a URI from a relative path.
@@ -88,7 +90,7 @@ public sealed class WorkflowHttpApiIntegrationTests : IAsyncDisposable
         this._app = builder.Build();
 
         // Map workflow endpoints
-        this._app.MapWorkflows();
+        this._app.MapWorkflowApi();
 
         await this._app.StartAsync();
 

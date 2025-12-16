@@ -1,10 +1,10 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using AgentContracts;
-using AgentContracts.Workflows;
+using Microsoft.Agents.AI.Runtime.Abstractions;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workflows;
 using Aspire.Hosting;
 using Aspire.Hosting.Testing;
 
@@ -19,7 +19,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
 {
     private DistributedApplication? _app;
     private HttpClient? _gatewayClient;
-    private static readonly JsonSerializerOptions s_jsonOptions = AgentContractsJsonUtilities.DefaultOptions;
+    private static readonly JsonSerializerOptions s_jsonOptions = RuntimeJsonUtilities.DefaultOptions;
 
     /// <summary>
     /// Creates a URI from a relative path.

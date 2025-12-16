@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import type { WorkerStatus, WorkerHealthState } from '../types';
 import { monitoringApi } from '../api';
 import { Skeleton } from './Skeleton';
@@ -147,9 +147,8 @@ export function WorkerListWidget({ workers, stats, isLoading, error, onRefresh }
             </thead>
             <tbody>
               {workers.map((worker) => (
-                <>
+                <React.Fragment key={worker.workerId}>
                   <tr 
-                    key={worker.workerId}
                     className={`worker-row ${getHealthClass(worker.health)} ${worker.isDraining ? 'draining' : ''} ${expandedWorkerId === worker.workerId ? 'expanded' : ''}`}
                     onClick={() => toggleExpand(worker.workerId)}
                   >
@@ -187,7 +186,7 @@ export function WorkerListWidget({ workers, stats, isLoading, error, onRefresh }
                     </td>
                   </tr>
                   {expandedWorkerId === worker.workerId && (
-                    <tr key={`${worker.workerId}-details`} className="worker-details-row">
+                    <tr className="worker-details-row">
                       <td colSpan={5}>
                         <div className="worker-details-content">
                           <div className="detail-item">
@@ -218,7 +217,7 @@ export function WorkerListWidget({ workers, stats, isLoading, error, onRefresh }
                       </td>
                     </tr>
                   )}
-                </>
+                </React.Fragment>
               ))}
             </tbody>
           </table>

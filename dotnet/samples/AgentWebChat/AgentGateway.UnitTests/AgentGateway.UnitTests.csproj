@@ -22,7 +22,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AgentGateway\AgentGateway.csproj" />
-    <ProjectReference Include="..\AgentContracts\AgentContracts.csproj" />
     <ProjectReference Include="..\AgentWebChat.AgentHost\AgentWebChat.AgentHost.csproj" />
   </ItemGroup>
 

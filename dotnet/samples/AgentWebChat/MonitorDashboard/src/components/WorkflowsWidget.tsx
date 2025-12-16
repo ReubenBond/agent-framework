@@ -129,6 +129,7 @@ export function WorkflowsWidget({
               type="text"
               className="search-input"
               placeholder="Search..."
+              value=""
               disabled
             />
           </div>

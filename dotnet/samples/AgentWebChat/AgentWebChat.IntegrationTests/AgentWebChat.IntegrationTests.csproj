@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AgentContracts\AgentContracts.csproj" />
+    <ProjectReference Include="..\..\..\src\Microsoft.Agents.AI.Runtime.Abstractions\Microsoft.Agents.AI.Runtime.Abstractions.csproj" />
     <ProjectReference Include="..\AgentWebChat.AppHost\AgentWebChat.AppHost.csproj" />
   </ItemGroup>
 

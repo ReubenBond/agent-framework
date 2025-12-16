@@ -6,9 +6,9 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using AgentGateway.Conversations;
 using AgentGateway.Responses;
-using AgentGateway.Workflows;
 using Microsoft.Agents.AI.DevUI.Entities;
 using Microsoft.Agents.AI.Hosting.OpenAI;
+using Microsoft.Agents.AI.Runtime.Abstractions;
 
 namespace AgentGateway;
 
@@ -34,6 +34,9 @@ public static class AgentGatewayJsonUtilities
         // Chain with OpenAI Hosting types (which includes Microsoft.Extensions.AI types)
         options.TypeInfoResolverChain.Add(OpenAIHostingJsonUtilities.DefaultOptions.TypeInfoResolver!);
 
+        // Chain with Runtime types for workflow models
+        options.TypeInfoResolverChain.Add(RuntimeJsonUtilities.DefaultOptions.TypeInfoResolver!);
+
         options.MakeReadOnly();
         return options;
     }
@@ -57,6 +60,5 @@ public static class AgentGatewayJsonUtilities
 [JsonSerializable(typeof(AgentConversationIndexState))]
 [JsonSerializable(typeof(DiscoveryResponse))]
 [JsonSerializable(typeof(List<EntityInfo>))]
-[JsonSerializable(typeof(WorkflowGrainState))]
 [ExcludeFromCodeCoverage]
 internal sealed partial class AgentGatewayJsonContext : JsonSerializerContext;

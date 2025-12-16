@@ -5,8 +5,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading.Channels;
-using AgentContracts.Telemetry;
-using AgentContracts.Workflows;
+using Microsoft.Agents.AI.Runtime.Abstractions.Telemetry;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workflows;
 using Microsoft.Agents.AI.Workflows;
 
 namespace AgentWebChat.AgentHost.Workflows;
@@ -126,7 +126,7 @@ internal sealed class WorkflowHostService : IWorkflowHost
                 cancellationToken);
 
             // Emit workflow started event
-            await writer.WriteAsync(new AgentContracts.Workflows.WorkflowStartedEvent
+            await writer.WriteAsync(new Microsoft.Agents.AI.Runtime.Abstractions.Workflows.WorkflowStartedEvent
             {
                 RunId = request.RunId,
                 SequenceNumber = sequenceNumber++,

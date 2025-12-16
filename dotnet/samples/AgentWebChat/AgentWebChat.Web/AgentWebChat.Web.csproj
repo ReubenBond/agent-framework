@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -14,7 +14,7 @@
     <ProjectReference Include="..\AgentWebChat.ServiceDefaults\AgentWebChat.ServiceDefaults.csproj" />
     <ProjectReference Include="..\..\..\src\Microsoft.Agents.AI.Abstractions\Microsoft.Agents.AI.Abstractions.csproj" />
     <ProjectReference Include="..\..\..\src\Microsoft.Agents.AI.DevUI\Microsoft.Agents.AI.DevUI.csproj" />
-    <ProjectReference Include="..\AgentContracts\AgentContracts.csproj" />
+    <ProjectReference Include="..\..\..\src\Microsoft.Agents.AI.Runtime.Abstractions\Microsoft.Agents.AI.Runtime.Abstractions.csproj" />
   </ItemGroup>
 
   <!-- A2A dependency -->

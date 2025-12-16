@@ -1,8 +1,8 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Net.Mime;
-using AgentContracts;
-using AgentContracts.Workflows;
+using Microsoft.Agents.AI.Runtime.Abstractions;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workflows;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
@@ -149,7 +149,7 @@ public static class WorkflowHttpApi
             _ => "unknown"
         };
 
-        var json = System.Text.Json.JsonSerializer.Serialize(evt, AgentContractsJsonUtilities.DefaultOptions);
+        var json = System.Text.Json.JsonSerializer.Serialize(evt, RuntimeJsonUtilities.DefaultOptions);
 
         await response.WriteAsync($"event: {eventType}\n", cancellationToken);
         await response.WriteAsync($"data: {json}\n\n", cancellationToken);

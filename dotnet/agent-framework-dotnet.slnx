@@ -13,7 +13,6 @@
     <Project Path="samples/A2AClientServer/A2AServer/A2AServer.csproj" />
   </Folder>
   <Folder Name="/Samples/AgentWebChat/">
-    <Project Path="samples/AgentWebChat/AgentContracts/AgentContracts.csproj" Id="3ebe43e6-031b-4c3e-996e-29aac9f8c614" />
     <Project Path="samples/AgentWebChat/AgentGateway/AgentGateway.csproj" />
     <Project Path="samples/AgentWebChat/AgentGateway.UnitTests/AgentGateway.UnitTests.csproj" />
     <Project Path="samples/AgentWebChat/AgentWebChat.AgentHost/AgentWebChat.AgentHost.csproj" />
@@ -356,6 +355,10 @@
     <Project Path="src/Microsoft.Agents.AI.Workflows.Declarative/Microsoft.Agents.AI.Workflows.Declarative.csproj" />
     <Project Path="src/Microsoft.Agents.AI.Workflows/Microsoft.Agents.AI.Workflows.csproj" />
     <Project Path="src/Microsoft.Agents.AI/Microsoft.Agents.AI.csproj" />
+    <Project Path="src/Microsoft.Agents.AI.Runtime.Abstractions/Microsoft.Agents.AI.Runtime.Abstractions.csproj" />
+    <Project Path="src/Microsoft.Agents.AI.Runtime/Microsoft.Agents.AI.Runtime.csproj" />
+    <Project Path="src/Microsoft.Agents.AI.Runtime.Orleans/Microsoft.Agents.AI.Runtime.Orleans.csproj" />
+    <Project Path="src/Microsoft.Agents.AI.Runtime.Hosting/Microsoft.Agents.AI.Runtime.Hosting.csproj" />
   </Folder>
   <Folder Name="/Tests/" />
   <Folder Name="/Tests/IntegrationTests/">

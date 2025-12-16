@@ -1,8 +1,8 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
-using AgentContracts.Workflows;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workflows;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Agents.AI.Workflows.Checkpointing;
 

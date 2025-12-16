@@ -1,8 +1,8 @@
 // Copyright (c) Microsoft. All rights reserved.
 
 using System.Text.Json;
-using AgentContracts;
-using AgentContracts.Workflows;
+using Microsoft.Agents.AI.Runtime.Abstractions;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workflows;
 
 namespace AgentGateway.UnitTests.Workflows;
 
@@ -30,7 +30,7 @@ public class CheckpointDataSerializationTests
         };
 
         // Act
-        var json = JsonSerializer.Serialize(checkpointData, AgentContractsJsonUtilities.DefaultOptions);
+        var json = JsonSerializer.Serialize(checkpointData, RuntimeJsonUtilities.DefaultOptions);
 
         // Assert - Verify camelCase property names
         json.Should().Contain("\"checkpointId\"");
@@ -55,8 +55,8 @@ public class CheckpointDataSerializationTests
         };
 
         // Act
-        var json = JsonSerializer.Serialize(original, AgentContractsJsonUtilities.DefaultOptions);
-        var deserialized = JsonSerializer.Deserialize<WorkflowCheckpointData>(json, AgentContractsJsonUtilities.DefaultOptions);
+        var json = JsonSerializer.Serialize(original, RuntimeJsonUtilities.DefaultOptions);
+        var deserialized = JsonSerializer.Deserialize<WorkflowCheckpointData>(json, RuntimeJsonUtilities.DefaultOptions);
 
         // Assert
         deserialized.Should().NotBeNull();
@@ -80,8 +80,8 @@ public class CheckpointDataSerializationTests
         };
 
         // Act
-        var json = JsonSerializer.Serialize(checkpointData, AgentContractsJsonUtilities.DefaultOptions);
-        var deserialized = JsonSerializer.Deserialize<WorkflowCheckpointData>(json, AgentContractsJsonUtilities.DefaultOptions);
+        var json = JsonSerializer.Serialize(checkpointData, RuntimeJsonUtilities.DefaultOptions);
+        var deserialized = JsonSerializer.Deserialize<WorkflowCheckpointData>(json, RuntimeJsonUtilities.DefaultOptions);
 
         // Assert
         deserialized.Should().NotBeNull();
@@ -108,7 +108,7 @@ public class CheckpointDataSerializationTests
         };
 
         // Act
-        var json = JsonSerializer.Serialize(result, AgentContractsJsonUtilities.DefaultOptions);
+        var json = JsonSerializer.Serialize(result, RuntimeJsonUtilities.DefaultOptions);
 
         // Assert
         json.Should().Contain("\"checkpoint\"");
@@ -131,8 +131,8 @@ public class CheckpointDataSerializationTests
         };
 
         // Act
-        var json = JsonSerializer.Serialize(original, AgentContractsJsonUtilities.DefaultOptions);
-        var deserialized = JsonSerializer.Deserialize<WorkflowCheckpointResult>(json, AgentContractsJsonUtilities.DefaultOptions);
+        var json = JsonSerializer.Serialize(original, RuntimeJsonUtilities.DefaultOptions);
+        var deserialized = JsonSerializer.Deserialize<WorkflowCheckpointResult>(json, RuntimeJsonUtilities.DefaultOptions);
 
         // Assert
         deserialized.Should().NotBeNull();
@@ -163,7 +163,7 @@ public class CheckpointDataSerializationTests
         };
 
         // Act
-        var json = JsonSerializer.Serialize(request, AgentContractsJsonUtilities.DefaultOptions);
+        var json = JsonSerializer.Serialize(request, RuntimeJsonUtilities.DefaultOptions);
 
         // Assert
         json.Should().Contain("\"checkpointId\":\"cp-456\"");
@@ -188,8 +188,8 @@ public class CheckpointDataSerializationTests
         };
 
         // Act
-        var json = JsonSerializer.Serialize(original, AgentContractsJsonUtilities.DefaultOptions);
-        var deserialized = JsonSerializer.Deserialize<WorkflowResumeRequest>(json, AgentContractsJsonUtilities.DefaultOptions);
+        var json = JsonSerializer.Serialize(original, RuntimeJsonUtilities.DefaultOptions);
+        var deserialized = JsonSerializer.Deserialize<WorkflowResumeRequest>(json, RuntimeJsonUtilities.DefaultOptions);
 
         // Assert
         deserialized.Should().NotBeNull();

@@ -1,21 +1,24 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System;
 using System.Net.Http;
-using AgentContracts;
-using AgentContracts.Monitoring;
 using AgentGateway;
 using AgentGateway.Conversations;
 using AgentGateway.DevUI;
 using AgentGateway.Health;
-using AgentGateway.Monitoring;
 using AgentGateway.Responses;
 using AgentGateway.Telemetry;
 using AgentGateway.Utilities;
-using AgentGateway.Workflows;
 using Microsoft.Agents.AI.DevUI;
 using Microsoft.Agents.AI.Hosting.OpenAI.Conversations;
 using Microsoft.Agents.AI.Hosting.OpenAI.Responses;
+using Microsoft.Agents.AI.Runtime;
+using Microsoft.Agents.AI.Runtime.Abstractions;
+using Microsoft.Agents.AI.Runtime.Abstractions.Monitoring;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workers;
+using Microsoft.Agents.AI.Runtime.Hosting;
+using Microsoft.Agents.AI.Runtime.Monitoring;
+using Microsoft.Agents.AI.Runtime.Workers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.AI;
@@ -62,6 +65,41 @@ builder.Services.Configure<AgentGatewayOptions>(options =>
     }
 });
 
+// Configure RuntimeOptions from AgentGateway configuration section
+// WorkerRegistry uses RuntimeOptions, so we need to bridge the worker configuration
+builder.Services.Configure<RuntimeOptions>(options =>
+{
+    var section = builder.Configuration.GetSection(AgentGatewayOptions.SectionName);
+
+    // Handle Workers as either string array or object array
+    var workersSection = section.GetSection("Workers");
+    if (workersSection.Exists())
+    {
+        options.Workers.Clear();
+        foreach (var child in workersSection.GetChildren())
+        {
+            // Try to bind as object first
+            var worker = new WorkerConfiguration();
+            child.Bind(worker);
+
+            // If Endpoint is not set, treat the whole value as an endpoint string
+            if (string.IsNullOrEmpty(worker.Endpoint) && !string.IsNullOrEmpty(child.Value))
+            {
+                worker.Endpoint = child.Value;
+            }
+
+            if (!string.IsNullOrEmpty(worker.Endpoint))
+            {
+                options.Workers.Add(worker);
+            }
+        }
+    }
+
+    // Copy other relevant settings
+    options.EnableRuntimeRegistration = section.GetValue<bool?>("EnableRuntimeRegistration") ?? true;
+    options.CallbackBaseUrl = section.GetValue<string?>("CallbackBaseUrl");
+});
+
 builder.AddKeyedAzureBlobServiceClient("state");
 builder.AddKeyedAzureTableServiceClient("reminders");
 builder.AddKeyedAzureTableServiceClient("clustering");
@@ -90,7 +128,6 @@ builder.Services.AddSerializer(serializerBuilder =>
     // including OpenAIJsonUtilities (OpenAI Hosting types), AIJsonUtilities (Microsoft.Extensions.AI), and grain states
     serializerBuilder.AddJsonSerializer(
         isSupported: type => type.Namespace?.StartsWith("Microsoft.Agents", StringComparison.Ordinal) == true ||
-                            type.Namespace?.StartsWith("AgentContracts", StringComparison.Ordinal) == true ||
                             type.Namespace?.StartsWith("AgentGateway", StringComparison.Ordinal) == true,
         jsonSerializerOptions: AgentGatewayJsonUtilities.DefaultOptions);
 });
@@ -123,12 +160,12 @@ builder.Services.AddSingleton<IResponseExecutor, WorkerResponseExecutor>();
 
 // Configure JSON serialization to use snake_case naming (web conventions)
 // Uses source-generated JSON serializer context for better performance and trimming support
-// Chains with AgentContractsJsonUtilities for worker registration and conversation types
+// Chains with RuntimeJsonUtilities for worker registration and workflow types
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
-    // Start with AgentContracts options which includes WorkerHostJsonContext and AIJsonUtilities
-    var contractsOptions = AgentContractsJsonUtilities.DefaultOptions;
-    options.SerializerOptions.TypeInfoResolverChain.Add(contractsOptions.TypeInfoResolver!);
+    // Start with Runtime options which includes RuntimeJsonContext and AIJsonUtilities
+    var runtimeOptions = RuntimeJsonUtilities.DefaultOptions;
+    options.SerializerOptions.TypeInfoResolverChain.Add(runtimeOptions.TypeInfoResolver!);
 
     // Add Gateway-specific context at the front for priority
     options.SerializerOptions.TypeInfoResolverChain.Insert(0, AgentGatewayJsonContext.Default);
@@ -174,7 +211,7 @@ app.UseStaticFiles();
 var gatewayOptions = app.Services.GetRequiredService<IOptions<AgentGatewayOptions>>().Value;
 if (gatewayOptions.EnableRuntimeRegistration)
 {
-    app.MapWorkerManagement();
+    app.MapWorkerManagementApi();
 }
 
 // Map forwarding endpoints to workers (eg, A2A) via IHttpForwarder
@@ -187,10 +224,10 @@ app.MapOpenAIConversations();
 app.MapOpenAIResponses();
 
 // Map Workflow API endpoints
-app.MapWorkflows();
+app.MapWorkflowApi();
 
 // Map Monitoring API endpoints
-app.MapMonitoring();
+app.MapMonitoringApi();
 
 // Map DevUI
 app.MapDevUI();

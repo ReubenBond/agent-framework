@@ -1,9 +1,9 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using AgentContracts;
-using AgentContracts.Workflows;
+using Microsoft.Agents.AI.Runtime.Abstractions;
+using Microsoft.Agents.AI.Runtime.Abstractions.Workflows;
 
 namespace AgentWebChat.Web;
 
@@ -23,7 +23,7 @@ public sealed class WorkflowApiClient : IWorkflowClient
     {
         ArgumentNullException.ThrowIfNull(httpClient);
         this._httpClient = httpClient;
-        this._jsonOptions = AgentContractsJsonUtilities.DefaultOptions;
+        this._jsonOptions = RuntimeJsonUtilities.DefaultOptions;
     }
 
     /// <inheritdoc/>
