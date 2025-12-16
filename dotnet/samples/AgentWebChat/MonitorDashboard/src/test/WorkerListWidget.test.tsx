@@ -51,8 +51,8 @@ describe('WorkerListWidget', () => {
 
     it('renders worker list with correct data', () => {
       const workers = [
-        createWorkerStatus({ workerId: 'worker-1', health: 'Healthy', activeWorkflows: 5 }),
-        createWorkerStatus({ workerId: 'worker-2', health: 'Unhealthy', activeWorkflows: 0 }),
+        createWorkerStatus({ id: 'worker-1', status: 'Healthy', activeWorkflows: 5 }),
+        createWorkerStatus({ id: 'worker-2', status: 'Unhealthy', activeWorkflows: 0 }),
       ];
       const stats = { registered: 2, healthy: 1, drained: 0 };
 
@@ -84,12 +84,16 @@ describe('WorkerListWidget', () => {
       consoleSpy.mockRestore();
     });
 
-    it('renders draining workers with correct badge', () => {
-      const workers = [createWorkerStatus({ workerId: 'worker-1', isDraining: true })];
+    it('renders worker status badges correctly', () => {
+      const workers = [
+        createWorkerStatus({ id: 'worker-1', status: 'Healthy' }),
+        createWorkerStatus({ id: 'worker-2', status: 'Unhealthy' }),
+      ];
 
       render(<WorkerListWidget {...defaultProps} workers={workers} />);
 
-      expect(screen.getByText('Draining')).toBeInTheDocument();
+      expect(screen.getByText('Healthy')).toBeInTheDocument();
+      expect(screen.getByText('Unhealthy')).toBeInTheDocument();
     });
   });
 
@@ -98,9 +102,9 @@ describe('WorkerListWidget', () => {
       const user = userEvent.setup();
       const workers = [
         createWorkerStatus({
-          workerId: 'worker-1',
-          address: 'http://localhost:5001',
-          supportedWorkflows: ['workflow-a', 'workflow-b'],
+          id: 'worker-1',
+          hostId: 'host-1',
+          endpoint: 'http://localhost:5001',
         }),
       ];
 
@@ -112,20 +116,11 @@ describe('WorkerListWidget', () => {
 
       // Should show details
       expect(screen.getByText('http://localhost:5001')).toBeInTheDocument();
-      expect(screen.getByText('workflow-a')).toBeInTheDocument();
-      expect(screen.getByText('workflow-b')).toBeInTheDocument();
+      expect(screen.getByText('host-1')).toBeInTheDocument();
     });
 
-    it('shows Enable button for draining workers', () => {
-      const workers = [createWorkerStatus({ workerId: 'worker-1', isDraining: true })];
-
-      render(<WorkerListWidget {...defaultProps} workers={workers} />);
-
-      expect(screen.getByRole('button', { name: /enable/i })).toBeInTheDocument();
-    });
-
-    it('shows Drain button for healthy workers', () => {
-      const workers = [createWorkerStatus({ workerId: 'worker-1', isDraining: false })];
+    it('shows Drain button for workers', () => {
+      const workers = [createWorkerStatus({ id: 'worker-1' })];
 
       render(<WorkerListWidget {...defaultProps} workers={workers} />);
 
@@ -142,6 +137,19 @@ describe('WorkerListWidget', () => {
       await user.click(screen.getByRole('button', { name: /retry/i }));
 
       expect(onRefresh).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows default worker badge in expanded details', async () => {
+      const user = userEvent.setup();
+      const workers = [createWorkerStatus({ id: 'worker-1', isDefault: true })];
+
+      render(<WorkerListWidget {...defaultProps} workers={workers} />);
+
+      // Click to expand
+      const row = screen.getByText('worker-1').closest('tr')!;
+      await user.click(row);
+
+      expect(screen.getByText('Default Worker')).toBeInTheDocument();
     });
   });
 

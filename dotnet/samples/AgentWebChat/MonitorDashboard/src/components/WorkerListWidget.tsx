@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { WorkerStatus, WorkerHealthState } from '../types';
+import type { WorkerStatus } from '../types';
 import { monitoringApi } from '../api';
 import { Skeleton } from './Skeleton';
 import './WorkerListWidget.css';
@@ -35,19 +35,6 @@ export function WorkerListWidget({ workers, stats, isLoading, error, onRefresh }
     }
   };
 
-  const handleEnable = async (e: React.MouseEvent, workerId: string) => {
-    e.stopPropagation();
-    setActionInProgress(workerId);
-    try {
-      await monitoringApi.enableWorker(workerId);
-      onRefresh();
-    } catch (err) {
-      console.error('Failed to enable worker:', err);
-    } finally {
-      setActionInProgress(null);
-    }
-  };
-
   const toggleExpand = (workerId: string) => {
     setExpandedWorkerId(expandedWorkerId === workerId ? null : workerId);
   };
@@ -76,7 +63,7 @@ export function WorkerListWidget({ workers, stats, isLoading, error, onRefresh }
             </thead>
             <tbody>
               {[1, 2, 3].map((i) => (
-                <tr key={i}>
+                <tr key={`skeleton-${i}`}>
                   <td><Skeleton variant="text" width={80} height={14} /></td>
                   <td><Skeleton variant="badge" /></td>
                   <td><Skeleton variant="text" width={24} height={14} /></td>
@@ -146,71 +133,55 @@ export function WorkerListWidget({ workers, stats, isLoading, error, onRefresh }
               </tr>
             </thead>
             <tbody>
-              {workers.map((worker) => (
-                <React.Fragment key={worker.workerId}>
+              {/* Deduplicate workers by id to prevent React key warnings */}
+              {[...new Map(workers.map(w => [w.id, w])).values()].map((worker) => (
+                <React.Fragment key={worker.id}>
                   <tr 
-                    className={`worker-row ${getHealthClass(worker.health)} ${worker.isDraining ? 'draining' : ''} ${expandedWorkerId === worker.workerId ? 'expanded' : ''}`}
-                    onClick={() => toggleExpand(worker.workerId)}
+                    className={`worker-row ${getStatusClass(worker.status)} ${expandedWorkerId === worker.id ? 'expanded' : ''}`}
+                    onClick={() => toggleExpand(worker.id)}
                   >
                     <td className="worker-id-cell">
-                      <span className={`health-indicator ${getHealthClass(worker.health)}`}></span>
-                      <span className="worker-id" title={worker.workerId}>
-                        {worker.workerId}
+                      <span className={`health-indicator ${getStatusClass(worker.status)}`}></span>
+                      <span className="worker-id" title={worker.id}>
+                        {worker.id}
                       </span>
                     </td>
                     <td>
-                      <span className={`status-badge ${getHealthClass(worker.health)}`}>
-                        {worker.isDraining ? 'Draining' : worker.health}
+                      <span className={`status-badge ${getStatusClass(worker.status)}`}>
+                        {worker.status}
                       </span>
                     </td>
                     <td className="active-count">{worker.activeWorkflows}</td>
-                    <td className="last-check">{formatTimeAgo(worker.lastHealthCheck)}</td>
+                    <td className="last-check">{formatTimeAgo(worker.lastHeartbeat)}</td>
                     <td className="actions-cell">
-                      {worker.isDraining ? (
-                        <button
-                          onClick={(e) => handleEnable(e, worker.workerId)}
-                          disabled={actionInProgress === worker.workerId}
-                          className="action-btn enable"
-                        >
-                          {actionInProgress === worker.workerId ? '...' : 'Enable'}
-                        </button>
-                      ) : (
-                        <button
-                          onClick={(e) => handleDrain(e, worker.workerId)}
-                          disabled={actionInProgress === worker.workerId}
-                          className="action-btn drain"
-                        >
-                          {actionInProgress === worker.workerId ? '...' : 'Drain'}
-                        </button>
-                      )}
+                      <button
+                        onClick={(e) => handleDrain(e, worker.id)}
+                        disabled={actionInProgress === worker.id}
+                        className="action-btn drain"
+                      >
+                        {actionInProgress === worker.id ? '...' : 'Drain'}
+                      </button>
                     </td>
                   </tr>
-                  {expandedWorkerId === worker.workerId && (
+                  {expandedWorkerId === worker.id && (
                     <tr className="worker-details-row">
                       <td colSpan={5}>
                         <div className="worker-details-content">
                           <div className="detail-item">
-                            <span className="detail-label">Address:</span>
-                            <span className="detail-value">{worker.address}</span>
+                            <span className="detail-label">Host ID:</span>
+                            <span className="detail-value">{worker.hostId}</span>
                           </div>
-                          {worker.supportedWorkflows.length > 0 && (
+                          <div className="detail-item">
+                            <span className="detail-label">Endpoint:</span>
+                            <span className="detail-value">{worker.endpoint}</span>
+                          </div>
+                          <div className="detail-item">
+                            <span className="detail-label">Consecutive Failures:</span>
+                            <span className="detail-value">{worker.consecutiveFailures}</span>
+                          </div>
+                          {worker.isDefault && (
                             <div className="detail-item">
-                              <span className="detail-label">Workflows:</span>
-                              <div className="tag-list">
-                                {worker.supportedWorkflows.map((wf) => (
-                                  <span key={wf} className="tag workflow-tag">{wf}</span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          {worker.supportedAgents.length > 0 && (
-                            <div className="detail-item">
-                              <span className="detail-label">Agents:</span>
-                              <div className="tag-list">
-                                {worker.supportedAgents.map((agent) => (
-                                  <span key={agent} className="tag agent-tag">{agent}</span>
-                                ))}
-                              </div>
+                              <span className="tag workflow-tag">Default Worker</span>
                             </div>
                           )}
                         </div>
@@ -227,8 +198,8 @@ export function WorkerListWidget({ workers, stats, isLoading, error, onRefresh }
   );
 }
 
-function getHealthClass(health: WorkerHealthState): string {
-  switch (health) {
+function getStatusClass(status: string): string {
+  switch (status) {
     case 'Healthy':
       return 'healthy';
     case 'Unhealthy':
@@ -245,6 +216,10 @@ function formatTimeAgo(isoDate: string): string {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffSeconds = Math.floor(diffMs / 1000);
+  
+  if (diffSeconds < 0) {
+    return 'just now';
+  }
   
   if (diffSeconds < 60) {
     return `${diffSeconds}s ago`;

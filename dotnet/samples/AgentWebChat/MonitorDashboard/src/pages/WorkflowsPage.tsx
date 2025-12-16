@@ -8,9 +8,6 @@ interface WorkflowsPageProps {
   stats: {
     active: number;
     queued: number;
-    waiting: number;
-    completed24h: number;
-    failed24h: number;
   } | null;
   isLoading: boolean;
   error: Error | null;

@@ -7,7 +7,7 @@ describe('WorkflowsWidget', () => {
   const defaultProps = {
     activeWorkflows: [],
     recentWorkflows: [],
-    stats: { active: 0, queued: 0, waiting: 0, completed24h: 0, failed24h: 0 },
+    stats: { active: 0, queued: 0 },
     isLoading: false,
     error: null,
     onRefresh: vi.fn(),
@@ -215,7 +215,7 @@ describe('WorkflowsWidget', () => {
 
   describe('stats display', () => {
     it('displays all stat categories', () => {
-      const stats = { active: 5, queued: 3, waiting: 2, completed24h: 10, failed24h: 1 };
+      const stats = { active: 5, queued: 3 };
 
       render(<WorkflowsWidget {...defaultProps} stats={stats} />);
 

@@ -36,6 +36,71 @@ internal sealed class WorkflowHostService : IWorkflowHost
         this._logger = logger;
     }
 
+    /// <summary>
+    /// Checks if a workflow with the specified name exists.
+    /// </summary>
+    /// <param name="workflowName">The name of the workflow to check.</param>
+    /// <returns>True if the workflow exists, false otherwise.</returns>
+    public bool WorkflowExists(string workflowName)
+    {
+        var workflow = this._serviceProvider.GetKeyedService<Workflow>(workflowName);
+        return workflow is not null;
+    }
+
+    /// <summary>
+    /// Executes a workflow in the background. This method returns immediately
+    /// and the workflow execution continues asynchronously. Progress is reported
+    /// via state callbacks to the Gateway.
+    /// </summary>
+    /// <param name="request">The workflow execution request.</param>
+    /// <param name="logger">Logger for background execution.</param>
+    /// <returns>A task that completes when the background execution is started.</returns>
+    public async Task ExecuteInBackgroundAsync(WorkflowExecutionRequest request, ILogger logger)
+    {
+        // Fire and forget - but ensure exceptions are logged
+        try
+        {
+            // Consume the async enumerable to drive execution
+            // Events are reported via state callbacks, not returned
+            await foreach (var _ in this.ExecuteAsync(request, CancellationToken.None))
+            {
+                // Events are sent to Gateway via callbacks in ExecuteWorkflowCoreAsync
+                // We just need to drive the enumeration to completion
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Background workflow execution failed: {RunId}", request.RunId);
+        }
+    }
+
+    /// <summary>
+    /// Resumes a workflow in the background. This method returns immediately
+    /// and the workflow resume continues asynchronously. Progress is reported
+    /// via state callbacks to the Gateway.
+    /// </summary>
+    /// <param name="request">The workflow resume request.</param>
+    /// <param name="logger">Logger for background execution.</param>
+    /// <returns>A task that completes when the background resume is started.</returns>
+    public async Task ResumeInBackgroundAsync(WorkflowResumeRequest request, ILogger logger)
+    {
+        // Fire and forget - but ensure exceptions are logged
+        try
+        {
+            // Consume the async enumerable to drive execution
+            // Events are reported via state callbacks, not returned
+            await foreach (var _ in this.ResumeAsync(request, CancellationToken.None))
+            {
+                // Events are sent to Gateway via callbacks in ResumeWorkflowCoreAsync
+                // We just need to drive the enumeration to completion
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Background workflow resume failed: {RunId}", request.RunId);
+        }
+    }
+
     /// <inheritdoc/>
     public IAsyncEnumerable<WorkflowStatusEvent> ExecuteAsync(
         WorkflowExecutionRequest request,

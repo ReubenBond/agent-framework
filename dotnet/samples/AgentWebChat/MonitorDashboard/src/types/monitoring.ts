@@ -1,31 +1,26 @@
 // Monitoring API Types
 
 export interface SystemStatus {
-  timestamp: string;
-  activeWorkflows: number;
-  queuedWorkflows: number;
-  waitingForSignalWorkflows: number;
-  completedWorkflows24h: number;
-  failedWorkflows24h: number;
-  registeredWorkers: number;
-  healthyWorkers: number;
-  drainedWorkers: number;
+  status: string;
   uptime: string;
-  version?: string;
+  activeWorkers: number;
+  totalWorkers: number;
+  activeWorkflows: number;
+  pendingWorkflows: number;
+  timestamp: string;
 }
 
 export type WorkerHealthState = 'Healthy' | 'Unhealthy' | 'Degraded' | 'Unknown';
 
 export interface WorkerStatus {
-  workerId: string;
-  address: string;
-  health: WorkerHealthState;
-  lastHealthCheck: string;
-  registeredAt: string;
+  id: string;
+  hostId: string;
+  endpoint: string;
+  status: string;
+  lastHeartbeat: string;
+  consecutiveFailures: number;
+  isDefault: boolean;
   activeWorkflows: number;
-  supportedWorkflows: string[];
-  supportedAgents: string[];
-  isDraining: boolean;
 }
 
 export interface WorkflowMonitoringSummary {

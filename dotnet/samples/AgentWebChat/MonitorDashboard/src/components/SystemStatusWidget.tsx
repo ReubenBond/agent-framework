@@ -44,28 +44,16 @@ export function SystemStatusWidget({ status, isLoading, error }: SystemStatusWid
         <span className="kpi-label">Active</span>
       </div>
       <div className="kpi-card">
-        <span className="kpi-value queued">{status.queuedWorkflows}</span>
-        <span className="kpi-label">Queued</span>
-      </div>
-      <div className="kpi-card">
-        <span className="kpi-value waiting">{status.waitingForSignalWorkflows}</span>
-        <span className="kpi-label">Waiting</span>
-      </div>
-      <div className="kpi-card">
-        <span className="kpi-value completed">{status.completedWorkflows24h}</span>
-        <span className="kpi-label">Completed 24h</span>
-      </div>
-      <div className="kpi-card">
-        <span className="kpi-value failed">{status.failedWorkflows24h}</span>
-        <span className="kpi-label">Failed 24h</span>
+        <span className="kpi-value queued">{status.pendingWorkflows}</span>
+        <span className="kpi-label">Pending</span>
       </div>
       <div className="kpi-card workers-kpi">
         <span className="kpi-value">
-          <span className="healthy">{status.healthyWorkers}</span>
+          <span className="healthy">{status.activeWorkers}</span>
           <span className="separator">/</span>
-          <span>{status.registeredWorkers}</span>
+          <span>{status.totalWorkers}</span>
         </span>
-        <span className="kpi-label">Workers Healthy</span>
+        <span className="kpi-label">Workers Active</span>
       </div>
       {status.uptime && (
         <div className="kpi-card">

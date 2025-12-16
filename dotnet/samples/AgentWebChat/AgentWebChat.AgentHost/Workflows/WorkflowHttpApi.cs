@@ -24,19 +24,17 @@ public static class WorkflowHttpApi
 
         group.MapPost("/execute", ExecuteWorkflowAsync)
             .WithName("ExecuteWorkflow")
-            .WithDescription("Executes a workflow and streams events via SSE")
+            .WithDescription("Accepts a workflow execution request and runs it asynchronously. Returns 202 Accepted immediately. Progress is reported via state callbacks to the Gateway.")
             .Accepts<WorkflowExecutionRequest>(MediaTypeNames.Application.Json)
-            .Produces(StatusCodes.Status200OK, contentType: "text/event-stream")
-            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
-            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
+            .Produces<WorkflowDispatchResponse>(StatusCodes.Status202Accepted)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
 
         group.MapPost("/resume", ResumeWorkflowAsync)
             .WithName("ResumeWorkflow")
-            .WithDescription("Resumes a paused workflow with a signal")
+            .WithDescription("Accepts a workflow resume request and runs it asynchronously. Returns 202 Accepted immediately. Progress is reported via state callbacks to the Gateway.")
             .Accepts<WorkflowResumeRequest>(MediaTypeNames.Application.Json)
-            .Produces(StatusCodes.Status200OK, contentType: "text/event-stream")
-            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest)
-            .Produces<ProblemDetails>(StatusCodes.Status404NotFound);
+            .Produces<WorkflowDispatchResponse>(StatusCodes.Status202Accepted)
+            .Produces<ProblemDetails>(StatusCodes.Status400BadRequest);
 
         group.MapGet("/workflows", GetAvailableWorkflowsAsync)
             .WithName("GetAvailableWorkflows")
@@ -46,11 +44,10 @@ public static class WorkflowHttpApi
         return endpoints;
     }
 
-    private static async Task<IResult> ExecuteWorkflowAsync(
+    private static IResult ExecuteWorkflowAsync(
         [FromBody] WorkflowExecutionRequest request,
         [FromServices] WorkflowHostService workflowHost,
-        HttpContext httpContext,
-        CancellationToken cancellationToken)
+        [FromServices] ILogger<WorkflowHostService> logger)
     {
         if (string.IsNullOrWhiteSpace(request.RunId))
         {
@@ -70,24 +67,38 @@ public static class WorkflowHttpApi
             });
         }
 
-        // Set up SSE response
-        httpContext.Response.ContentType = "text/event-stream";
-        httpContext.Response.Headers.CacheControl = "no-cache";
-        httpContext.Response.Headers.Connection = "keep-alive";
-
-        await foreach (var evt in workflowHost.ExecuteAsync(request, cancellationToken))
+        // Validate workflow exists before accepting
+        if (!workflowHost.WorkflowExists(request.WorkflowName))
         {
-            await WriteEventAsync(httpContext.Response, evt, cancellationToken);
+            return Results.BadRequest(new ProblemDetails
+            {
+                Title = "Workflow not found",
+                Detail = $"Unknown workflow: '{request.WorkflowName}'"
+            });
         }
 
-        return Results.Empty;
+        // Start execution in background and return immediately
+        // The workflow will report progress via state callbacks to the Gateway
+        _ = workflowHost.ExecuteInBackgroundAsync(request, logger);
+
+        logger.LogInformation(
+            "Accepted workflow execution request: {RunId} (workflow: {WorkflowName})",
+            request.RunId, request.WorkflowName);
+
+        return Results.Accepted(
+            uri: null,
+            value: new WorkflowDispatchResponse
+            {
+                RunId = request.RunId,
+                Status = "Accepted",
+                Message = "Workflow execution started"
+            });
     }
 
-    private static async Task<IResult> ResumeWorkflowAsync(
+    private static IResult ResumeWorkflowAsync(
         [FromBody] WorkflowResumeRequest request,
         [FromServices] WorkflowHostService workflowHost,
-        HttpContext httpContext,
-        CancellationToken cancellationToken)
+        [FromServices] ILogger<WorkflowHostService> logger)
     {
         if (string.IsNullOrWhiteSpace(request.RunId))
         {
@@ -107,17 +118,32 @@ public static class WorkflowHttpApi
             });
         }
 
-        // Set up SSE response
-        httpContext.Response.ContentType = "text/event-stream";
-        httpContext.Response.Headers.CacheControl = "no-cache";
-        httpContext.Response.Headers.Connection = "keep-alive";
-
-        await foreach (var evt in workflowHost.ResumeAsync(request, cancellationToken))
+        // Validate workflow exists before accepting
+        if (!workflowHost.WorkflowExists(request.WorkflowName))
         {
-            await WriteEventAsync(httpContext.Response, evt, cancellationToken);
+            return Results.BadRequest(new ProblemDetails
+            {
+                Title = "Workflow not found",
+                Detail = $"Unknown workflow: '{request.WorkflowName}'"
+            });
         }
 
-        return Results.Empty;
+        // Start resume in background and return immediately
+        // The workflow will report progress via state callbacks to the Gateway
+        _ = workflowHost.ResumeInBackgroundAsync(request, logger);
+
+        logger.LogInformation(
+            "Accepted workflow resume request: {RunId} (workflow: {WorkflowName}, signal: {RequestId})",
+            request.RunId, request.WorkflowName, request.Signal.RequestId);
+
+        return Results.Accepted(
+            uri: null,
+            value: new WorkflowDispatchResponse
+            {
+                RunId = request.RunId,
+                Status = "Accepted",
+                Message = "Workflow resume started"
+            });
     }
 
     private static async Task<Ok<IReadOnlyList<WorkflowDefinitionInfo>>> GetAvailableWorkflowsAsync(
@@ -127,32 +153,25 @@ public static class WorkflowHttpApi
         var workflows = await workflowHost.GetAvailableWorkflowsAsync(cancellationToken);
         return TypedResults.Ok(workflows);
     }
+}
 
-    private static async Task WriteEventAsync(
-        HttpResponse response,
-        WorkflowStatusEvent evt,
-        CancellationToken cancellationToken)
-    {
-        var eventType = evt switch
-        {
-            WorkflowStartedEvent => "workflow.started",
-            WorkflowStepStartedEvent => "step.started",
-            WorkflowStepCompletedEvent => "step.completed",
-            WorkflowSignalRequestedEvent => "signal.requested",
-            WorkflowSignalReceivedEvent => "signal.received",
-            WorkflowArtifactCreatedEvent => "artifact.created",
-            WorkflowCompletedSignalEvent => "workflow.completed.signal",
-            WorkflowCompletedEvent => "workflow.completed",
-            WorkflowFailedEvent => "workflow.failed",
-            WorkflowCancelledEvent => "workflow.cancelled",
-            WorkflowAbortedEvent => "workflow.aborted",
-            _ => "unknown"
-        };
+/// <summary>
+/// Response returned when a workflow execution or resume request is accepted.
+/// </summary>
+public sealed class WorkflowDispatchResponse
+{
+    /// <summary>
+    /// The workflow run ID.
+    /// </summary>
+    public required string RunId { get; init; }
 
-        var json = System.Text.Json.JsonSerializer.Serialize(evt, RuntimeJsonUtilities.DefaultOptions);
+    /// <summary>
+    /// The status of the dispatch (e.g., "Accepted").
+    /// </summary>
+    public required string Status { get; init; }
 
-        await response.WriteAsync($"event: {eventType}\n", cancellationToken);
-        await response.WriteAsync($"data: {json}\n\n", cancellationToken);
-        await response.Body.FlushAsync(cancellationToken);
-    }
+    /// <summary>
+    /// A message describing the result.
+    /// </summary>
+    public string? Message { get; init; }
 }

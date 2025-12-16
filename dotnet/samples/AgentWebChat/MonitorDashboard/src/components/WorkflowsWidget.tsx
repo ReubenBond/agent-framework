@@ -6,9 +6,6 @@ import './WorkflowsWidget.css';
 interface WorkflowStats {
   active: number;
   queued: number;
-  waiting: number;
-  completed24h: number;
-  failed24h: number;
 }
 
 interface WorkflowsWidgetProps {
@@ -201,19 +198,6 @@ export function WorkflowsWidget({
             <span className="stat queued" title="Queued workflows">
               <span className="stat-value">{stats.queued}</span>
               <span className="stat-label">queued</span>
-            </span>
-            <span className="stat waiting" title="Waiting for signal">
-              <span className="stat-value">{stats.waiting}</span>
-              <span className="stat-label">waiting</span>
-            </span>
-            <span className="stat-divider">|</span>
-            <span className="stat completed" title="Completed in last 24h">
-              <span className="stat-value">{stats.completed24h}</span>
-              <span className="stat-label">done</span>
-            </span>
-            <span className="stat failed" title="Failed in last 24h">
-              <span className="stat-value">{stats.failed24h}</span>
-              <span className="stat-label">failed</span>
             </span>
           </div>
         )}

@@ -7,15 +7,14 @@ import type { WorkerStatus, WorkflowMonitoringSummary } from '../types';
 
 export function createWorkerStatus(overrides: Partial<WorkerStatus> = {}): WorkerStatus {
   return {
-    workerId: 'worker-1',
-    address: 'http://localhost:5001',
-    health: 'Healthy',
-    lastHealthCheck: new Date().toISOString(),
-    registeredAt: new Date().toISOString(),
+    id: 'worker-1',
+    hostId: 'host-1',
+    endpoint: 'http://localhost:5001',
+    status: 'Healthy',
+    lastHeartbeat: new Date().toISOString(),
+    consecutiveFailures: 0,
+    isDefault: false,
     activeWorkflows: 0,
-    supportedWorkflows: ['workflow-1'],
-    supportedAgents: ['agent-1'],
-    isDraining: false,
     ...overrides,
   };
 }
@@ -37,7 +36,8 @@ export function createWorkflowSummary(overrides: Partial<WorkflowMonitoringSumma
 export function createWorkers(count: number, baseOverrides: Partial<WorkerStatus> = {}): WorkerStatus[] {
   return Array.from({ length: count }, (_, i) =>
     createWorkerStatus({
-      workerId: `worker-${i + 1}`,
+      id: `worker-${i + 1}`,
+      hostId: `host-${i + 1}`,
       ...baseOverrides,
     })
   );

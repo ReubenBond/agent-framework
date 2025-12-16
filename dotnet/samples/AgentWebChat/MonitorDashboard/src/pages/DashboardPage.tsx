@@ -46,17 +46,14 @@ export function DashboardPage({
   uptime,
 }: DashboardPageProps) {
   const workerStats = systemStatus ? {
-    registered: systemStatus.registeredWorkers,
-    healthy: systemStatus.healthyWorkers,
-    drained: systemStatus.drainedWorkers,
+    registered: systemStatus.totalWorkers,
+    healthy: systemStatus.activeWorkers,
+    drained: 0, // API doesn't provide this
   } : null;
 
   const workflowStats = systemStatus ? {
     active: systemStatus.activeWorkflows,
-    queued: systemStatus.queuedWorkflows,
-    waiting: systemStatus.waitingForSignalWorkflows,
-    completed24h: systemStatus.completedWorkflows24h,
-    failed24h: systemStatus.failedWorkflows24h,
+    queued: systemStatus.pendingWorkflows,
   } : null;
 
   return (
