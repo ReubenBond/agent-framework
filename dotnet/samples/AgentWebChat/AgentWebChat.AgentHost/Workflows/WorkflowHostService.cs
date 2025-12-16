@@ -21,19 +21,22 @@ internal sealed class WorkflowHostService : IWorkflowHost
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<WorkflowHostService> _logger;
+    private readonly WorkflowMetrics? _metrics;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WorkflowHostService"/> class.
     /// </summary>
     public WorkflowHostService(
         IServiceProvider serviceProvider,
-        ILogger<WorkflowHostService> logger)
+        ILogger<WorkflowHostService> logger,
+        WorkflowMetrics? metrics = null)
     {
         ArgumentNullException.ThrowIfNull(serviceProvider);
         ArgumentNullException.ThrowIfNull(logger);
 
         this._serviceProvider = serviceProvider;
         this._logger = logger;
+        this._metrics = metrics;
     }
 
     /// <summary>
@@ -55,13 +58,18 @@ internal sealed class WorkflowHostService : IWorkflowHost
     /// <param name="request">The workflow execution request.</param>
     /// <param name="logger">Logger for background execution.</param>
     /// <returns>A task that completes when the background execution is started.</returns>
+    /// <remarks>
+    /// Workflows are designed to run to completion and may take extended periods
+    /// (hours or days for HITL workflows). No execution timeout is applied.
+    /// </remarks>
     public async Task ExecuteInBackgroundAsync(WorkflowExecutionRequest request, ILogger logger)
     {
-        // Fire and forget - but ensure exceptions are logged
+        // Fire and forget - but ensure exceptions are logged and Gateway is notified
         try
         {
             // Consume the async enumerable to drive execution
             // Events are reported via state callbacks, not returned
+            // Note: No timeout is applied - workflows should run to completion
             await foreach (var _ in this.ExecuteAsync(request, CancellationToken.None))
             {
                 // Events are sent to Gateway via callbacks in ExecuteWorkflowCoreAsync
@@ -71,6 +79,16 @@ internal sealed class WorkflowHostService : IWorkflowHost
         catch (Exception ex)
         {
             logger.LogError(ex, "Background workflow execution failed: {RunId}", request.RunId);
+
+            // Notify the Gateway about the failure (best effort)
+            // This handles edge cases where the exception occurs outside ExecuteWorkflowCoreAsync
+            await this.NotifyGatewayOfFailureAsync(
+                request.CallbackBaseUrl,
+                request.RunId,
+                "BACKGROUND_EXECUTION_ERROR",
+                ex.Message,
+                ex.StackTrace,
+                logger);
         }
     }
 
@@ -82,13 +100,18 @@ internal sealed class WorkflowHostService : IWorkflowHost
     /// <param name="request">The workflow resume request.</param>
     /// <param name="logger">Logger for background execution.</param>
     /// <returns>A task that completes when the background resume is started.</returns>
+    /// <remarks>
+    /// Workflows are designed to run to completion and may take extended periods
+    /// (hours or days for HITL workflows). No execution timeout is applied.
+    /// </remarks>
     public async Task ResumeInBackgroundAsync(WorkflowResumeRequest request, ILogger logger)
     {
-        // Fire and forget - but ensure exceptions are logged
+        // Fire and forget - but ensure exceptions are logged and Gateway is notified
         try
         {
             // Consume the async enumerable to drive execution
             // Events are reported via state callbacks, not returned
+            // Note: No timeout is applied - workflows should run to completion
             await foreach (var _ in this.ResumeAsync(request, CancellationToken.None))
             {
                 // Events are sent to Gateway via callbacks in ResumeWorkflowCoreAsync
@@ -98,6 +121,16 @@ internal sealed class WorkflowHostService : IWorkflowHost
         catch (Exception ex)
         {
             logger.LogError(ex, "Background workflow resume failed: {RunId}", request.RunId);
+
+            // Notify the Gateway about the failure (best effort)
+            // This handles edge cases where the exception occurs outside ResumeWorkflowCoreAsync
+            await this.NotifyGatewayOfFailureAsync(
+                request.CallbackBaseUrl,
+                request.RunId,
+                "BACKGROUND_RESUME_ERROR",
+                ex.Message,
+                ex.StackTrace,
+                logger);
         }
     }
 
@@ -180,6 +213,10 @@ internal sealed class WorkflowHostService : IWorkflowHost
         int sequenceNumber = 0;
         Dictionary<string, DateTimeOffset> stepStartTimes = [];
         Dictionary<string, string> executorStepIds = []; // Map executorId to stepId for completion
+        var executionStopwatch = Stopwatch.StartNew();
+
+        // Record workflow started metric
+        this._metrics?.RecordWorkflowStarted(request.WorkflowName);
 
         try
         {
@@ -280,6 +317,9 @@ internal sealed class WorkflowHostService : IWorkflowHost
                         var completedAt = DateTimeOffset.UtcNow;
                         var durationMs = (long)(completedAt - stepStartedAt).TotalMilliseconds;
 
+                        // Record step execution metric
+                        this._metrics?.RecordStepExecution(request.WorkflowName, executorCompleted.ExecutorId, durationMs);
+
                         var stepCompletedRecord = new WorkflowStepCompletedRecord
                         {
                             StepId = completedStepId,
@@ -313,6 +353,9 @@ internal sealed class WorkflowHostService : IWorkflowHost
                         this._logger.LogInformation(
                             "[DIAG] RequestInfoEvent received: {RunId}, RequestId: {RequestId}, PortId: {PortId}",
                             request.RunId, requestInfo.Request.RequestId, requestInfo.Request.PortInfo.PortId);
+
+                        // Record workflow waiting for signal metric
+                        this._metrics?.RecordWorkflowWaitingForSignal(request.WorkflowName);
 
                         var pendingRequest = MapToPendingExternalRequest(requestInfo.Request);
 
@@ -383,6 +426,10 @@ internal sealed class WorkflowHostService : IWorkflowHost
 
             this._logger.LogDebug("[DIAG] WatchStreamAsync loop exited normally for workflow {RunId}", request.RunId);
 
+            // Record workflow completion metric
+            executionStopwatch.Stop();
+            this._metrics?.RecordWorkflowCompleted(request.WorkflowName, executionStopwatch.Elapsed.TotalMilliseconds);
+
             // Workflow completed successfully
             await stateClient.UpdateStatusAsync(
                 request.RunId,
@@ -401,6 +448,11 @@ internal sealed class WorkflowHostService : IWorkflowHost
         {
             this._logger.LogInformation("Workflow cancelled: {RunId}", request.RunId);
 
+            // Record cancellation (workflow is no longer active, but not failed)
+            executionStopwatch.Stop();
+            this._metrics?.ActiveWorkflowRuns.Add(-1, new KeyValuePair<string, object?>(TelemetryConstants.WorkflowName, request.WorkflowName));
+            this._metrics?.WorkflowRunsCancelled.Add(1, new KeyValuePair<string, object?>(TelemetryConstants.WorkflowName, request.WorkflowName));
+
             await this.SafeUpdateStatusAsync(stateClient, request.RunId, WorkflowRunStatus.Cancelled);
 
             await writer.WriteAsync(new WorkflowCancelledEvent
@@ -413,6 +465,10 @@ internal sealed class WorkflowHostService : IWorkflowHost
         catch (Exception ex)
         {
             this._logger.LogError(ex, "Workflow failed: {RunId}", request.RunId);
+
+            // Record workflow failure metric
+            executionStopwatch.Stop();
+            this._metrics?.RecordWorkflowFailed(request.WorkflowName, "WORKFLOW_EXECUTION_ERROR", executionStopwatch.Elapsed.TotalMilliseconds);
 
             var errorInfo = new WorkflowErrorInfo
             {
@@ -520,6 +576,7 @@ internal sealed class WorkflowHostService : IWorkflowHost
         int sequenceNumber = 0;
         Dictionary<string, DateTimeOffset> stepStartTimes = [];
         Dictionary<string, string> executorStepIds = []; // Map executorId to stepId for completion
+        var resumeStopwatch = Stopwatch.StartNew();
 
         try
         {
@@ -529,6 +586,9 @@ internal sealed class WorkflowHostService : IWorkflowHost
                 throw new InvalidOperationException(
                     "Workflow resume requires a checkpoint ID. The workflow cannot be resumed without a valid checkpoint.");
             }
+
+            // Record signal received metric (workflow resumed from waiting)
+            this._metrics?.SignalsProcessed.Add(1, new KeyValuePair<string, object?>(TelemetryConstants.WorkflowName, request.WorkflowName));
 
             // Create checkpoint manager and checkpoint info
             var checkpointManager = GatewayCheckpointStore.CreateCheckpointManager(stateClient, request.RunId);
@@ -667,6 +727,9 @@ internal sealed class WorkflowHostService : IWorkflowHost
                         var completedAt = DateTimeOffset.UtcNow;
                         var durationMs = (long)(completedAt - stepStartedAt).TotalMilliseconds;
 
+                        // Record step execution metric
+                        this._metrics?.RecordStepExecution(request.WorkflowName, executorCompleted.ExecutorId, durationMs);
+
                         var stepCompletedRecord = new WorkflowStepCompletedRecord
                         {
                             StepId = completedStepId,
@@ -711,7 +774,10 @@ internal sealed class WorkflowHostService : IWorkflowHost
                 }
             }
 
-            // Workflow completed successfully
+            // Workflow completed successfully after resume
+            resumeStopwatch.Stop();
+            this._metrics?.RecordWorkflowCompleted(request.WorkflowName, resumeStopwatch.Elapsed.TotalMilliseconds);
+
             await stateClient.UpdateStatusAsync(
                 request.RunId,
                 new WorkflowRunStatusUpdate { Status = WorkflowRunStatus.Completed },
@@ -729,6 +795,10 @@ internal sealed class WorkflowHostService : IWorkflowHost
         {
             this._logger.LogInformation("Workflow resume cancelled: {RunId}", request.RunId);
 
+            // Record cancellation metric
+            resumeStopwatch.Stop();
+            this._metrics?.WorkflowRunsCancelled.Add(1, new KeyValuePair<string, object?>(TelemetryConstants.WorkflowName, request.WorkflowName));
+
             await this.SafeUpdateStatusAsync(stateClient, request.RunId, WorkflowRunStatus.Cancelled);
 
             await writer.WriteAsync(new WorkflowCancelledEvent
@@ -741,6 +811,10 @@ internal sealed class WorkflowHostService : IWorkflowHost
         catch (Exception ex)
         {
             this._logger.LogError(ex, "Workflow resume failed: {RunId}", request.RunId);
+
+            // Record workflow failure metric
+            resumeStopwatch.Stop();
+            this._metrics?.RecordWorkflowFailed(request.WorkflowName, "WORKFLOW_RESUME_ERROR", resumeStopwatch.Elapsed.TotalMilliseconds);
 
             var errorInfo = new WorkflowErrorInfo
             {
@@ -791,6 +865,47 @@ internal sealed class WorkflowHostService : IWorkflowHost
         catch (Exception ex)
         {
             this._logger.LogError(ex, "Failed to update workflow status to {Status}: {RunId}", status, runId);
+        }
+    }
+
+    /// <summary>
+    /// Notifies the Gateway about a workflow failure that occurred outside the normal execution path.
+    /// This is a best-effort operation that handles edge cases where exceptions escape the core execution methods.
+    /// </summary>
+    private async Task NotifyGatewayOfFailureAsync(
+        string callbackBaseUrl,
+        string runId,
+        string errorCode,
+        string errorMessage,
+        string? stackTrace,
+        ILogger logger)
+    {
+        try
+        {
+            var stateClient = CreateStateClient(callbackBaseUrl);
+            var errorInfo = new WorkflowErrorInfo
+            {
+                Code = errorCode,
+                Message = errorMessage,
+                StackTrace = stackTrace
+            };
+
+            await stateClient.UpdateStatusAsync(
+                runId,
+                new WorkflowRunStatusUpdate
+                {
+                    Status = WorkflowRunStatus.Failed,
+                    Error = errorInfo
+                },
+                etag: null,
+                CancellationToken.None);
+
+            logger.LogInformation("Notified Gateway of workflow failure: {RunId}, Code: {ErrorCode}", runId, errorCode);
+        }
+        catch (Exception notifyEx)
+        {
+            // Best effort - log but don't throw
+            logger.LogError(notifyEx, "Failed to notify Gateway of workflow failure: {RunId}", runId);
         }
     }
 

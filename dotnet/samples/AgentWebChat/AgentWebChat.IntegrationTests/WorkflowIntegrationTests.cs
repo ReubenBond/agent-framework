@@ -7,44 +7,64 @@ using Microsoft.Agents.AI.Runtime.Abstractions;
 using Microsoft.Agents.AI.Runtime.Abstractions.Workflows;
 using Aspire.Hosting;
 using Aspire.Hosting.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace AgentWebChat.IntegrationTests;
 
 /// <summary>
-/// End-to-end integration tests for the workflow REST APIs using Aspire Hosting Testing.
-/// These tests start the full distributed application (Gateway, AgentHost, storage) and
-/// verify workflows can be started, run, and signaled via the Gateway REST API.
+/// Shared fixture that starts the Aspire distributed application once for all tests.
+/// This avoids the overhead of starting/stopping the app for each test and prevents
+/// resource conflicts between tests.
 /// </summary>
-public sealed class WorkflowIntegrationTests : IAsyncLifetime
+public sealed class AspireAppFixture : IAsyncLifetime
 {
+    private static readonly TimeSpan s_defaultTimeout = TimeSpan.FromSeconds(120);
     private DistributedApplication? _app;
-    private HttpClient? _gatewayClient;
-    private static readonly JsonSerializerOptions s_jsonOptions = RuntimeJsonUtilities.DefaultOptions;
 
-    /// <summary>
-    /// Creates a URI from a relative path.
-    /// </summary>
-    private static Uri CreateUri(string relativePath) => new(relativePath, UriKind.Relative);
+    public HttpClient? GatewayClient { get; private set; }
 
     public async Task InitializeAsync()
     {
+        using var cts = new CancellationTokenSource(s_defaultTimeout);
+        var cancellationToken = cts.Token;
+
         // Build the Aspire application using the AppHost
         var appHost = await DistributedApplicationTestingBuilder
-            .CreateAsync<Projects.AgentWebChat_AppHost>();
+            .CreateAsync<Projects.AgentWebChat_AppHost>(cancellationToken);
 
-        // Override Azure OpenAI with a mock or skip AI-dependent tests
-        // For these tests, we focus on the workflow orchestration mechanics
+        // Configure logging for test debugging
+        appHost.Services.AddLogging(logging =>
+        {
+            logging.SetMinimumLevel(LogLevel.Information);
+            // Reduce noise from infrastructure components
+            logging.AddFilter(appHost.Environment.ApplicationName, LogLevel.Debug);
+            logging.AddFilter("Aspire.", LogLevel.Warning);
+            logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
+            logging.AddFilter("Orleans", LogLevel.Warning);
+        });
 
-        this._app = await appHost.BuildAsync();
-        await this._app.StartAsync();
+        this._app = await appHost.BuildAsync(cancellationToken)
+            .WaitAsync(s_defaultTimeout, cancellationToken);
+        await this._app.StartAsync(cancellationToken)
+            .WaitAsync(s_defaultTimeout, cancellationToken);
+
+        // Wait for both gateway and agenthost to be healthy before running tests
+        await this._app.ResourceNotifications.WaitForResourceHealthyAsync("gateway", cancellationToken)
+            .WaitAsync(s_defaultTimeout, cancellationToken);
+        await this._app.ResourceNotifications.WaitForResourceHealthyAsync("agenthost", cancellationToken)
+            .WaitAsync(s_defaultTimeout, cancellationToken);
+
+        // Additional delay to ensure worker registration completes
+        await Task.Delay(2000, cancellationToken);
 
         // Get the gateway HTTP client
-        this._gatewayClient = this._app.CreateHttpClient("gateway");
+        this.GatewayClient = this._app.CreateHttpClient("gateway");
     }
 
     public async Task DisposeAsync()
     {
-        this._gatewayClient?.Dispose();
+        this.GatewayClient?.Dispose();
 
         if (this._app != null)
         {
@@ -52,14 +72,46 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
             await this._app.DisposeAsync();
         }
     }
+}
+
+/// <summary>
+/// Marks tests that share the AspireAppFixture to run sequentially (not in parallel).
+/// </summary>
+[CollectionDefinition("AspireApp")]
+public class AspireAppTestGroup : ICollectionFixture<AspireAppFixture>
+{
+    // This class has no code, and is never created. Its purpose is to be the place
+    // to apply [CollectionDefinition] and all the ICollectionFixture<> interfaces.
+}
+
+/// <summary>
+/// End-to-end integration tests for the workflow REST APIs using Aspire Hosting Testing.
+/// These tests start the full distributed application (Gateway, AgentHost, storage) and
+/// verify workflows can be started, run, and signaled via the Gateway REST API.
+/// </summary>
+[Collection("AspireApp")]
+public sealed class WorkflowIntegrationTests
+{
+    private readonly AspireAppFixture _fixture;
+    private static readonly JsonSerializerOptions s_jsonOptions = RuntimeJsonUtilities.DefaultOptions;
+
+    public WorkflowIntegrationTests(AspireAppFixture fixture)
+    {
+        this._fixture = fixture;
+    }
+
+    /// <summary>
+    /// Creates a URI from a relative path.
+    /// </summary>
+    private static Uri CreateUri(string relativePath) => new(relativePath, UriKind.Relative);
 
     #region List Workflows Tests
 
     [Fact]
-    public async Task ListWorkflows_ReturnsEmptyList_WhenNoWorkflowsAsync()
+    public async Task ListWorkflows_ReturnsValidResponse_WhenCalledAsync()
     {
         // Arrange
-        var client = this._gatewayClient!;
+        var client = this._fixture.GatewayClient!;
 
         // Act
         var response = await client.GetAsync(CreateUri("/v1/workflows"));
@@ -69,7 +121,8 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
         var result = await response.Content.ReadFromJsonAsync<WorkflowListResponse<WorkflowRunSummary>>(s_jsonOptions);
         result.Should().NotBeNull();
         result!.Data.Should().NotBeNull();
-        result.HasMore.Should().BeFalse();
+        // Note: We don't assert HasMore=false because workflows from other tests may exist
+        // in the shared fixture. The important thing is that the endpoint returns valid data.
     }
 
     #endregion
@@ -80,7 +133,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     public async Task StartWorkflow_CreatesWorkflow_AndReturns201Async()
     {
         // Arrange
-        var client = this._gatewayClient!;
+        var client = this._fixture.GatewayClient!;
         var request = new StartWorkflowRequest
         {
             WorkflowName = "marketing-content",
@@ -109,7 +162,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     public async Task StartWorkflow_TransitionsToRunning_WhenAgentHostPicksUpAsync()
     {
         // Arrange
-        var client = this._gatewayClient!;
+        var client = this._fixture.GatewayClient!;
         var request = new StartWorkflowRequest
         {
             WorkflowName = "marketing-content",
@@ -161,7 +214,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     public async Task GetWorkflow_ReturnsWorkflow_WhenExistsAsync()
     {
         // Arrange
-        var client = this._gatewayClient!;
+        var client = this._fixture.GatewayClient!;
         var startRequest = new StartWorkflowRequest
         {
             WorkflowName = "marketing-content",
@@ -185,7 +238,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     public async Task GetWorkflow_Returns404_WhenNotExistsAsync()
     {
         // Arrange
-        var client = this._gatewayClient!;
+        var client = this._fixture.GatewayClient!;
 
         // Act
         var response = await client.GetAsync(CreateUri("/v1/workflows/nonexistent-id"));
@@ -202,7 +255,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     public async Task ListWorkflows_ReturnsWorkflows_AfterCreationAsync()
     {
         // Arrange
-        var client = this._gatewayClient!;
+        var client = this._fixture.GatewayClient!;
 
         // Create a workflow
         var startRequest = new StartWorkflowRequest
@@ -227,7 +280,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     public async Task CancelWorkflow_SetsCancellingStatusAsync()
     {
         // Arrange
-        var client = this._gatewayClient!;
+        var client = this._fixture.GatewayClient!;
         var startRequest = new StartWorkflowRequest
         {
             WorkflowName = "marketing-content",
@@ -249,7 +302,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     public async Task AbortWorkflow_SetsAbortedStatusAsync()
     {
         // Arrange
-        var client = this._gatewayClient!;
+        var client = this._fixture.GatewayClient!;
         var startRequest = new StartWorkflowRequest
         {
             WorkflowName = "marketing-content",
@@ -278,7 +331,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     public async Task MarketingWorkflow_TransitionsToWaitingForSignal_WhenHITLRequiredAsync()
     {
         // Arrange
-        var client = this._gatewayClient!;
+        var client = this._fixture.GatewayClient!;
         var request = new StartWorkflowRequest
         {
             WorkflowName = "marketing-content",
@@ -328,7 +381,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     public async Task MarketingWorkflow_HasPendingRequests_WhenWaitingForSignalAsync()
     {
         // Arrange
-        var client = this._gatewayClient!;
+        var client = this._fixture.GatewayClient!;
         var request = new StartWorkflowRequest
         {
             WorkflowName = "marketing-content",
@@ -358,7 +411,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     public async Task MarketingWorkflow_RecordsSteps_DuringExecutionAsync()
     {
         // Arrange
-        var client = this._gatewayClient!;
+        var client = this._fixture.GatewayClient!;
         var request = new StartWorkflowRequest
         {
             WorkflowName = "marketing-content",
@@ -396,7 +449,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     public async Task MarketingWorkflow_Signal_ResumesWorkflowAsync()
     {
         // Arrange
-        var client = this._gatewayClient!;
+        var client = this._fixture.GatewayClient!;
         var request = new StartWorkflowRequest
         {
             WorkflowName = "marketing-content",
@@ -457,7 +510,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     public async Task MarketingWorkflow_Signal_WithRevision_LoopsBackToWriterAsync()
     {
         // Arrange
-        var client = this._gatewayClient!;
+        var client = this._fixture.GatewayClient!;
         var request = new StartWorkflowRequest
         {
             WorkflowName = "marketing-content",
@@ -523,7 +576,7 @@ public sealed class WorkflowIntegrationTests : IAsyncLifetime
     public async Task MarketingWorkflow_InputTypeName_IsPreservedAsync()
     {
         // Arrange
-        var client = this._gatewayClient!;
+        var client = this._fixture.GatewayClient!;
 
         // Create input using the WorkflowMessage.Create which should set TypeName
         var input = WorkflowMessage.Create(new { topic = "Type Test", targetAudience = "Devs", tone = "casual" });

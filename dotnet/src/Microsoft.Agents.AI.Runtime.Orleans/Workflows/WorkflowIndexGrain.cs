@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Agents.AI.Runtime.Abstractions.Telemetry;
 using Microsoft.Agents.AI.Runtime.Abstractions.Workflows;
+using Microsoft.Agents.AI.Runtime.Orleans.Utilities;
 using Microsoft.Extensions.Logging;
 using Orleans;
 using Orleans.Runtime;
@@ -41,6 +42,7 @@ internal sealed class WorkflowIndexGrain : Grain, IWorkflowIndexGrain
 {
     private readonly ILogger<WorkflowIndexGrain> _logger;
     private readonly IPersistentState<WorkflowIndexState> _state;
+    private readonly StateManager _stateManager;
 
     public WorkflowIndexGrain(
         [PersistentState("workflowIndex", "Default")] IPersistentState<WorkflowIndexState> state,
@@ -48,6 +50,7 @@ internal sealed class WorkflowIndexGrain : Grain, IWorkflowIndexGrain
     {
         this._state = state;
         this._logger = logger;
+        this._stateManager = new StateManager(state);
     }
 
     /// <inheritdoc/>
@@ -63,7 +66,7 @@ internal sealed class WorkflowIndexGrain : Grain, IWorkflowIndexGrain
         // Insert at the beginning (newest first)
         this._state.State.OrderedRunIds.Insert(0, summary.Id);
 
-        await this._state.WriteStateAsync(cancellationToken).ConfigureAwait(false);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
         this._logger.LogDebug("Registered workflow {RunId} in index", summary.Id);
     }
 
@@ -92,7 +95,7 @@ internal sealed class WorkflowIndexGrain : Grain, IWorkflowIndexGrain
             ETag = existing.ETag
         };
 
-        await this._state.WriteStateAsync(cancellationToken).ConfigureAwait(false);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
         this._logger.LogDebug("Updated workflow {RunId} status to {Status} in index", runId, status);
     }
 
@@ -175,7 +178,7 @@ internal sealed class WorkflowIndexGrain : Grain, IWorkflowIndexGrain
         if (this._state.State.Runs.Remove(runId))
         {
             this._state.State.OrderedRunIds.Remove(runId);
-            await this._state.WriteStateAsync(cancellationToken).ConfigureAwait(false);
+            await this._stateManager.WriteStateAsync().ConfigureAwait(true);
             this._logger.LogDebug("Removed workflow {RunId} from index", runId);
         }
     }

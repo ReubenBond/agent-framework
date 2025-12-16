@@ -41,9 +41,10 @@ public static class WorkerManagementHttpApi
         return app;
     }
 
-    private static Task<IResult> RegisterAsync(
+    private static async Task<IResult> RegisterAsync(
         WorkerRegistrationRequest request,
         WorkerRegistry registry,
+        WorkerDiscoveryCache discoveryCache,
         IMonitoringEventBroadcaster eventBroadcaster,
         ILoggerFactory loggerFactory,
         CancellationToken ct)
@@ -60,6 +61,14 @@ public static class WorkerManagementHttpApi
             request.HealthPath,
             request.DiscoveryPath);
 
+        // Pre-warm the discovery cache for this worker.
+        // This runs in the background to avoid blocking the registration response,
+        // but ensures the cache is populated before the first workflow dispatch.
+        if (isNew)
+        {
+            _ = PreWarmDiscoveryCacheAsync(workerInfo, discoveryCache, logger, ct);
+        }
+
         // Publish worker event
         eventBroadcaster.PublishWorkerEvent(
             isNew ? MonitoringEventTypes.WorkerRegistered : MonitoringEventTypes.WorkerHealthChanged,
@@ -71,18 +80,50 @@ public static class WorkerManagementHttpApi
                 Status = "Healthy"
             });
 
-        return Task.FromResult(Results.Ok(new WorkerRegistrationResponse
+        return Results.Ok(new WorkerRegistrationResponse
         {
             Id = workerInfo.Id,
             HostId = request.HostId,
             RegisteredAt = DateTimeOffset.UtcNow,
             Message = isNew ? "Worker registered successfully" : "Worker registration refreshed"
-        }));
+        });
+    }
+
+    /// <summary>
+    /// Pre-warms the discovery cache by calling the worker's discovery endpoint.
+    /// This ensures that the first workflow dispatch doesn't have to wait for discovery.
+    /// </summary>
+    private static async Task PreWarmDiscoveryCacheAsync(
+        WorkerInfo workerInfo,
+        WorkerDiscoveryCache discoveryCache,
+        ILogger logger,
+        CancellationToken ct)
+    {
+        try
+        {
+            var entities = await discoveryCache.DiscoverEntitiesAsync(workerInfo, ct).ConfigureAwait(false);
+            if (entities is not null)
+            {
+                logger.LogDebug(
+                    "Pre-warmed discovery cache for worker {WorkerId} with {EntityCount} entities",
+                    workerInfo.Id,
+                    entities.Count);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Don't fail registration if cache pre-warming fails
+            logger.LogWarning(
+                ex,
+                "Failed to pre-warm discovery cache for worker {WorkerId}",
+                workerInfo.Id);
+        }
     }
 
     private static IResult Deregister(
         [FromQuery] string endpoint,
         WorkerRegistry registry,
+        WorkerDiscoveryCache discoveryCache,
         IMonitoringEventBroadcaster eventBroadcaster,
         ILoggerFactory loggerFactory)
     {
@@ -96,9 +137,11 @@ public static class WorkerManagementHttpApi
         {
             logger.LogInformation("Worker '{Endpoint}' deregistered", endpoint);
 
-            // Publish worker deregistered event
+            // Invalidate the discovery cache for this worker
             if (workerId is not null)
             {
+                discoveryCache.Invalidate(workerId);
+
                 eventBroadcaster.PublishWorkerEvent(MonitoringEventTypes.WorkerDeregistered, new WorkerEventPayload
                 {
                     WorkerId = workerId

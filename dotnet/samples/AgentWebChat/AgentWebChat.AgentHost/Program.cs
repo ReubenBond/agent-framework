@@ -9,6 +9,7 @@ using AgentWebChat.AgentHost.Workflows;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.DevUI;
 using Microsoft.Agents.AI.Hosting;
+using Microsoft.Agents.AI.Runtime.Abstractions.Telemetry;
 using Microsoft.Agents.AI.Runtime.Abstractions.Workers;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
@@ -175,6 +176,9 @@ builder.AddWorkflow(MarketingWorkflowFactory.WorkflowName, (sp, key) =>
     var chatClient = sp.GetRequiredKeyedService<IChatClient>("chat-model");
     return MarketingWorkflowFactory.Build(chatClient);
 });
+
+// Register WorkflowMetrics for telemetry (optional - metrics will be null if not registered)
+builder.Services.AddSingleton<WorkflowMetrics>();
 
 // Register HITL Workflow Host Service (discovers workflows from DI)
 builder.Services.AddSingleton<WorkflowHostService>();

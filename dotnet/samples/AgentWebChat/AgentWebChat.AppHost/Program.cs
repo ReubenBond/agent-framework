@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 
 using AgentWebChat.AppHost;
 
@@ -32,6 +32,9 @@ var agentHost = builder.AddProject<Projects.AgentWebChat_AgentHost>("agenthost")
     .WithUrlForEndpoint("devui", (url) => new() { Url = "/devui", DisplayText = "Dev UI" })
     .WithEnvironment("Worker__GatewayBaseAddress", gateway.GetEndpoint("http")!)
     .WithReference(chatModel);
+
+// Configure gateway to know the agenthost endpoint for dispatching workflows
+gateway.WithEnvironment("AgentGateway__Workers__0", agentHost.GetEndpoint("http")!);
 
 // Web front-end depends on gateway (not agent host directly anymore)
 builder.AddProject<Projects.AgentWebChat_Web>("webfrontend")

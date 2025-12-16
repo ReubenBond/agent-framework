@@ -39,6 +39,7 @@ internal sealed class WorkflowGrain(
 
     private readonly CancellationTokenSource _shutdownCts = new();
     private readonly AsyncManualResetEvent _stateUpdatedEvent = new();
+    private readonly StateManager _stateManager = new(workflowState);
     private Task? _backgroundTask;
 
     private string RunId => this.GetPrimaryKeyString();
@@ -138,7 +139,7 @@ internal sealed class WorkflowGrain(
         };
         workflowState.State.Events.Add(startedEvent);
 
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
 
         // Register with the workflow index
         var indexGrain = grainFactory.GetGrain<IWorkflowIndexGrain>("default");
@@ -207,7 +208,7 @@ internal sealed class WorkflowGrain(
         workflowState.State.Events.Add(signalEvent);
 
         workflowState.State.IncrementVersion(null, this.RunId);
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
         this._stateUpdatedEvent.SignalAndReset();
 
         logger.LogInformation("Workflow '{RunId}' received signal for request '{RequestId}'", this.RunId, signal.RequestId);
@@ -235,7 +236,7 @@ internal sealed class WorkflowGrain(
         };
 
         workflowState.State.IncrementVersion(null, this.RunId);
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
 
         // Update the workflow index with the new status (with eventual consistency)
         await this.UpdateIndexAsync(cancellationToken).ConfigureAwait(true);
@@ -281,7 +282,7 @@ internal sealed class WorkflowGrain(
         workflowState.State.Events.Add(abortedEvent);
 
         workflowState.State.IncrementVersion(null, this.RunId);
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
 
         // Update the workflow index with the new status (with eventual consistency)
         await this.UpdateIndexAsync(cancellationToken).ConfigureAwait(true);
@@ -358,7 +359,7 @@ internal sealed class WorkflowGrain(
         }
 
         workflowState.State.IncrementVersion(etag, this.RunId);
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
 
         // Update the workflow index with the new status (with eventual consistency)
         await this.UpdateIndexAsync(cancellationToken).ConfigureAwait(true);
@@ -405,7 +406,7 @@ internal sealed class WorkflowGrain(
         workflowState.State.Events.Add(evt);
 
         workflowState.State.IncrementVersion(etag, this.RunId);
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
         this._stateUpdatedEvent.SignalAndReset();
 
         return workflowState.State.GetETag();
@@ -446,7 +447,7 @@ internal sealed class WorkflowGrain(
         workflowState.State.Events.Add(evt);
 
         workflowState.State.IncrementVersion(etag, this.RunId);
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
         this._stateUpdatedEvent.SignalAndReset();
 
         return workflowState.State.GetETag();
@@ -477,7 +478,7 @@ internal sealed class WorkflowGrain(
         workflowState.State.Events.Add(evt);
 
         workflowState.State.IncrementVersion(etag, this.RunId);
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
         this._stateUpdatedEvent.SignalAndReset();
 
         // Update the workflow index with the new status (with eventual consistency)
@@ -501,7 +502,7 @@ internal sealed class WorkflowGrain(
         };
 
         workflowState.State.IncrementVersion(etag, this.RunId);
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
         this._stateUpdatedEvent.SignalAndReset();
 
         return workflowState.State.GetETag();
@@ -515,7 +516,7 @@ internal sealed class WorkflowGrain(
         workflowState.State.Checkpoints[checkpoint.CheckpointId] = checkpoint;
 
         workflowState.State.IncrementVersion(etag, this.RunId);
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
 
         logger.LogDebug("Workflow '{RunId}' checkpoint saved: {CheckpointId}", this.RunId, checkpoint.CheckpointId);
 
@@ -575,7 +576,7 @@ internal sealed class WorkflowGrain(
         workflowState.State.Events.Add(evt);
 
         workflowState.State.IncrementVersion(etag, this.RunId);
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
         this._stateUpdatedEvent.SignalAndReset();
 
         return workflowState.State.GetETag();
@@ -597,7 +598,7 @@ internal sealed class WorkflowGrain(
     public async Task SetAssignedWorkerIdAsync(string workerId, CancellationToken cancellationToken)
     {
         workflowState.State.AssignedWorkerId = workerId;
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
     }
 
     /// <inheritdoc/>
@@ -616,7 +617,7 @@ internal sealed class WorkflowGrain(
         await indexGrain.RemoveAsync(this.RunId, cancellationToken).ConfigureAwait(true);
 
         await this.UnregisterReminderIfExistsAsync().ConfigureAwait(true);
-        await workflowState.ClearStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.ClearStateAsync().ConfigureAwait(true);
 
         logger.LogInformation("Workflow '{RunId}' deleted", this.RunId);
 
@@ -628,7 +629,7 @@ internal sealed class WorkflowGrain(
     {
         workflowState.State.ExecutionState = state;
         workflowState.State.LastExecutionAttempt = DateTimeOffset.UtcNow;
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
     }
 
     /// <inheritdoc/>
@@ -641,7 +642,7 @@ internal sealed class WorkflowGrain(
     public async Task SetPendingSignalAsync(WorkflowSignal? signal, CancellationToken cancellationToken)
     {
         workflowState.State.PendingSignal = signal;
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
     }
 
     /// <inheritdoc/>
@@ -667,7 +668,7 @@ internal sealed class WorkflowGrain(
         workflowState.State.LastExecutionAttempt = DateTimeOffset.UtcNow;
 
         workflowState.State.IncrementVersion(etag, this.RunId);
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
         this._stateUpdatedEvent.SignalAndReset();
 
         return workflowState.State.GetETag();
@@ -747,7 +748,7 @@ internal sealed class WorkflowGrain(
 
         workflowState.State.RetryCount = retryCount + 1;
         workflowState.State.LastExecutionAttempt = DateTimeOffset.UtcNow;
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
 
         try
         {
@@ -781,7 +782,7 @@ internal sealed class WorkflowGrain(
         };
 
         workflowState.State.ExecutionState = WorkflowExecutionState.Dispatched;
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
 
         var result = await workflowExecutor.ExecuteAsync(
             executionRequest,
@@ -797,7 +798,7 @@ internal sealed class WorkflowGrain(
         else if (!string.IsNullOrEmpty(result.WorkerId))
         {
             workflowState.State.AssignedWorkerId = result.WorkerId;
-            await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+            await this._stateManager.WriteStateAsync().ConfigureAwait(true);
         }
     }
 
@@ -820,7 +821,7 @@ internal sealed class WorkflowGrain(
         };
 
         workflowState.State.ExecutionState = WorkflowExecutionState.ResumeDispatched;
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
 
         var result = await workflowExecutor.ResumeAsync(
             resumeRequest,
@@ -836,7 +837,7 @@ internal sealed class WorkflowGrain(
         else if (!string.IsNullOrEmpty(result.WorkerId))
         {
             workflowState.State.AssignedWorkerId = result.WorkerId;
-            await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+            await this._stateManager.WriteStateAsync().ConfigureAwait(true);
         }
     }
 
@@ -951,7 +952,7 @@ internal sealed class WorkflowGrain(
                 cancellationToken).ConfigureAwait(true);
 
             workflowState.State.PendingIndexUpdate = false;
-            await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+            await this._stateManager.WriteStateAsync().ConfigureAwait(true);
 
             logger.LogDebug("Synced pending index update for workflow '{RunId}'", this.RunId);
         }
@@ -975,7 +976,7 @@ internal sealed class WorkflowGrain(
 
         // Set the pending flag before attempting the update
         workflowState.State.PendingIndexUpdate = true;
-        await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+        await this._stateManager.WriteStateAsync().ConfigureAwait(true);
 
         try
         {
@@ -989,7 +990,7 @@ internal sealed class WorkflowGrain(
 
             // Clear the pending flag on success
             workflowState.State.PendingIndexUpdate = false;
-            await workflowState.WriteStateAsync(cancellationToken).ConfigureAwait(true);
+            await this._stateManager.WriteStateAsync().ConfigureAwait(true);
         }
         catch (Exception ex)
         {
