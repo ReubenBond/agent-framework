@@ -18,6 +18,7 @@ using Microsoft.Agents.AI.Runtime.Abstractions.Monitoring;
 using Microsoft.Agents.AI.Runtime.Abstractions.Workers;
 using Microsoft.Agents.AI.Runtime.Hosting;
 using Microsoft.Agents.AI.Runtime.Monitoring;
+using Microsoft.Agents.AI.Runtime.Orleans.Monitoring;
 using Microsoft.Agents.AI.Runtime.Workers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -192,7 +193,7 @@ builder.Services.AddSingleton<IWorkflowExecutor, WorkerWorkflowExecutor>();
 
 // Register monitoring services
 builder.Services.AddSingleton<IMonitoringEventBroadcaster, MonitoringEventBroadcaster>();
-builder.Services.AddSingleton<IMonitoringService, MonitoringService>();
+builder.Services.AddSingleton<IMonitoringService, OrleansMonitoringService>();
 
 // Register telemetry
 builder.Services.AddGatewayTelemetry();
