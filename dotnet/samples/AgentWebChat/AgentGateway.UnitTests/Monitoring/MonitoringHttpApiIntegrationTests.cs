@@ -329,9 +329,11 @@ public sealed class MonitoringHttpApiIntegrationTests : IAsyncDisposable
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var workflows = await response.Content.ReadFromJsonAsync<WorkflowMonitoringSummary[]>(s_jsonOptions);
-        workflows.Should().NotBeNull();
-        workflows.Should().BeEmpty();
+        var result = await response.Content.ReadFromJsonAsync<PaginatedWorkflowsResponse>(s_jsonOptions);
+        result.Should().NotBeNull();
+        result!.Data.Should().BeEmpty();
+        result.HasMore.Should().BeFalse();
+        result.NextCursor.Should().BeNull();
     }
 
     [Fact]
@@ -354,9 +356,9 @@ public sealed class MonitoringHttpApiIntegrationTests : IAsyncDisposable
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var workflows = await response.Content.ReadFromJsonAsync<WorkflowMonitoringSummary[]>(s_jsonOptions);
-        workflows.Should().NotBeNull();
-        workflows.Should().Contain(w => w.RunId == run.Id && w.Status == "Running");
+        var result = await response.Content.ReadFromJsonAsync<PaginatedWorkflowsResponse>(s_jsonOptions);
+        result.Should().NotBeNull();
+        result!.Data.Should().Contain(w => w.RunId == run.Id && w.Status == "Running");
     }
 
     [Fact]
@@ -375,9 +377,9 @@ public sealed class MonitoringHttpApiIntegrationTests : IAsyncDisposable
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var workflows = await response.Content.ReadFromJsonAsync<WorkflowMonitoringSummary[]>(s_jsonOptions);
-        workflows.Should().NotBeNull();
-        workflows.Should().Contain(w => w.RunId == run!.Id && w.Status == "Queued");
+        var result = await response.Content.ReadFromJsonAsync<PaginatedWorkflowsResponse>(s_jsonOptions);
+        result.Should().NotBeNull();
+        result!.Data.Should().Contain(w => w.RunId == run!.Id && w.Status == "Queued");
     }
 
     [Fact]
@@ -413,9 +415,34 @@ public sealed class MonitoringHttpApiIntegrationTests : IAsyncDisposable
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var workflows = await response.Content.ReadFromJsonAsync<WorkflowMonitoringSummary[]>(s_jsonOptions);
-        workflows.Should().NotBeNull();
-        workflows.Should().Contain(w => w.RunId == run.Id && w.Status == "WaitingForSignal");
+        var result = await response.Content.ReadFromJsonAsync<PaginatedWorkflowsResponse>(s_jsonOptions);
+        result.Should().NotBeNull();
+        result!.Data.Should().Contain(w => w.RunId == run.Id && w.Status == "WaitingForSignal");
+    }
+
+    [Fact]
+    public async Task GetActiveWorkflows_RespectsLimitParameterAsync()
+    {
+        // Arrange
+        var client = await this.CreateTestServerAsync();
+
+        // Create 5 workflows
+        for (int i = 0; i < 5; i++)
+        {
+            var request = new StartWorkflowRequest { WorkflowName = $"Workflow{i}", Input = WorkflowMessage.Create(new { id = i }) };
+            await client.PostAsJsonAsync(CreateUri("/v1/workflows"), request, s_jsonOptions);
+        }
+
+        // Act
+        var response = await client.GetAsync(CreateUri("/v1/monitor/workflows/active?limit=3"));
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var result = await response.Content.ReadFromJsonAsync<PaginatedWorkflowsResponse>(s_jsonOptions);
+        result.Should().NotBeNull();
+        result!.Data.Should().HaveCount(3);
+        result.HasMore.Should().BeTrue();
+        result.NextCursor.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
@@ -429,9 +456,10 @@ public sealed class MonitoringHttpApiIntegrationTests : IAsyncDisposable
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var workflows = await response.Content.ReadFromJsonAsync<WorkflowMonitoringSummary[]>(s_jsonOptions);
-        workflows.Should().NotBeNull();
-        workflows.Should().BeEmpty();
+        var result = await response.Content.ReadFromJsonAsync<PaginatedWorkflowsResponse>(s_jsonOptions);
+        result.Should().NotBeNull();
+        result!.Data.Should().BeEmpty();
+        result.HasMore.Should().BeFalse();
     }
 
     [Fact]
@@ -457,17 +485,17 @@ public sealed class MonitoringHttpApiIntegrationTests : IAsyncDisposable
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var workflows = await response.Content.ReadFromJsonAsync<WorkflowMonitoringSummary[]>(s_jsonOptions);
-        workflows.Should().NotBeNull();
-        workflows.Should().HaveCount(2);
+        var result = await response.Content.ReadFromJsonAsync<PaginatedWorkflowsResponse>(s_jsonOptions);
+        result.Should().NotBeNull();
+        result!.Data.Should().HaveCount(2);
 
         // Should be in reverse chronological order
-        workflows![0].RunId.Should().Be(run2!.Id);
-        workflows[1].RunId.Should().Be(run1!.Id);
+        result.Data[0].RunId.Should().Be(run2!.Id);
+        result.Data[1].RunId.Should().Be(run1!.Id);
     }
 
     [Fact]
-    public async Task GetRecentWorkflows_RespectsCountParameterAsync()
+    public async Task GetRecentWorkflows_RespectsLimitParameterAsync()
     {
         // Arrange
         var client = await this.CreateTestServerAsync();
@@ -480,13 +508,52 @@ public sealed class MonitoringHttpApiIntegrationTests : IAsyncDisposable
         }
 
         // Act
-        var response = await client.GetAsync(CreateUri("/v1/monitor/workflows/recent?count=3"));
+        var response = await client.GetAsync(CreateUri("/v1/monitor/workflows/recent?limit=3"));
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var workflows = await response.Content.ReadFromJsonAsync<WorkflowMonitoringSummary[]>(s_jsonOptions);
-        workflows.Should().NotBeNull();
-        workflows.Should().HaveCount(3);
+        var result = await response.Content.ReadFromJsonAsync<PaginatedWorkflowsResponse>(s_jsonOptions);
+        result.Should().NotBeNull();
+        result!.Data.Should().HaveCount(3);
+        result.HasMore.Should().BeTrue();
+        result.NextCursor.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task GetRecentWorkflows_SupportsCursorPaginationAsync()
+    {
+        // Arrange
+        var client = await this.CreateTestServerAsync();
+
+        // Create 5 workflows
+        var createdIds = new List<string>();
+        for (int i = 0; i < 5; i++)
+        {
+            var request = new StartWorkflowRequest { WorkflowName = $"Workflow{i}", Input = WorkflowMessage.Create(new { id = i }) };
+            var startResponse = await client.PostAsJsonAsync(CreateUri("/v1/workflows"), request, s_jsonOptions);
+            var run = await startResponse.Content.ReadFromJsonAsync<WorkflowRun>(s_jsonOptions);
+            createdIds.Add(run!.Id);
+            await Task.Delay(10); // Ensure different creation times
+        }
+
+        // Act - Get first page
+        var response1 = await client.GetAsync(CreateUri("/v1/monitor/workflows/recent?limit=2"));
+        var result1 = await response1.Content.ReadFromJsonAsync<PaginatedWorkflowsResponse>(s_jsonOptions);
+        result1.Should().NotBeNull();
+        result1!.Data.Should().HaveCount(2);
+        result1.HasMore.Should().BeTrue();
+        result1.NextCursor.Should().NotBeNullOrEmpty();
+
+        // Act - Get second page using cursor
+        var response2 = await client.GetAsync(CreateUri($"/v1/monitor/workflows/recent?limit=2&cursor={result1.NextCursor}"));
+        var result2 = await response2.Content.ReadFromJsonAsync<PaginatedWorkflowsResponse>(s_jsonOptions);
+        result2.Should().NotBeNull();
+        result2!.Data.Should().HaveCount(2);
+
+        // Verify no overlap between pages
+        var page1Ids = result1.Data.Select(w => w.RunId).ToHashSet();
+        var page2Ids = result2.Data.Select(w => w.RunId).ToHashSet();
+        page1Ids.Intersect(page2Ids).Should().BeEmpty();
     }
 
     #endregion

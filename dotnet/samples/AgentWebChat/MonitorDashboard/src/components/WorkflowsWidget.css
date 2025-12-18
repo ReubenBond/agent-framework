@@ -277,3 +277,35 @@
   color: white;
   border-color: var(--error, #d32f2f);
 }
+
+/* Pagination controls */
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--border-light, #f0f0f0);
+  margin-top: 0.5rem;
+}
+
+.load-more-button {
+  padding: 0.5rem 1.5rem;
+  background: var(--card-inner-bg, #fafafa);
+  border: 1px solid var(--border, #e0e0e0);
+  border-radius: 4px;
+  color: var(--text-primary, #1a1a1a);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.load-more-button:hover:not(:disabled) {
+  background: var(--hover-bg, #f5f5f5);
+  border-color: var(--primary, #0066cc);
+  color: var(--primary, #0066cc);
+}
+
+.load-more-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

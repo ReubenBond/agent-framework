@@ -29,14 +29,22 @@ public interface IMonitoringService
     Task<WorkerStatus?> GetWorkerAsync(string workerId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets all currently active (running or waiting) workflows.
+    /// Gets all currently active (running or waiting) workflows with pagination.
     /// </summary>
-    Task<IReadOnlyList<WorkflowMonitoringSummary>> GetActiveWorkflowsAsync(CancellationToken cancellationToken = default);
+    /// <param name="limit">Maximum number of workflows to return (default 20, max 100).</param>
+    /// <param name="cursor">Cursor for pagination, obtained from previous response's NextCursor.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Paginated list of active workflows.</returns>
+    Task<PaginatedWorkflowsResponse> GetActiveWorkflowsAsync(int limit = 20, string? cursor = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets recent workflows (completed, failed, cancelled, etc.).
+    /// Gets recent workflows (all statuses) with pagination.
     /// </summary>
-    Task<IReadOnlyList<WorkflowMonitoringSummary>> GetRecentWorkflowsAsync(int count = 50, CancellationToken cancellationToken = default);
+    /// <param name="limit">Maximum number of workflows to return (default 20, max 100).</param>
+    /// <param name="cursor">Cursor for pagination, obtained from previous response's NextCursor.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Paginated list of recent workflows.</returns>
+    Task<PaginatedWorkflowsResponse> GetRecentWorkflowsAsync(int limit = 20, string? cursor = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets aggregated workflow metrics for a time window.
@@ -173,6 +181,37 @@ public sealed class WorkflowMonitoringSummary
 
     [JsonPropertyName("stepCount")]
     public int StepCount { get; init; }
+}
+
+/// <summary>
+/// Paginated response for workflow listings.
+/// </summary>
+public sealed class PaginatedWorkflowsResponse
+{
+    /// <summary>
+    /// The list of workflows for the current page.
+    /// </summary>
+    [JsonPropertyName("data")]
+    public required IReadOnlyList<WorkflowMonitoringSummary> Data { get; init; }
+
+    /// <summary>
+    /// Whether there are more results available beyond this page.
+    /// </summary>
+    [JsonPropertyName("hasMore")]
+    public bool HasMore { get; init; }
+
+    /// <summary>
+    /// Cursor for fetching the next page of results. Null if no more pages.
+    /// </summary>
+    [JsonPropertyName("nextCursor")]
+    public string? NextCursor { get; init; }
+
+    /// <summary>
+    /// Total count of items matching the query (if available).
+    /// May be null if total count is expensive to compute.
+    /// </summary>
+    [JsonPropertyName("totalCount")]
+    public int? TotalCount { get; init; }
 }
 
 /// <summary>

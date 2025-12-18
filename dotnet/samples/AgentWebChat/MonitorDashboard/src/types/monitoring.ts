@@ -32,6 +32,20 @@ export interface WorkflowMonitoringSummary {
   hasPendingSignal: boolean;
 }
 
+/**
+ * Paginated response for workflow listings.
+ */
+export interface PaginatedWorkflowsResponse {
+  /** The list of workflows for the current page */
+  data: WorkflowMonitoringSummary[];
+  /** Whether there are more results available beyond this page */
+  hasMore: boolean;
+  /** Cursor for fetching the next page of results. Null if no more pages. */
+  nextCursor?: string | null;
+  /** Total count of items matching the query (if available) */
+  totalCount?: number | null;
+}
+
 export interface WorkflowMetricsSnapshot {
   windowStart: string;
   windowEnd: string;

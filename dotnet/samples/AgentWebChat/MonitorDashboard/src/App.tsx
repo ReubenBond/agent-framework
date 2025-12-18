@@ -13,6 +13,7 @@ import type {
 import './App.css';
 
 const REFRESH_INTERVAL_MS = 10000; // 10 seconds
+const DEFAULT_PAGE_SIZE = 20;
 
 export default function App() {
   // System status state
@@ -22,10 +23,15 @@ export default function App() {
   const [workers, setWorkers] = useState<WorkerStatus[]>([]);
   const [workersError, setWorkersError] = useState<Error | null>(null);
 
-  // Workflows state
+  // Workflows state with pagination
   const [activeWorkflows, setActiveWorkflows] = useState<WorkflowMonitoringSummary[]>([]);
   const [recentWorkflows, setRecentWorkflows] = useState<WorkflowMonitoringSummary[]>([]);
   const [workflowsError, setWorkflowsError] = useState<Error | null>(null);
+  const [activeWorkflowsCursor, setActiveWorkflowsCursor] = useState<string | null>(null);
+  const [recentWorkflowsCursor, setRecentWorkflowsCursor] = useState<string | null>(null);
+  const [hasMoreActiveWorkflows, setHasMoreActiveWorkflows] = useState(false);
+  const [hasMoreRecentWorkflows, setHasMoreRecentWorkflows] = useState(false);
+  const [isLoadingMoreWorkflows, setIsLoadingMoreWorkflows] = useState(false);
 
   // Track initial load state (only show skeletons on first load)
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
@@ -65,16 +71,49 @@ export default function App() {
   const fetchWorkflows = useCallback(async () => {
     try {
       setWorkflowsError(null);
-      const [active, recent] = await Promise.all([
-        monitoringApi.getActiveWorkflows(),
-        monitoringApi.getRecentWorkflows(50),
+      const [activeResponse, recentResponse] = await Promise.all([
+        monitoringApi.getActiveWorkflows(DEFAULT_PAGE_SIZE),
+        monitoringApi.getRecentWorkflows(DEFAULT_PAGE_SIZE),
       ]);
-      setActiveWorkflows(active);
-      setRecentWorkflows(recent);
+      setActiveWorkflows(activeResponse.data);
+      setRecentWorkflows(recentResponse.data);
+      setActiveWorkflowsCursor(activeResponse.nextCursor ?? null);
+      setRecentWorkflowsCursor(recentResponse.nextCursor ?? null);
+      setHasMoreActiveWorkflows(activeResponse.hasMore);
+      setHasMoreRecentWorkflows(recentResponse.hasMore);
     } catch (e) {
       setWorkflowsError(e instanceof Error ? e : new Error(String(e)));
     }
   }, []);
+
+  const loadMoreWorkflows = useCallback(async () => {
+    if (isLoadingMoreWorkflows) return;
+    
+    // Determine which cursor to use (prefer recent since it's more commonly paginated)
+    const cursor = recentWorkflowsCursor || activeWorkflowsCursor;
+    if (!cursor) return;
+    
+    try {
+      setIsLoadingMoreWorkflows(true);
+      
+      // Load more from whichever has more data
+      if (recentWorkflowsCursor) {
+        const response = await monitoringApi.getRecentWorkflows(DEFAULT_PAGE_SIZE, recentWorkflowsCursor);
+        setRecentWorkflows(prev => [...prev, ...response.data]);
+        setRecentWorkflowsCursor(response.nextCursor ?? null);
+        setHasMoreRecentWorkflows(response.hasMore);
+      } else if (activeWorkflowsCursor) {
+        const response = await monitoringApi.getActiveWorkflows(DEFAULT_PAGE_SIZE, activeWorkflowsCursor);
+        setActiveWorkflows(prev => [...prev, ...response.data]);
+        setActiveWorkflowsCursor(response.nextCursor ?? null);
+        setHasMoreActiveWorkflows(response.hasMore);
+      }
+    } catch (e) {
+      console.error('Failed to load more workflows:', e);
+    } finally {
+      setIsLoadingMoreWorkflows(false);
+    }
+  }, [isLoadingMoreWorkflows, recentWorkflowsCursor, activeWorkflowsCursor]);
 
   // Refresh all data silently in the background
   const refreshAll = useCallback(async () => {
@@ -257,6 +296,9 @@ export default function App() {
                     connectionError={connectionError}
                     onReconnect={reconnect}
                     uptime={uptime}
+                    hasMoreWorkflows={hasMoreActiveWorkflows || hasMoreRecentWorkflows}
+                    isLoadingMore={isLoadingMoreWorkflows}
+                    onLoadMore={loadMoreWorkflows}
                   />
                 }
               />
@@ -295,6 +337,9 @@ export default function App() {
                     isConnected={isConnected}
                     connectionError={connectionError}
                     onReconnect={reconnect}
+                    hasMoreWorkflows={hasMoreActiveWorkflows || hasMoreRecentWorkflows}
+                    isLoadingMore={isLoadingMoreWorkflows}
+                    onLoadMore={loadMoreWorkflows}
                   />
                 }
               />

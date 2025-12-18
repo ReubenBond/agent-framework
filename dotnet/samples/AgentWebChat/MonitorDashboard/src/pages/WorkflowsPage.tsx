@@ -21,6 +21,10 @@ interface WorkflowsPageProps {
   isConnected: boolean;
   connectionError: Error | null;
   onReconnect: () => void;
+  // Pagination props
+  hasMoreWorkflows?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 export function WorkflowsPage({
@@ -39,6 +43,9 @@ export function WorkflowsPage({
   isConnected,
   connectionError,
   onReconnect,
+  hasMoreWorkflows = false,
+  isLoadingMore = false,
+  onLoadMore,
 }: WorkflowsPageProps) {
   // Filter to workflow events only
   const workflowEvents = events.filter(e => e.eventType.toLowerCase().includes('workflow'));
@@ -61,6 +68,9 @@ export function WorkflowsPage({
             onRefresh={onRefresh}
             onSelectWorkflow={onSelectWorkflow}
             onDeleteWorkflow={onDeleteWorkflow}
+            hasMoreWorkflows={hasMoreWorkflows}
+            isLoadingMore={isLoadingMore}
+            onLoadMore={onLoadMore}
           />
         </div>
 

@@ -60,13 +60,13 @@ public static class MonitoringHttpApi
         // Workflow endpoints
         group.MapGet("/workflows/active", GetActiveWorkflowsAsync)
             .WithName("GetActiveWorkflows")
-            .WithDescription("Get all currently active workflows (running, queued, or waiting)")
-            .Produces<WorkflowMonitoringSummary[]>();
+            .WithDescription("Get all currently active workflows (running, queued, or waiting) with pagination")
+            .Produces<PaginatedWorkflowsResponse>();
 
         group.MapGet("/workflows/recent", GetRecentWorkflowsAsync)
             .WithName("GetRecentWorkflows")
-            .WithDescription("Get recent workflows (most recent first)")
-            .Produces<WorkflowMonitoringSummary[]>();
+            .WithDescription("Get recent workflows (most recent first) with pagination")
+            .Produces<PaginatedWorkflowsResponse>();
 
         // Metrics endpoint
         group.MapGet("/metrics", GetWorkflowMetricsAsync)
@@ -154,19 +154,22 @@ public static class MonitoringHttpApi
     }
 
     private static async Task<IResult> GetActiveWorkflowsAsync(
+        [FromQuery] int? limit,
+        [FromQuery] string? cursor,
         IMonitoringService monitoringService,
         CancellationToken ct)
     {
-        var workflows = await monitoringService.GetActiveWorkflowsAsync(ct).ConfigureAwait(false);
+        var workflows = await monitoringService.GetActiveWorkflowsAsync(limit ?? 20, cursor, ct).ConfigureAwait(false);
         return Results.Ok(workflows);
     }
 
     private static async Task<IResult> GetRecentWorkflowsAsync(
-        [FromQuery] int? count,
+        [FromQuery] int? limit,
+        [FromQuery] string? cursor,
         IMonitoringService monitoringService,
         CancellationToken ct)
     {
-        var workflows = await monitoringService.GetRecentWorkflowsAsync(count ?? 50, ct).ConfigureAwait(false);
+        var workflows = await monitoringService.GetRecentWorkflowsAsync(limit ?? 20, cursor, ct).ConfigureAwait(false);
         return Results.Ok(workflows);
     }
 

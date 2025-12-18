@@ -1,9 +1,9 @@
 import type {
   SystemStatus,
   WorkerStatus,
-  WorkflowMonitoringSummary,
   WorkflowMetricsSnapshot,
   WorkflowRun,
+  PaginatedWorkflowsResponse,
 } from '../types';
 
 const BASE_URL = '/v1/monitor';
@@ -61,25 +61,43 @@ class MonitoringApiClient {
   }
 
   /**
-   * Get list of currently active workflows.
+   * Get list of currently active workflows with pagination.
+   * @param limit Maximum number of workflows to return (default 20, max 100)
+   * @param cursor Cursor for pagination from previous response
    */
-  async getActiveWorkflows(): Promise<WorkflowMonitoringSummary[]> {
-    return this.request<WorkflowMonitoringSummary[]>(`${BASE_URL}/workflows/active`);
+  async getActiveWorkflows(limit?: number, cursor?: string): Promise<PaginatedWorkflowsResponse> {
+    const params = new URLSearchParams();
+    if (limit) {
+      params.set('limit', limit.toString());
+    }
+    if (cursor) {
+      params.set('cursor', cursor);
+    }
+    const queryString = params.toString();
+    const url = queryString
+      ? `${BASE_URL}/workflows/active?${queryString}`
+      : `${BASE_URL}/workflows/active`;
+    return this.request<PaginatedWorkflowsResponse>(url);
   }
 
   /**
-   * Get list of recent workflows (both active and completed).
+   * Get list of recent workflows (all statuses) with pagination.
+   * @param limit Maximum number of workflows to return (default 20, max 100)
+   * @param cursor Cursor for pagination from previous response
    */
-  async getRecentWorkflows(count?: number): Promise<WorkflowMonitoringSummary[]> {
+  async getRecentWorkflows(limit?: number, cursor?: string): Promise<PaginatedWorkflowsResponse> {
     const params = new URLSearchParams();
-    if (count) {
-      params.set('count', count.toString());
+    if (limit) {
+      params.set('limit', limit.toString());
+    }
+    if (cursor) {
+      params.set('cursor', cursor);
     }
     const queryString = params.toString();
     const url = queryString 
       ? `${BASE_URL}/workflows/recent?${queryString}` 
       : `${BASE_URL}/workflows/recent`;
-    return this.request<WorkflowMonitoringSummary[]>(url);
+    return this.request<PaginatedWorkflowsResponse>(url);
   }
 
   /**

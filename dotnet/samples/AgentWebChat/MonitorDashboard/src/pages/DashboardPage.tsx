@@ -22,6 +22,10 @@ interface DashboardPageProps {
   connectionError: Error | null;
   onReconnect: () => void;
   uptime: string | null;
+  // Pagination props
+  hasMoreWorkflows?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 export function DashboardPage({
@@ -44,6 +48,9 @@ export function DashboardPage({
   connectionError,
   onReconnect,
   uptime,
+  hasMoreWorkflows = false,
+  isLoadingMore = false,
+  onLoadMore,
 }: DashboardPageProps) {
   const workerStats = systemStatus ? {
     registered: systemStatus.totalWorkers,
@@ -93,6 +100,9 @@ export function DashboardPage({
               onRefresh={onRefreshWorkflows}
               onSelectWorkflow={onSelectWorkflow}
               onDeleteWorkflow={onDeleteWorkflow}
+              hasMoreWorkflows={hasMoreWorkflows}
+              isLoadingMore={isLoadingMore}
+              onLoadMore={onLoadMore}
             />
           </div>
         </section>

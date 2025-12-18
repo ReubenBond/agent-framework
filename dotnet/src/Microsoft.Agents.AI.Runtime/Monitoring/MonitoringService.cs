@@ -102,17 +102,27 @@ public class MonitoringService : IMonitoringService
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<WorkflowMonitoringSummary>> GetActiveWorkflowsAsync(CancellationToken cancellationToken = default)
+    public Task<PaginatedWorkflowsResponse> GetActiveWorkflowsAsync(int limit = 20, string? cursor = null, CancellationToken cancellationToken = default)
     {
         // This will be overridden by Orleans-aware implementation
-        return Task.FromResult<IReadOnlyList<WorkflowMonitoringSummary>>([]);
+        return Task.FromResult(new PaginatedWorkflowsResponse
+        {
+            Data = [],
+            HasMore = false,
+            NextCursor = null
+        });
     }
 
     /// <inheritdoc/>
-    public Task<IReadOnlyList<WorkflowMonitoringSummary>> GetRecentWorkflowsAsync(int count = 50, CancellationToken cancellationToken = default)
+    public Task<PaginatedWorkflowsResponse> GetRecentWorkflowsAsync(int limit = 20, string? cursor = null, CancellationToken cancellationToken = default)
     {
         // This will be overridden by Orleans-aware implementation
-        return Task.FromResult<IReadOnlyList<WorkflowMonitoringSummary>>([]);
+        return Task.FromResult(new PaginatedWorkflowsResponse
+        {
+            Data = [],
+            HasMore = false,
+            NextCursor = null
+        });
     }
 
     /// <inheritdoc/>

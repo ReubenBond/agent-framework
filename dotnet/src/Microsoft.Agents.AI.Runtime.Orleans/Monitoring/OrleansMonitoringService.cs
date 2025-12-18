@@ -110,38 +110,115 @@ public class OrleansMonitoringService : IMonitoringService
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<WorkflowMonitoringSummary>> GetActiveWorkflowsAsync(CancellationToken cancellationToken = default)
+    public async Task<PaginatedWorkflowsResponse> GetActiveWorkflowsAsync(int limit = 20, string? cursor = null, CancellationToken cancellationToken = default)
     {
+        // Clamp limit to reasonable bounds
+        limit = Math.Clamp(limit, 1, 100);
+
         var indexGrain = this._grainFactory.GetGrain<IWorkflowIndexGrain>("default");
 
-        // Get all active statuses: Running, Queued, WaitingForSignal
-        var runningTask = indexGrain.ListAsync(WorkflowRunStatus.Running, limit: 100, after: null, before: null, cancellationToken);
-        var queuedTask = indexGrain.ListAsync(WorkflowRunStatus.Queued, limit: 100, after: null, before: null, cancellationToken);
-        var waitingTask = indexGrain.ListAsync(WorkflowRunStatus.WaitingForSignal, limit: 100, after: null, before: null, cancellationToken);
+        // For active workflows, we need to query multiple statuses
+        // The cursor encodes: "status:lastRunId" to resume within a specific status query
+        WorkflowRunStatus? currentStatus = null;
+        string? afterRunId = null;
 
-        await Task.WhenAll(runningTask, queuedTask, waitingTask).ConfigureAwait(false);
+        if (!string.IsNullOrEmpty(cursor))
+        {
+            var parts = cursor.Split(':', 2);
+            if (parts.Length == 2 && Enum.TryParse<WorkflowRunStatus>(parts[0], out var status))
+            {
+                currentStatus = status;
+                afterRunId = parts[1];
+            }
+        }
 
-        var allActive = new List<WorkflowRunSummary>();
-        allActive.AddRange(runningTask.Result.Data);
-        allActive.AddRange(queuedTask.Result.Data);
-        allActive.AddRange(waitingTask.Result.Data);
+        var allResults = new List<WorkflowRunSummary>();
+        var hasMore = false;
+        string? nextCursor = null;
 
-        return allActive
-            .OrderByDescending(w => w.CreatedAt)
-            .Select(ToMonitoringSummary)
-            .ToList();
+        // Query active statuses in order: Running, Queued, WaitingForSignal
+        var statuses = new[] { WorkflowRunStatus.Running, WorkflowRunStatus.Queued, WorkflowRunStatus.WaitingForSignal };
+
+        // Skip statuses before the current one if we have a cursor
+        var startIndex = 0;
+        if (currentStatus.HasValue)
+        {
+            startIndex = Array.IndexOf(statuses, currentStatus.Value);
+            if (startIndex < 0)
+            {
+                startIndex = 0;
+            }
+        }
+
+        for (var i = startIndex; i < statuses.Length && allResults.Count < limit; i++)
+        {
+            var status = statuses[i];
+            var after = (i == startIndex && afterRunId != null) ? afterRunId : null;
+            var remaining = limit - allResults.Count;
+
+            var response = await indexGrain.ListAsync(status, limit: remaining + 1, after: after, before: null, cancellationToken).ConfigureAwait(false);
+
+            if (response.Data.Count > remaining)
+            {
+                // We have more results than we need
+                allResults.AddRange(response.Data.Take(remaining));
+                hasMore = true;
+                // Create cursor for the last item we're returning
+                var lastItem = response.Data[remaining - 1];
+                nextCursor = $"{status}:{lastItem.Id}";
+                break;
+            }
+            else
+            {
+                allResults.AddRange(response.Data);
+                if (response.HasMore)
+                {
+                    // More in this status
+                    hasMore = true;
+                    var lastItem = response.Data[^1];
+                    nextCursor = $"{status}:{lastItem.Id}";
+                }
+                else if (i < statuses.Length - 1)
+                {
+                    // Move to next status
+                    hasMore = true;
+                    nextCursor = $"{statuses[i + 1]}:";
+                }
+            }
+        }
+
+        return new PaginatedWorkflowsResponse
+        {
+            Data = allResults
+                .OrderByDescending(w => w.CreatedAt)
+                .Select(ToMonitoringSummary)
+                .ToList(),
+            HasMore = hasMore && allResults.Count == limit,
+            NextCursor = allResults.Count == limit ? nextCursor : null
+        };
     }
 
     /// <inheritdoc/>
-    public async Task<IReadOnlyList<WorkflowMonitoringSummary>> GetRecentWorkflowsAsync(int count = 50, CancellationToken cancellationToken = default)
+    public async Task<PaginatedWorkflowsResponse> GetRecentWorkflowsAsync(int limit = 20, string? cursor = null, CancellationToken cancellationToken = default)
     {
+        // Clamp limit to reasonable bounds
+        limit = Math.Clamp(limit, 1, 100);
+
         var indexGrain = this._grainFactory.GetGrain<IWorkflowIndexGrain>("default");
 
         // Get all workflows (no status filter) ordered by creation time
-        var response = await indexGrain.ListAsync(statusFilter: null, limit: count, after: null, before: null, cancellationToken).ConfigureAwait(false);
+        var response = await indexGrain.ListAsync(statusFilter: null, limit: limit + 1, after: cursor, before: null, cancellationToken).ConfigureAwait(false);
 
-        return response.Data
-            .ConvertAll(ToMonitoringSummary);
+        var hasMore = response.Data.Count > limit;
+        var data = hasMore ? response.Data.Take(limit).ToList() : response.Data;
+        var nextCursor = hasMore || response.HasMore ? data[^1].Id : null;
+
+        return new PaginatedWorkflowsResponse
+        {
+            Data = data.ConvertAll(ToMonitoringSummary),
+            HasMore = hasMore || response.HasMore,
+            NextCursor = nextCursor
+        };
     }
 
     /// <inheritdoc/>

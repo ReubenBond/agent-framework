@@ -17,6 +17,10 @@ interface WorkflowsWidgetProps {
   onRefresh: () => void;
   onSelectWorkflow: (runId: string) => void;
   onDeleteWorkflow?: (runId: string) => void;
+  // Pagination props
+  hasMoreWorkflows?: boolean;
+  isLoadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 // Check if a workflow is in terminal status (can be deleted)
@@ -75,6 +79,9 @@ export function WorkflowsWidget({
   onRefresh,
   onSelectWorkflow,
   onDeleteWorkflow,
+  hasMoreWorkflows = false,
+  isLoadingMore = false,
+  onLoadMore,
 }: WorkflowsWidgetProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -278,6 +285,19 @@ export function WorkflowsWidget({
               ))}
             </tbody>
           </table>
+          
+          {/* Pagination: Load More button */}
+          {hasMoreWorkflows && onLoadMore && (
+            <div className="pagination-controls">
+              <button
+                className="load-more-button"
+                onClick={onLoadMore}
+                disabled={isLoadingMore}
+              >
+                {isLoadingMore ? 'Loading...' : 'Load More'}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
