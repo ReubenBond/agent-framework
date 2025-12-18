@@ -14,9 +14,6 @@ interface WorkersPageProps {
   error: Error | null;
   onRefresh: () => void;
   events: MonitoringEvent[];
-  isConnected: boolean;
-  connectionError: Error | null;
-  onReconnect: () => void;
 }
 
 export function WorkersPage({
@@ -26,9 +23,6 @@ export function WorkersPage({
   error,
   onRefresh,
   events,
-  isConnected,
-  connectionError,
-  onReconnect,
 }: WorkersPageProps) {
   // Filter to worker events only
   const workerEvents = events.filter(e => e.eventType.toLowerCase().includes('worker'));
@@ -55,9 +49,6 @@ export function WorkersPage({
           <EventFeedWidget
             events={workerEvents}
             maxEvents={50}
-            isConnected={isConnected}
-            connectionError={connectionError}
-            onReconnect={onReconnect}
           />
         </div>
       </div>

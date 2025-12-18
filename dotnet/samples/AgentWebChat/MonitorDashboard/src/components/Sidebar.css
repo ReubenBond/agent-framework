@@ -74,6 +74,13 @@
   border-top: 1px solid var(--sidebar-border, #2d3748);
 }
 
+.footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 .connection-indicator {
   display: flex;
   align-items: center;
@@ -104,6 +111,65 @@
   50% { opacity: 0.6; }
 }
 
+/* Reconnect button - replaces connection indicator when disconnected */
+.reconnect-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.75rem;
+  color: #ef5350;
+  background: rgba(239, 83, 80, 0.1);
+  border: 1px solid rgba(239, 83, 80, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.reconnect-button:hover {
+  background: rgba(239, 83, 80, 0.2);
+  border-color: rgba(239, 83, 80, 0.5);
+}
+
+.reconnect-button .status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: #ef5350;
+}
+
+/* Theme toggle button */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: var(--sidebar-hover, rgba(255, 255, 255, 0.05));
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.theme-toggle:hover {
+  background: var(--sidebar-active, rgba(59, 130, 246, 0.15));
+}
+
+.theme-toggle .theme-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--sidebar-text-muted, #8b95a5);
+  transition: color 0.15s ease;
+}
+
+.theme-toggle:hover .theme-icon {
+  color: var(--sidebar-text, #f0f2f5);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .sidebar {
@@ -132,11 +198,21 @@
     padding: 0.75rem;
   }
 
+  .footer-row {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
   .connection-indicator span {
     display: none;
   }
 
   .connection-indicator {
     justify-content: center;
+  }
+
+  .theme-toggle {
+    width: 28px;
+    height: 28px;
   }
 }

@@ -18,9 +18,6 @@ interface DashboardPageProps {
   onCloseModal: () => void;
   onWorkflowUpdated: () => void;
   events: MonitoringEvent[];
-  isConnected: boolean;
-  connectionError: Error | null;
-  onReconnect: () => void;
   uptime: string | null;
   // Pagination props
   hasMoreWorkflows?: boolean;
@@ -44,9 +41,6 @@ export function DashboardPage({
   onCloseModal,
   onWorkflowUpdated,
   events,
-  isConnected,
-  connectionError,
-  onReconnect,
   uptime,
   hasMoreWorkflows = false,
   isLoadingMore = false,
@@ -110,9 +104,6 @@ export function DashboardPage({
         <section className="events-section">
           <EventFeedWidget
             events={events}
-            isConnected={isConnected}
-            connectionError={connectionError}
-            onReconnect={onReconnect}
           />
         </section>
       </div>

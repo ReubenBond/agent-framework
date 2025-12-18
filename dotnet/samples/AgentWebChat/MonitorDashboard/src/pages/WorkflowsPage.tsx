@@ -18,9 +18,6 @@ interface WorkflowsPageProps {
   onCloseModal: () => void;
   onWorkflowUpdated: () => void;
   events: MonitoringEvent[];
-  isConnected: boolean;
-  connectionError: Error | null;
-  onReconnect: () => void;
   // Pagination props
   hasMoreWorkflows?: boolean;
   isLoadingMore?: boolean;
@@ -40,9 +37,6 @@ export function WorkflowsPage({
   onCloseModal,
   onWorkflowUpdated,
   events,
-  isConnected,
-  connectionError,
-  onReconnect,
   hasMoreWorkflows = false,
   isLoadingMore = false,
   onLoadMore,
@@ -78,9 +72,6 @@ export function WorkflowsPage({
           <EventFeedWidget
             events={workflowEvents}
             maxEvents={50}
-            isConnected={isConnected}
-            connectionError={connectionError}
-            onReconnect={onReconnect}
           />
         </div>
       </div>

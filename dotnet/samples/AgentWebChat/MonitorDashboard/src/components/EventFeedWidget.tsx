@@ -7,17 +7,11 @@ type EventFilterType = 'all' | 'worker' | 'workflow';
 interface EventFeedWidgetProps {
   events: MonitoringEvent[];
   maxEvents?: number;
-  isConnected: boolean;
-  connectionError: Error | null;
-  onReconnect: () => void;
 }
 
 export function EventFeedWidget({
   events,
   maxEvents = 50,
-  isConnected,
-  connectionError,
-  onReconnect,
 }: EventFeedWidgetProps) {
   const listRef = useRef<HTMLDivElement>(null);
   const [filter, setFilter] = useState<EventFilterType>('all');
@@ -84,19 +78,8 @@ export function EventFeedWidget({
               Workflows
             </button>
           </div>
-          {!isConnected && (
-            <button onClick={onReconnect} className="reconnect-button">
-              Reconnect
-            </button>
-          )}
         </div>
       </div>
-
-      {connectionError && (
-        <div className="connection-error">
-          Connection error: {connectionError.message}
-        </div>
-      )}
 
       <div className="event-list" ref={listRef} onScroll={handleScroll}>
         {displayEvents.length === 0 ? (

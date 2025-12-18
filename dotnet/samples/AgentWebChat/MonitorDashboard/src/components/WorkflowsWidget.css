@@ -6,6 +6,8 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .workflows-widget.loading,
@@ -31,6 +33,7 @@
   align-items: center;
   margin-bottom: 0.75rem;
   gap: 0.75rem;
+  flex-shrink: 0;
 }
 
 .header-center {
@@ -308,4 +311,35 @@
 .load-more-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Infinite scroll trigger */
+.infinite-scroll-trigger {
+  min-height: 1px;
+  padding: 0.5rem 0;
+}
+
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  color: var(--text-secondary, #666);
+  font-size: 0.8rem;
+}
+
+.loading-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border, #e0e0e0);
+  border-top-color: var(--primary, #0066cc);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

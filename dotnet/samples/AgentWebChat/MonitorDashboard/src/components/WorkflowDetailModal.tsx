@@ -479,7 +479,6 @@ function GraphSection({ workflow }: { workflow: WorkflowRun }) {
       <WorkflowVisualizer
         workflow={workflow}
         layoutDirection="LR"
-        showMinimap={true}
         showGrid={true}
       />
     </div>

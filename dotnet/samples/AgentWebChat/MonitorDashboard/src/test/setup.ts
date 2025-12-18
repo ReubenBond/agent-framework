@@ -28,3 +28,22 @@ window.ResizeObserver = vi.fn().mockImplementation(() => ({
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }));
+
+// Mock IntersectionObserver for infinite scroll
+class MockIntersectionObserver implements IntersectionObserver {
+  readonly root: Element | Document | null = null;
+  readonly rootMargin: string = '';
+  readonly thresholds: ReadonlyArray<number> = [];
+  
+  constructor(
+    private callback: IntersectionObserverCallback,
+    options?: IntersectionObserverInit
+  ) {}
+  
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+  takeRecords = vi.fn(() => [] as IntersectionObserverEntry[]);
+}
+
+window.IntersectionObserver = MockIntersectionObserver;

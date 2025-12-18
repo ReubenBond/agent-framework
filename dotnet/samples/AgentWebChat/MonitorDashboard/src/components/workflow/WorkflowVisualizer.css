@@ -81,13 +81,6 @@
   fill: currentColor !important;
 }
 
-/* Minimap styling */
-.workflow-visualizer__minimap {
-  background-color: rgba(26, 26, 46, 0.9) !important;
-  border: 1px solid var(--color-border, #333) !important;
-  border-radius: 6px !important;
-}
-
 /* Light theme support */
 .theme-light .workflow-visualizer {
   background: #f8f9fa;
@@ -111,11 +104,6 @@
 .theme-light .workflow-visualizer__controls button:hover {
   background-color: rgba(74, 158, 255, 0.1) !important;
   color: #333 !important;
-}
-
-.theme-light .workflow-visualizer__minimap {
-  background-color: rgba(255, 255, 255, 0.95) !important;
-  border-color: #e0e0e0 !important;
 }
 
 .theme-light .workflow-visualizer__empty-state {

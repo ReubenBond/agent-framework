@@ -1,7 +1,8 @@
 .app {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   background: var(--app-bg, #f0f2f5);
+  overflow: hidden;
 }
 
 /* Main content area (right of sidebar) */
@@ -10,91 +11,25 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-}
-
-/* Minimal header - just theme toggle on right */
-.app-header {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  padding: 0.5rem 1rem;
-  background: var(--header-bg, #1a1a2e);
-  border-bottom: 1px solid var(--border, #2d3748);
-  flex-shrink: 0;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-/* Unified header badge style */
-.header-badge {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.35rem 0.6rem;
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-  font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.8);
-  transition: background 0.15s ease;
-}
-
-.header-badge:hover {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-/* Theme toggle button */
-.theme-toggle {
-  cursor: pointer;
-  border: none;
-  font-family: inherit;
-  font-size: inherit;
-  line-height: 1;
-}
-
-.theme-icon {
-  width: 16px;
-  height: 16px;
-  color: rgba(255, 255, 255, 0.9);
-  flex-shrink: 0;
-}
-
-/* Reconnect button in header */
-.reconnect-badge {
-  cursor: pointer;
-  border: 1px solid rgba(239, 83, 80, 0.5);
-  color: #ef5350;
-}
-
-.reconnect-badge:hover {
-  background: rgba(239, 83, 80, 0.15);
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* Main content */
 .app-content {
   flex: 1;
-  overflow: auto;
+  overflow: hidden;
   min-height: 0;
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .app-header {
-    padding: 0.5rem;
-  }
-
-  .theme-toggle span {
-    display: none;
-  }
+  /* Responsive styles if needed */
 }
 
 /* Dark Theme Variables (default) */
 .app {
   --app-bg: #0f1219;
-  --header-bg: #161b26;
   --sidebar-bg: #161b26;
   --sidebar-border: #2d3748;
   --sidebar-text: #f0f2f5;
@@ -130,7 +65,6 @@
 /* Light Theme */
 .app.theme-light {
   --app-bg: #e2e8f0;
-  --header-bg: #1e293b;
   --sidebar-bg: #1e293b;
   --sidebar-border: #334155;
   --sidebar-text: #f8fafc;

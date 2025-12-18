@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import type { WorkflowMonitoringSummary } from '../types';
 import { Skeleton } from './Skeleton';
 import './WorkflowsWidget.css';
@@ -84,6 +84,42 @@ export function WorkflowsWidget({
   onLoadMore,
 }: WorkflowsWidgetProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const loadMoreTriggerRef = useRef<HTMLDivElement>(null);
+
+  // Infinite scroll: use IntersectionObserver to detect when the trigger element is visible
+  const handleLoadMore = useCallback(() => {
+    if (hasMoreWorkflows && !isLoadingMore && onLoadMore) {
+      onLoadMore();
+    }
+  }, [hasMoreWorkflows, isLoadingMore, onLoadMore]);
+
+  useEffect(() => {
+    const triggerElement = loadMoreTriggerRef.current;
+    const scrollContainer = scrollContainerRef.current;
+    
+    if (!triggerElement || !scrollContainer) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const [entry] = entries;
+        if (entry.isIntersecting) {
+          handleLoadMore();
+        }
+      },
+      {
+        root: scrollContainer,
+        rootMargin: '100px', // Start loading 100px before reaching the bottom
+        threshold: 0,
+      }
+    );
+
+    observer.observe(triggerElement);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [handleLoadMore]);
 
   // Merge and sort workflows: active first (sorted by createdAt desc), then recent (sorted by completedAt desc)
   const mergedWorkflows = useMemo(() => {
@@ -217,7 +253,7 @@ export function WorkflowsWidget({
             : 'No workflows'}
         </p>
       ) : (
-        <div className="workflow-list">
+        <div className="workflow-list" ref={scrollContainerRef}>
           <table className="workflow-table">
             <thead>
               <tr>
@@ -286,18 +322,15 @@ export function WorkflowsWidget({
             </tbody>
           </table>
           
-          {/* Pagination: Load More button */}
-          {hasMoreWorkflows && onLoadMore && (
-            <div className="pagination-controls">
-              <button
-                className="load-more-button"
-                onClick={onLoadMore}
-                disabled={isLoadingMore}
-              >
-                {isLoadingMore ? 'Loading...' : 'Load More'}
-              </button>
-            </div>
-          )}
+          {/* Infinite scroll trigger element */}
+          <div ref={loadMoreTriggerRef} className="infinite-scroll-trigger">
+            {isLoadingMore && (
+              <div className="loading-more">
+                <span className="loading-spinner"></span>
+                Loading more...
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

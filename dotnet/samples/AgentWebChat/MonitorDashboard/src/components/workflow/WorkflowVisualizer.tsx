@@ -3,7 +3,6 @@ import {
   ReactFlow,
   Background,
   Controls,
-  MiniMap,
   useNodesState,
   useEdgesState,
   BackgroundVariant,
@@ -25,7 +24,6 @@ interface WorkflowVisualizerProps {
   workflow: WorkflowRun;
   className?: string;
   layoutDirection?: 'LR' | 'TB';
-  showMinimap?: boolean;
   showGrid?: boolean;
 }
 
@@ -162,7 +160,6 @@ export const WorkflowVisualizer = memo(function WorkflowVisualizer({
   workflow,
   className = '',
   layoutDirection = 'LR',
-  showMinimap = true,
   showGrid = true,
 }: WorkflowVisualizerProps) {
   // Create nodes and edges from workflow steps
@@ -243,28 +240,6 @@ export const WorkflowVisualizer = memo(function WorkflowVisualizer({
           showInteractive={false}
           className="workflow-visualizer__controls"
         />
-        {showMinimap && (
-          <MiniMap
-            nodeColor={(node: Node) => {
-              const data = node.data as ExecutorNodeData;
-              switch (data?.state) {
-                case 'running':
-                  return '#8b5cf6';
-                case 'completed':
-                  return '#10b981';
-                case 'failed':
-                  return '#ef4444';
-                case 'cancelled':
-                  return '#f97316';
-                default:
-                  return '#444';
-              }
-            }}
-            maskColor="rgba(0, 0, 0, 0.2)"
-            position="bottom-right"
-            className="workflow-visualizer__minimap"
-          />
-        )}
       </ReactFlow>
     </div>
   );
